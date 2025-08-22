@@ -1,29 +1,53 @@
 {
   "expo": {
-    "name": "meetwithmoai",
-    "slug": "meetwithmoai",
+    "name": "Moai Friends",
+    "slug": "moai-friends",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "dark",
     "newArchEnabled": true,
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#0A0B0D"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.moai.friends",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Moai Friends uses your location to find potential friends nearby.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Moai Friends uses your location to find potential friends nearby."
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#0A0B0D"
       },
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "package": "com.moai.friends",
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "plugins": [
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Allow Moai Friends to use your location to find potential friends nearby."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow Moai Friends to access your photos to set your profile picture."
+        }
+      ]
+    ]
   }
 }
