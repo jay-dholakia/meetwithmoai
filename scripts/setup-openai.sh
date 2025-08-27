@@ -63,3 +63,5 @@ echo "Edit .env to add your API key and you're ready to go!"
 
 
 
+
+

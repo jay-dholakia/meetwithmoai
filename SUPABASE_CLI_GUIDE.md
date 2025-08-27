@@ -248,3 +248,5 @@ You now have both MCP tools and Supabase CLI set up for comprehensive database m
 
 
 
+
+

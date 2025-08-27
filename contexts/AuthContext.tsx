@@ -9,6 +9,7 @@ interface AuthContextType {
   signUp: (email: string, password: string) => Promise<{ error: any }>
   signIn: (email: string, password: string) => Promise<{ error: any }>
   signOut: () => Promise<void>
+  clearSession: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -19,16 +20,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session)
-      setUser(session?.user ?? null)
-      setLoading(false)
+    // Force clear any existing session on startup
+    const clearSessionOnStartup = async () => {
+      try {
+        await supabase.auth.signOut()
+        console.log("Forced session clear on startup")
+      } catch (error) {
+        console.log("Error clearing session:", error)
+      }
+    }
+
+    clearSessionOnStartup().then(() => {
+      // Get initial session (should be null now)
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        console.log("Initial session after clear:", session?.user?.id, session?.user?.email)
+        setSession(session)
+        setUser(session?.user ?? null)
+        setLoading(false)
+      })
     })
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        console.log("Auth state change:", event, session?.user?.id, session?.user?.email)
         setSession(session)
         setUser(session?.user ?? null)
         setLoading(false)
@@ -58,6 +73,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await supabase.auth.signOut()
   }
 
+  const clearSession = async () => {
+    await supabase.auth.signOut()
+    setUser(null)
+    setSession(null)
+  }
+
   const value = {
     user,
     session,
@@ -65,6 +86,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     signUp,
     signIn,
     signOut,
+    clearSession,
   }
 
   return (
@@ -81,6 +103,9 @@ export function useAuth() {
   }
   return context
 }
+
+
+
 
 
 

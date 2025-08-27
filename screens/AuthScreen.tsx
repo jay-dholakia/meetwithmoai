@@ -19,7 +19,7 @@ import TabNavigator from '../components/TabNavigator';
 
 export default function AuthScreen() {
   const theme = useTheme();
-  const { user, signIn, signUp, loading } = useAuth();
+  const { user, signIn, signUp, loading, clearSession } = useAuth();
   const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -279,6 +279,8 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
 });
+
+
 
 
 
