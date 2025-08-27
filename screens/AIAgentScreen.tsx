@@ -510,10 +510,10 @@ export default function AIAgentScreen() {
       console.log("Chat already initialized, skipping");
       return;
     }
-
+    
     console.log("Initializing chat...");
     isInitializedRef.current = true;
-
+    
     // Load existing chat history first
     if (!user) return;
     
@@ -598,21 +598,21 @@ export default function AIAgentScreen() {
         const firstUnansweredStep = findFirstUnansweredProfileStep(profileData);
         console.log("First unanswered profile step:", firstUnansweredStep);
         setCurrentProfileStep(firstUnansweredStep);
-        setTimeout(() => {
-          askNextProfileQuestion();
-        }, 1000);
-      } else if (!intakeData) {
-        // Profile complete, start intake process
+      setTimeout(() => {
+        askNextProfileQuestion();
+      }, 1000);
+    } else if (!intakeData) {
+      // Profile complete, start intake process
         console.log("Profile complete, starting intake...");
-        setIsProfileComplete(true);
-        setTimeout(() => {
-          askNextQuestion();
-        }, 1000);
-      } else {
-        // Both profile and intake complete, check for weekly matches
+      setIsProfileComplete(true);
+      setTimeout(() => {
+        askNextQuestion();
+      }, 1000);
+    } else {
+      // Both profile and intake complete, check for weekly matches
         console.log("Both profile and intake complete, checking for matches...");
-        setIsProfileComplete(true);
-        await checkForWeeklyMatches();
+      setIsProfileComplete(true);
+      await checkForWeeklyMatches();
       }
     } else {
       // We have existing messages, check database state to determine current phase
@@ -709,11 +709,11 @@ export default function AIAgentScreen() {
       "total questions:",
       profileQuestions.length
     );
-
+    
     if (currentProfileStep < profileQuestions.length) {
       const question = profileQuestions[currentProfileStep];
       console.log("Asking profile question:", question.id, question.text);
-
+      
       const questionMessage: Message = {
         id: `profile-${question.id}-${currentProfileStep}-${Date.now()}-${Math.random()}`,
         text: question.text,
@@ -888,8 +888,8 @@ export default function AIAgentScreen() {
           break;
         case "gender":
           if (typeof answer === "string") {
-            // Store in dedicated gender column
-            profileToUpdate.gender = answer;
+          // Store in dedicated gender column
+          profileToUpdate.gender = answer;
           }
           break;
         case "pronouns":
@@ -901,7 +901,7 @@ export default function AIAgentScreen() {
         case "sexual_orientation":
           if (typeof answer === "string") {
             // Store sexual orientation in a dedicated column
-            profileToUpdate.sexual_orientation = answer;
+          profileToUpdate.sexual_orientation = answer;
           }
           break;
         case "profilePhoto":
@@ -917,8 +917,8 @@ export default function AIAgentScreen() {
           if (typeof answer === "string") {
             if (answer === "Yes, use my location") {
               profileToUpdate.city = "San Francisco"; // Default for now
-              profileToUpdate.lat = 37.7749;
-              profileToUpdate.lng = -122.4194;
+            profileToUpdate.lat = 37.7749;
+            profileToUpdate.lng = -122.4194;
             } else if (answer.startsWith("Manual: ")) {
               const city = answer.replace("Manual: ", "");
               profileToUpdate.city = city;
@@ -965,7 +965,7 @@ export default function AIAgentScreen() {
 
   const completeProfile = async () => {
     console.log("completeProfile called, user:", user?.id);
-
+    
     // Update bio_text with clean format using dedicated columns
     if (user) {
       const { data: existingProfile } = await supabase
@@ -991,14 +991,14 @@ export default function AIAgentScreen() {
 
         await supabase
           .from("profiles")
-          .update({
+          .update({ 
             bio_text: cleanBioText,
             updated_at: new Date().toISOString(),
           })
           .eq("id", user.id);
       }
     }
-
+    
     const completionMessage: Message = {
       id: "profile-completion",
       text: "Great! Now let's dive into what you're looking for in friendships. I'll ask you 50 questions to understand your preferences, communication style, and what makes a great friend for you.\n\nThis will take about 15-20 minutes. Ready to continue?",
@@ -1046,7 +1046,7 @@ export default function AIAgentScreen() {
     try {
       // Get user's current matches
       const matches = await MatchingService.getUserMatches(user.id);
-
+      
       if (matches.length > 0) {
         setWeeklyMatches(matches);
         showNextMatch();
@@ -1081,7 +1081,7 @@ export default function AIAgentScreen() {
     }
 
     const match = weeklyMatches[currentMatchIndex];
-
+    
     // Get the other user's profile
     const otherUserId = match.user_a === user?.id ? match.user_b : match.user_a;
     const { data: otherUser } = await supabase
@@ -1279,13 +1279,13 @@ export default function AIAgentScreen() {
           currentProfileQuestion.id,
           currentInput
         );
-
+        
         // Save directly to remote database
         await saveProfileAnswerToRemote(
           currentProfileQuestion.id,
           currentInput
         );
-
+        
         // Move to next profile question
         moveToNextQuestion();
 
@@ -1313,9 +1313,9 @@ export default function AIAgentScreen() {
 
           // Move to next profile question
           moveToNextQuestion();
-
-          setIsTyping(false);
-          return;
+        
+        setIsTyping(false);
+        return;
         } else {
           // Show error message if no languages selected
           const errorMessage: Message = {
@@ -1376,29 +1376,29 @@ export default function AIAgentScreen() {
 
   const renderMessage = ({ item }: { item: Message }) => {
     const isUser = item.sender === "user";
-
+    
     return (
       <View
         style={[
-          styles.messageContainer,
+        styles.messageContainer,
           isUser ? styles.userMessage : styles.aiMessage,
         ]}
       >
         <View
           style={[
-            styles.messageBubble,
+          styles.messageBubble,
             isUser ? styles.userBubble : styles.aiBubble,
           ]}
         >
           <Text
             style={[
-              styles.messageText,
+            styles.messageText,
               isUser ? styles.userText : styles.aiText,
             ]}
           >
             {item.text}
           </Text>
-
+          
                       {/* Fix: Add check for item.data.options existence */}
             {item.type === "question" &&
               item.data &&
@@ -1408,45 +1408,45 @@ export default function AIAgentScreen() {
                 (() => {
                   console.log("Rendering question with options:", item.data.id, "type:", item.data.type, "options:", item.data.options);
                   return (
-                    <View style={styles.questionOptions}>
-                      {item.data.options.map((option: string, index: number) => (
-                        <TouchableOpacity
-                          key={index}
-                          style={styles.optionChip}
+            <View style={styles.questionOptions}>
+              {item.data.options.map((option: string, index: number) => (
+                <TouchableOpacity
+                  key={index}
+                  style={styles.optionChip}
                           onPress={async () => {
-                            // Add user's selection as a message
-                            const userSelectionMessage: Message = {
-                              id: `selection-${Date.now()}`,
-                              text: option,
+                    // Add user's selection as a message
+                    const userSelectionMessage: Message = {
+                      id: `selection-${Date.now()}`,
+                      text: option,
                               sender: "user",
-                              timestamp: new Date(),
+                      timestamp: new Date(),
                               type: "text",
                             };
                             setMessages((prev) => [...prev, userSelectionMessage]);
 
                             // Save the answer to remote database
                             await saveIntakeAnswerToRemote(item.data.id, option);
-
-                            // Move to next question
+                    
+                    // Move to next question
                             setCurrentQuestion((prev) => prev + 1);
-
-                            // Ask next question after a short delay
-                            setTimeout(() => {
-                              if (currentQuestion + 1 < intakeQuestions.length) {
-                                askNextQuestion();
-                              } else {
-                                completeIntake();
-                              }
-                            }, 500);
-                          }}
-                        >
-                          <Text style={styles.optionText}>{option}</Text>
-                        </TouchableOpacity>
-                      ))}
-                    </View>
+                    
+                    // Ask next question after a short delay
+                    setTimeout(() => {
+                      if (currentQuestion + 1 < intakeQuestions.length) {
+                        askNextQuestion();
+                      } else {
+                        completeIntake();
+                      }
+                    }, 500);
+                  }}
+                >
+                  <Text style={styles.optionText}>{option}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
                   );
                 })()
-              )}
+          )}
 
           {/* Fix: Add check for profile question options */}
           {item.type === "profile-question" && item.data && (
@@ -1458,23 +1458,23 @@ export default function AIAgentScreen() {
                   <TouchableOpacity
                     key={index}
                     style={styles.optionChip}
-                    onPress={async () => {
-                      // Add user's selection as a message
-                      const userSelectionMessage: Message = {
+                                         onPress={async () => {
+                       // Add user's selection as a message
+                       const userSelectionMessage: Message = {
                         id: `profile-selection-${
                           item.data.id
                         }-${currentProfileStep}-${Date.now()}`,
-                        text: option,
+                         text: option,
                         sender: "user",
-                        timestamp: new Date(),
+                         timestamp: new Date(),
                         type: "text",
-                      };
+                       };
                       setMessages((prev) => [...prev, userSelectionMessage]);
-
-                      // Save directly to remote database
-                      await saveProfileAnswerToRemote(item.data.id, option);
-
-                      // Move to next profile question
+                       
+                       // Save directly to remote database
+                       await saveProfileAnswerToRemote(item.data.id, option);
+                       
+                       // Move to next profile question
                       moveToNextQuestion();
                     }}
                   >
@@ -1508,7 +1508,7 @@ export default function AIAgentScreen() {
                             } else if (item.data.maxSelections && currentSelections.length >= item.data.maxSelections) {
                               // Don't add if at limit
                               newSelections = currentSelections;
-                            } else {
+                         } else {
                               // Add if under limit
                               newSelections = [...currentSelections, option];
                             }
@@ -1529,7 +1529,7 @@ export default function AIAgentScreen() {
                         ]}>
                           {option}
                         </Text>
-                      </TouchableOpacity>
+                  </TouchableOpacity>
                     ))}
                   </View>
                 )}
@@ -1588,15 +1588,15 @@ export default function AIAgentScreen() {
                   <TouchableOpacity
                     key={index}
                     style={styles.optionChip}
-                    onPress={async () => {
-                      // Add user's selection as a message
-                      const userSelectionMessage: Message = {
+                                         onPress={async () => {
+                       // Add user's selection as a message
+                       const userSelectionMessage: Message = {
                         id: `profile-selection-${
                           item.data.id
                         }-${currentProfileStep}-${Date.now()}`,
-                        text: option,
+                         text: option,
                         sender: "user",
-                        timestamp: new Date(),
+                         timestamp: new Date(),
                         type: "text",
                       };
                       setMessages((prev) => [...prev, userSelectionMessage]);
@@ -1644,11 +1644,11 @@ export default function AIAgentScreen() {
                         type: "text",
                       };
                       setMessages((prev) => [...prev, userSelectionMessage]);
-
-                      // Save directly to remote database
-                      await saveProfileAnswerToRemote(item.data.id, option);
-
-                      // Move to next profile question
+                       
+                       // Save directly to remote database
+                       await saveProfileAnswerToRemote(item.data.id, option);
+                       
+                       // Move to next profile question
                       moveToNextQuestion();
                     }}
                   >
@@ -1685,7 +1685,7 @@ export default function AIAgentScreen() {
                         } else if (item.data.maxSelections && currentSelections.length >= item.data.maxSelections) {
                           // Don't add if at limit
                           newSelections = currentSelections;
-                        } else {
+                         } else {
                           // Add if under limit
                           newSelections = [...currentSelections, option];
                         }
@@ -1708,9 +1708,9 @@ export default function AIAgentScreen() {
                     </Text>
                   </TouchableOpacity>
                 ))}
-              </View>
-            )}
-
+            </View>
+          )}
+          
           {item.type === "match-card" && item.data && (
             <MatchCard
               match={item.data.match}
@@ -1732,7 +1732,7 @@ export default function AIAgentScreen() {
 
   const hasOptionsAvailable = () => {
     const lastMessage = messages[messages.length - 1];
-    return (
+  return (
       lastMessage &&
       lastMessage.sender === "ai" &&
       ((lastMessage.type === "question" && lastMessage.data?.options) ||
