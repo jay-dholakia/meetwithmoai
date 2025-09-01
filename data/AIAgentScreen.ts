@@ -35,8 +35,8 @@ export const intakeQuestions = [
         values.length > 0 ? null : "Please select at least one activity",
     },
     {
-      id: "enjoy_trying_new_activities",
-      text: "Do you enjoy trying new activities?",
+      id: "adventure_openness",
+      text: "I'm open to trying new activities and adventures",
       type: "likert",
       options: [
         "Strongly disagree",
@@ -129,10 +129,17 @@ export const intakeQuestions = [
         values.length > 0 ? null : "Please select at least one category",
     },
     {
-      id: "favorite_restaurant",
-      text: "Favorite restaurant in [city]",
-      type: "text",
-      placeholder: "Tell us about your favorite local spot",
+      id: "spiritual_beliefs",
+      text: "How would you describe your spiritual/religious beliefs?",
+      type: "single_select",
+      options: [
+        "Very religious/spiritual",
+        "Somewhat religious/spiritual", 
+        "Spiritual but not religious",
+        "Agnostic/questioning",
+        "Not religious/spiritual",
+        "Prefer not to say"
+      ],
     },
     {
       id: "going_out_vs_quiet",
@@ -327,13 +334,45 @@ export const intakeQuestions = [
       options: ["<1 yr", "1–3 yrs", "3–5 yrs", "5+ yrs"],
     },
     {
-      id: "hometown_region",
-      text: "Where's your hometown or region?",
-      type: "text",
-      placeholder: "Tell us about your hometown",
+      id: "lifestyle_priorities",
+      text: "Which lifestyle priorities are important to you?",
+      type: "multi_select",
+      options: [
+        "Healthy eating & fitness",
+        "Environmental consciousness",
+        "Work-life balance",
+        "Financial responsibility",
+        "Personal growth & learning",
+        "Family & relationships",
+        "Career advancement",
+        "Creative expression",
+        "Community involvement",
+        "Travel & experiences"
+      ],
+      maxSelections: 5,
+      validation: (values: string[]) =>
+        values.length > 0 ? null : "Please select at least one priority",
     },
 
-    // Part D — Communication & Logistics (3)
+    // Part D — Communication & Logistics (5)
+    {
+      id: "smoking_preference",
+      text: "Do you smoke or vape?",
+      type: "single_select",
+      options: ["Yes, regularly", "Occasionally/socially", "No, never"],
+    },
+    {
+      id: "punctuality_importance",
+      text: "How important is punctuality to you?",
+      type: "likert",
+      options: [
+        "Not important at all",
+        "Somewhat important",
+        "Moderately important", 
+        "Very important",
+        "Extremely important"
+      ],
+    },
     {
       id: "preferred_meetup_times",
       text: "When do you usually prefer to meet up?",
@@ -354,6 +393,26 @@ export const intakeQuestions = [
       options: ["1 mile", "5 miles", "10 miles", "20 miles"],
     },
     {
+      id: "conversation_topics",
+      text: "What topics energize you in conversation?",
+      type: "multi_select",
+      options: [
+        "Career & professional goals",
+        "Personal relationships & dating",
+        "Current events & news",
+        "Philosophy & life meaning",
+        "Hobbies & personal interests",
+        "Travel & experiences",
+        "Health & wellness",
+        "Technology & innovation",
+        "Arts & creativity",
+        "Pop culture & entertainment"
+      ],
+      maxSelections: 5,
+      validation: (values: string[]) =>
+        values.length > 0 ? null : "Please select at least one topic",
+    },
+    {
       id: "hangout_preference",
       text: "Do you prefer casual 1:1 hangouts or group meetups for first meetings?",
       type: "single_select",
@@ -362,10 +421,10 @@ export const intakeQuestions = [
 
     // Part E — Creative Open-Ended (5)
     {
-      id: "current_song_show_podcast",
-      text: "A song, show, or podcast you've been into lately",
-      type: "text",
-      placeholder: "Share what you're enjoying",
+      id: "friendship_frequency",
+      text: "How often would you like to hang out with a close friend?",
+      type: "single_select",
+      options: ["Weekly", "Bi-weekly", "Monthly", "Occasionally"],
     },
     {
       id: "free_saturday_activity",
@@ -374,10 +433,22 @@ export const intakeQuestions = [
       placeholder: "Describe your ideal Saturday",
     },
     {
-      id: "small_things_better_day",
-      text: "What's something small that always makes your day better?",
-      type: "text",
-      placeholder: "Share a little joy",
+      id: "friendship_values",
+      text: "What's most important to you in a friendship?",
+      type: "multi_select",
+      options: [
+        "Trust & loyalty",
+        "Fun & laughter",
+        "Personal growth",
+        "Emotional support",
+        "Shared adventures",
+        "Consistency & reliability",
+        "Deep conversations",
+        "Mutual respect"
+      ],
+      maxSelections: 4,
+      validation: (values: string[]) =>
+        values.length > 0 ? null : "Please select at least one value",
     },
     {
       id: "friends_describe_three_words",
@@ -386,10 +457,15 @@ export const intakeQuestions = [
       placeholder: "What words come to mind?",
     },
     {
-      id: "new_to_try_with_friends",
-      text: "What's something new you'd like to try with friends this year?",
-      type: "text",
-      placeholder: "Share your aspirations",
+      id: "conflict_style",
+      text: "How do you prefer to handle disagreements with friends?",
+      type: "single_select",
+      options: [
+        "Direct conversation right away",
+        "Give some space first, then talk",
+        "Try to avoid conflict when possible",
+        "Work through it together patiently"
+      ],
     },
 
     // Part F — Let's Get Deeper (About You) (5)
@@ -412,10 +488,22 @@ export const intakeQuestions = [
       placeholder: "What drives you?",
     },
     {
-      id: "challenge_overcome",
-      text: "What's a challenge you've overcome that shaped who you are?",
-      type: "text",
-      placeholder: "Share a meaningful experience",
+      id: "social_values",
+      text: "Which social/political topics do you feel strongly about?",
+      type: "multi_select",
+      options: [
+        "Environmental sustainability",
+        "Social justice & equality",
+        "Community involvement",
+        "Mental health awareness",
+        "Economic policy",
+        "Education reform",
+        "Healthcare access",
+        "Technology & privacy",
+        "Not particularly political",
+        "Prefer not to discuss politics"
+      ],
+      maxSelections: 5,
     },
     {
       id: "looking_for_in_friend",

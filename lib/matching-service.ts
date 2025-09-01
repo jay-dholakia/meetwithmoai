@@ -31,46 +31,60 @@ export interface UserProfile {
 
 export interface IntakeResponse {
   user_id: string;
-  // Part A: Interests & Activities (10)
+  // Part A: Interests & Activities (13)
   activities_enjoyed: string[];
-  top_3_activities: string[];
-  active_outdoor_frequency: number;
-  indoor_hangs_frequency: number;
-  try_new_activities: number;
-  competitive_activities: number;
+  adventure_openness: number;
+  enjoy_competitive_activities: number;
   sports_teams: string;
-  music_preferences: string[];
-  alcohol_preference: string;
-  kid_friendly_preference: string;
-  // Part B: Social Style & Reliability (10)
-  energy_from_people: number;
-  prefer_one_on_one: number;
-  comfortable_joining_solo: number;
-  like_structured_plans: number;
-  enjoy_spontaneous: number;
-  conversation_flow: number;
-  playful_banter: number;
-  reliable_plans: number;
-  value_balance_talking: number;
-  prefer_deep_friendships: number;
-  // Part C: Work, Life & Anchors (5)
+  music_genres: string[];
+  movies_shows: string[];
+  books_podcasts: string[];
+  spiritual_beliefs: string;
+  going_out_vs_quiet: string;
+  drink_alcohol: string;
+  enjoy_cooking_hosting: number;
+  creative_hobbies: string[];
+  first_meet_ideas: string[];
+  
+  // Part B: Personality & Style (7)
+  introvert_extrovert_scale: string;
+  punctual_person: number;
+  good_communicator: number;
+  planner_organized: number;
+  spontaneous_adventurous: number;
+  reliable_friend: number;
+  listener_or_talker: string;
+  
+  // Part C: Work, Life & Anchors (6)
   work_study: string;
-  industry: string;
-  life_stage: string;
-  local_status: string;
-  hometown: string;
-  // Part D: Communication & Boundaries (5)
-  favorite_planning_method: string;
-  reply_speed: string;
-  preferred_meeting_times: string[];
+  industries: string[];
+  current_life_stage: string;
+  grew_up_here_or_moved: string;
+  time_in_city: string;
+  lifestyle_priorities: string[];
+  
+  // Part D: Communication & Logistics (5)
+  smoking_preference: string;
+  punctuality_importance: number;
+  preferred_meetup_times: string[];
   travel_distance: string;
-  avoid_topics: string[];
-  // Part E: Creative Open-Ended (5)
-  current_media: string;
-  free_saturday: string;
-  day_brightener: string;
-  three_words_description: string;
-  new_to_try: string;
+  conversation_topics: string[];
+  hangout_preference: string;
+  
+  // Part E: Creative Open-Ended (4)
+  friendship_frequency: string;
+  free_saturday_activity: string;
+  friendship_values: string[];
+  friends_describe_three_words: string;
+  conflict_style: string;
+  
+  // Part F: Let's Get Deeper (4)
+  role_model_and_why: string;
+  proud_of_lately: string;
+  morning_motivation: string;
+  social_values: string[];
+  looking_for_in_friend: string;
+  
   // Metadata
   embed_vector?: number[];
   completed_at: string;
