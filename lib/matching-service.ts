@@ -31,59 +31,73 @@ export interface UserProfile {
 
 export interface IntakeResponse {
   user_id: string;
-  // Part A: Interests & Activities (13)
-  activities_enjoyed: string[];
-  adventure_openness: number;
-  enjoy_competitive_activities: number;
-  sports_teams: string;
+  
+  // 🟢 Light & Fun Starters (5)
+  friend_type: string;
+  lazy_sunday: string;
+  sense_of_humor: string;
+  recharge_method: string;
+  default_hangout: string;
+  
+  // 🎯 Interests & Activities (17)
+  sports_fitness: string[];
+  is_gamer: string;
+  gaming_types?: string[]; // Conditional
+  plays_nyt_games: string;
+  nyt_games?: string[]; // Conditional
+  cultural_activities: string[];
+  live_music_frequency: string;
   music_genres: string[];
-  movies_shows: string[];
-  books_podcasts: string[];
-  spiritual_beliefs: string;
-  going_out_vs_quiet: string;
-  drink_alcohol: string;
-  enjoy_cooking_hosting: number;
-  creative_hobbies: string[];
-  first_meet_ideas: string[];
+  enjoys_reading: string;
+  book_types?: string[]; // Conditional
+  podcast_types: string[];
+  watching_with_friends: string;
+  enjoys_cooking: string;
+  coffee_or_tea: string;
+  trying_restaurants: string;
+  favorite_cuisines: string[];
+  fun_activities: string[];
   
-  // Part B: Personality & Style (7)
-  introvert_extrovert_scale: string;
-  punctual_person: number;
-  good_communicator: number;
-  planner_organized: number;
-  spontaneous_adventurous: number;
-  reliable_friend: number;
-  listener_or_talker: string;
+  // 👥 Types of Friends You're Looking For (1)
+  friend_types_seeking: string[];
   
-  // Part C: Work, Life & Anchors (6)
-  work_study: string;
-  industries: string[];
-  current_life_stage: string;
-  grew_up_here_or_moved: string;
-  time_in_city: string;
-  lifestyle_priorities: string[];
+  // 🔵 Lifestyle & Social Fit (11)
+  hangout_frequency: string;
+  social_setting: string;
+  social_activity_level: string;
+  personality_type: string;
+  communication_preference: string;
+  active_friends_preference: string;
+  travel_with_friends: string;
+  holiday_preference: string;
+  routine_vs_flexible: string;
+  weekend_preference: string;
+  availability_times: string;
   
-  // Part D: Communication & Logistics (5)
-  smoking_preference: string;
-  punctuality_importance: number;
-  preferred_meetup_times: string[];
-  travel_distance: string;
-  conversation_topics: string[];
-  hangout_preference: string;
+  // 🟠 Values & Friendship Dynamics (6)
+  friendship_commitment: string;
+  friendship_pace: string;
+  shared_vs_different: string;
+  values_importance: string;
+  honesty_approach: string;
+  deep_conversation_frequency: string;
   
-  // Part E: Creative Open-Ended (4)
-  friendship_frequency: string;
-  free_saturday_activity: string;
-  friendship_values: string[];
-  friends_describe_three_words: string;
-  conflict_style: string;
+  // 🌍 Ideological Alignment (5)
+  news_engagement: string;
+  political_alignment_importance: string;
+  important_issues: string[];
+  big_picture_discussions: string;
+  worldview_preference: string;
   
-  // Part F: Let's Get Deeper (4)
-  role_model_and_why: string;
-  proud_of_lately: string;
-  morning_motivation: string;
-  social_values: string[];
-  looking_for_in_friend: string;
+  // 🔴 Lifestyle Context (8 including conditional)
+  partnered_friend_preference?: string; // Conditional on relationship status
+  single_friend_preference?: string; // Conditional on relationship status
+  has_kids: string;
+  kids_friend_preference: string;
+  location_preference: string;
+  meetup_budget: string;
+  life_stage: string;
+  work_life_approach: string;
   
   // Metadata
   embed_vector?: number[];

@@ -1,665 +1,632 @@
 export const intakeQuestions = [
-    // Part A — Interests, Activities & First-Meet Ideas (13)
-    {
-      id: "activities_enjoyed",
-      text: "What activities do you enjoy?",
-      type: "multi_select",
-      options: [
-        "Running",
-        "Hiking",
-        "Cycling",
-        "Yoga/Pilates",
-        "Gym/Strength",
-        "Basketball",
-        "Soccer",
-        "Tennis",
-        "Pickleball",
-        "Volleyball",
-        "Swimming",
-        "Golf",
-        "Ski/Snowboard",
-        "Surfing",
-        "Dance",
-        "Rock climbing",
-        "Coffee shops",
-        "Cooking/Dining out",
-        "Concerts/Live music",
-        "Gaming (video/board)",
-        "Traveling/Day trips",
-        "Arts & crafts",
-        "Volunteering",
-        "Other",
-      ],
-      maxSelections: 10,
-      validation: (values: string[]) =>
-        values.length > 0 ? null : "Please select at least one activity",
-    },
-    {
-      id: "adventure_openness",
-      text: "I'm open to trying new activities and adventures",
-      type: "likert",
-      options: [
-        "Strongly disagree",
-        "Disagree",
-        "Neutral",
-        "Agree",
-        "Strongly agree",
-      ],
-    },
-    {
-      id: "enjoy_competitive_activities",
-      text: "Do you enjoy light competitive stuff (ping-pong, trivia, bowling)?",
-      type: "likert",
-      options: [
-        "Strongly disagree",
-        "Disagree",
-        "Neutral",
-        "Agree",
-        "Strongly agree",
-      ],
-    },
-    {
-      id: "sports_teams",
-      text: "Do you follow any sports teams or leagues?",
-      type: "text",
-      placeholder: "Tell us about your teams or leave blank if none",
-    },
-    {
-      id: "music_genres",
-      text: "Music genres",
-      type: "multi_select",
-      options: [
-        "Pop",
-        "Rap/Hip-hop",
-        "Rock",
-        "Indie/Alternative",
-        "EDM/Electronic",
-        "Jazz",
-        "Classical",
-        "Country",
-        "R&B/Soul",
-        "Latin",
-        "K-pop/International",
-        "Other",
-      ],
-      maxSelections: 5,
-      validation: (values: string[]) =>
-        values.length > 0 ? null : "Please select at least one genre",
-    },
-    {
-      id: "movies_shows",
-      text: "Movies/Shows",
-      type: "multi_select",
-      options: [
-        "Comedy",
-        "Action/Adventure",
-        "Drama",
-        "Sci-Fi/Fantasy",
-        "Documentaries",
-        "Reality TV",
-        "Anime",
-        "Thriller/Mystery",
-        "Rom-com",
-        "Horror",
-        "Other",
-      ],
-      maxSelections: 5,
-      validation: (values: string[]) =>
-        values.length > 0 ? null : "Please select at least one genre",
-    },
-    {
-      id: "books_podcasts",
-      text: "Books/Podcasts",
-      type: "multi_select",
-      options: [
-        "Fiction",
-        "Non-fiction",
-        "History",
-        "Self-help/Personal growth",
-        "True crime",
-        "Business/Entrepreneurship",
-        "Science/Technology",
-        "Spirituality/Philosophy",
-        "News/Current events",
-        "Health & fitness",
-        "Other",
-      ],
-      maxSelections: 5,
-      validation: (values: string[]) =>
-        values.length > 0 ? null : "Please select at least one category",
-    },
-    {
-      id: "spiritual_beliefs",
-      text: "How would you describe your spiritual/religious beliefs?",
-      type: "single_select",
-      options: [
-        "Very religious/spiritual",
-        "Somewhat religious/spiritual", 
-        "Spiritual but not religious",
-        "Agnostic/questioning",
-        "Not religious/spiritual",
-        "Prefer not to say"
-      ],
-    },
-    {
-      id: "going_out_vs_quiet",
-      text: "Going out vs quiet hangs",
-      type: "single_select",
-      options: ["Out", "Quiet", "Mix"],
-    },
-    {
-      id: "drink_alcohol",
-      text: "Do you drink alcohol?",
-      type: "single_select",
-      options: ["Yes", "No"],
-    },
-    {
-      id: "enjoy_cooking_hosting",
-      text: "Enjoy cooking/hosting meals?",
-      type: "likert",
-      options: [
-        "Strongly disagree",
-        "Disagree",
-        "Neutral",
-        "Agree",
-        "Strongly agree",
-      ],
-    },
-    {
-      id: "creative_hobbies",
-      text: "Creative hobbies (art, music, writing, crafts)",
-      type: "multi_select",
-      options: [
-        "Art",
-        "Music",
-        "Writing",
-        "Crafts",
-        "Photography",
-        "Cooking",
-        "DIY projects",
-        "Other",
-      ],
-      validation: (values: string[]) =>
-        values.length > 0 ? null : "Please select at least one hobby",
-    },
-    {
-      id: "first_meet_ideas",
-      text: "First-meet ideas",
-      type: "multi_select",
-      options: [
-        "Playing pickleball",
-        "Escape room",
-        "Bowling",
-        "Window shopping at a mall",
-        "Grabbing coffee",
-        "Park walk",
-        "New restaurant",
-        "Trivia night",
-        "Museum",
-        "Casual workout/fitness class",
-      ],
-      maxSelections: 5,
-      validation: (values: string[]) =>
-        values.length > 0 ? null : "Please select at least one idea",
-    },
+  // 🟢 Light & Fun Starters (5)
+  {
+    id: "friend_type",
+    text: "What kind of friend are you usually?",
+    type: "single_select",
+    options: [
+      "The planner (sets up hangouts)",
+      "The chill one (always down to join)",
+      "The hype one (brings the energy)",
+      "The listener (keeps it grounded)"
+    ],
+    validation: (value: string) => value ? null : "Please select a friend type",
+  },
+  {
+    id: "lazy_sunday",
+    text: "How do you usually spend a lazy Sunday?",
+    type: "single_select",
+    options: [
+      "Sleeping in and relaxing",
+      "Catching up on shows/books",
+      "Getting outside and active",
+      "Meal prepping or organizing for the week"
+    ],
+    validation: (value: string) => value ? null : "Please select an option",
+  },
+  {
+    id: "sense_of_humor",
+    text: "Which best describes your sense of humor?",
+    type: "single_select",
+    options: [
+      "Sarcastic/dry",
+      "Goofy/silly",
+      "Clever/witty",
+      "A little dark"
+    ],
+    validation: (value: string) => value ? null : "Please select a humor style",
+  },
+  {
+    id: "recharge_method",
+    text: "If you could only pick one way to recharge, what would it be?",
+    type: "single_select",
+    options: [
+      "Time alone",
+      "Time with friends",
+      "Doing something active",
+      "Doing something creative"
+    ],
+    validation: (value: string) => value ? null : "Please select a recharge method",
+  },
+  {
+    id: "default_hangout",
+    text: "What's your default first hangout idea with a new friend?",
+    type: "single_select",
+    options: [
+      "Grab food or coffee",
+      "Go for a walk or something outdoors",
+      "Watch a movie/show together",
+      "Play a game (board or video)"
+    ],
+    validation: (value: string) => value ? null : "Please select a hangout idea",
+  },
 
-    // Part B — Personality & Style (10)
-    {
-      id: "introvert_extrovert_scale",
-      text: "I'd consider myself more of an introvert, extrovert, or somewhere in between",
-      type: "scale",
-      options: [
-        "Very introverted",
-        "Somewhat introverted",
-        "In between",
-        "Somewhat extroverted",
-        "Very extroverted",
-      ],
-    },
-    {
-      id: "punctual_person",
-      text: "I'd consider myself a punctual person",
-      type: "likert",
-      options: [
-        "Strongly disagree",
-        "Disagree",
-        "Neutral",
-        "Agree",
-        "Strongly agree",
-      ],
-    },
-    {
-      id: "good_communicator",
-      text: "In conversations, I'd consider myself a good communicator (asking questions, listening)",
-      type: "likert",
-      options: [
-        "Strongly disagree",
-        "Disagree",
-        "Neutral",
-        "Agree",
-        "Strongly agree",
-      ],
-    },
-    {
-      id: "planner_organized",
-      text: "I'd consider myself a planner (I like things organized)",
-      type: "likert",
-      options: [
-        "Strongly disagree",
-        "Disagree",
-        "Neutral",
-        "Agree",
-        "Strongly agree",
-      ],
-    },
-    {
-      id: "spontaneous_adventurous",
-      text: "I'd consider myself more spontaneous/adventurous",
-      type: "likert",
-      options: [
-        "Strongly disagree",
-        "Disagree",
-        "Neutral",
-        "Agree",
-        "Strongly agree",
-      ],
-    },
-    {
-      id: "reliable_friend",
-      text: "I'd consider myself a reliable friend (I show up when I say I will)",
-      type: "likert",
-      options: [
-        "Strongly disagree",
-        "Disagree",
-        "Neutral",
-        "Agree",
-        "Strongly agree",
-      ],
-    },
-    {
-      id: "listener_or_talker",
-      text: "I'd consider myself more of a listener or a talker",
-      type: "single_select",
-      options: ["Mostly listener", "Mostly talker", "Balance of both"],
-    },
+  // 🎯 Interests & Activities (17)
+  {
+    id: "sports_fitness",
+    text: "Which kinds of sports or fitness activities do you enjoy?",
+    type: "multi_select",
+    useTextBox: true,
+    textBoxPlaceholder: "Search sports and fitness activities...",
+    options: [
+      "Running", "Walking", "Hiking", "Strength training", "CrossFit",
+      "Cycling (indoor or outdoor)", "Swimming", "Yoga", "Pilates", "Dance",
+      "Martial arts", "Boxing or kickboxing", "Rock climbing", "Basketball",
+      "Soccer", "Football", "Volleyball", "Baseball", "Softball", "Tennis",
+      "Pickleball", "Padel", "Badminton", "Squash", "Golf", "Skiing",
+      "Snowboarding", "Surfing", "Paddleboarding", "Rowing", "Kayaking",
+      "Ultimate frisbee", "Lacrosse", "Cricket", "Rugby", "Field hockey",
+      "Ice hockey", "Other"
+    ],
+    validation: (values: string[]) =>
+      values.length > 0 ? null : "Please select at least one activity",
+  },
+  {
+    id: "is_gamer",
+    text: "Do you consider yourself a gamer?",
+    type: "single_select",
+    options: ["Yes", "Sometimes", "No"],
+    validation: (value: string) => value ? null : "Please select an option",
+  },
+  {
+    id: "gaming_types",
+    text: "Nice, what do you play?",
+    type: "multi_select",
+    useTextBox: true,
+    textBoxPlaceholder: "Search game types...",
+    options: [
+      "Fortnite", "Call of Duty", "Minecraft", "Roblox", "League of Legends",
+      "Valorant", "Counter-Strike", "Grand Theft Auto V (GTA Online)",
+      "Apex Legends", "Elden Ring", "Other"
+    ],
+    conditionalOn: "is_gamer",
+    showIf: ["Yes", "Sometimes"],
+    validation: (values: string[]) =>
+      values.length > 0 ? null : "Please select at least one game type",
+  },
+  {
+    id: "plays_nyt_games",
+    text: "Do you play any New York Times games?",
+    type: "single_select",
+    options: ["Yes", "No"],
+    validation: (value: string) => value ? null : "Please select an option",
+  },
+  {
+    id: "nyt_games",
+    text: "Which ones?",
+    type: "multi_select",
+    options: [
+      "Wordle", "Connections", "Mini Crossword", "Spelling Bee",
+      "Letter Boxed", "Tiles", "Sudoku", "Other"
+    ],
+    conditionalOn: "plays_nyt_games",
+    showIf: ["Yes"],
+    validation: (values: string[]) =>
+      values.length > 0 ? null : "Please select at least one game",
+  },
+  {
+    id: "cultural_activities",
+    text: "Do you enjoy cultural or creative activities with friends?",
+    type: "multi_select",
+    options: [
+      "Live music and concerts",
+      "Festivals and events",
+      "Museums and art",
+      "Theatre and performances",
+      "Making or creating together",
+      "Not really my thing"
+    ],
+    validation: (values: string[]) =>
+      values.length > 0 ? null : "Please select at least one option",
+  },
+  {
+    id: "live_music_frequency",
+    text: "Do you enjoy going to live music events?",
+    type: "single_select",
+    options: ["Yes, often", "Sometimes", "Rarely", "Not really"],
+    validation: (value: string) => value ? null : "Please select an option",
+  },
+  {
+    id: "music_genres",
+    text: "What kind of music do you usually listen to?",
+    type: "multi_select",
+    useTextBox: true,
+    textBoxPlaceholder: "Search music genres...",
+    options: [
+      "Pop", "Hip hop", "Rock", "EDM", "Country", "Indie", "Classical", "Other"
+    ],
+    validation: (values: string[]) =>
+      values.length > 0 ? null : "Please select at least one genre",
+  },
+  {
+    id: "enjoys_reading",
+    text: "Do you enjoy reading?",
+    type: "single_select",
+    options: ["Yes, a lot", "Occasionally", "Not much", "Not at all"],
+    validation: (value: string) => value ? null : "Please select an option",
+  },
+  {
+    id: "book_types",
+    text: "What types of books do you like reading?",
+    type: "multi_select",
+    useTextBox: true,
+    textBoxPlaceholder: "Search book genres...",
+    options: [
+      "Fiction", "Non-fiction", "Mystery or thriller", "Fantasy",
+      "Science fiction", "Romance", "Historical", "Self-development",
+      "Biographies or memoirs", "Poetry", "Other"
+    ],
+    conditionalOn: "enjoys_reading",
+    showIf: ["Yes, a lot", "Occasionally"],
+    validation: (values: string[]) =>
+      values.length > 0 ? null : "Please select at least one book type",
+  },
+  {
+    id: "podcast_types",
+    text: "What types of podcasts do you listen to most?",
+    type: "multi_select",
+    options: [
+      "Comedy", "News and politics", "Business and tech", "Health and fitness",
+      "True crime", "Storytelling and culture", "Don't really listen"
+    ],
+    validation: (values: string[]) =>
+      values.length > 0 ? null : "Please select at least one option",
+  },
+  {
+    id: "watching_with_friends",
+    text: "Do you like watching shows or movies with friends?",
+    type: "single_select",
+    options: ["Yes, it's a go-to activity", "Sometimes", "Rarely", "Not really"],
+    validation: (value: string) => value ? null : "Please select an option",
+  },
+  {
+    id: "enjoys_cooking",
+    text: "Do you enjoy cooking?",
+    type: "single_select",
+    options: ["Love it", "Sometimes", "Rarely", "Not at all"],
+    validation: (value: string) => value ? null : "Please select an option",
+  },
+  {
+    id: "coffee_or_tea",
+    text: "Are you more of a coffee or tea person?",
+    type: "single_select",
+    options: ["Coffee", "Tea", "Both", "Neither"],
+    validation: (value: string) => value ? null : "Please select an option",
+  },
+  {
+    id: "trying_restaurants",
+    text: "Do you like trying new restaurants?",
+    type: "single_select",
+    options: ["All the time", "Sometimes", "Rarely", "Not really"],
+    validation: (value: string) => value ? null : "Please select an option",
+  },
+  {
+    id: "favorite_cuisines",
+    text: "What are your favorite cuisines?",
+    type: "multi_select",
+    useTextBox: true,
+    textBoxPlaceholder: "Search cuisines...",
+    maxSelections: 3,
+    options: [
+      "Italian", "Mexican", "Chinese", "Japanese", "Thai", "Indian",
+      "Mediterranean", "Middle Eastern", "American / comfort food",
+      "French", "Korean", "Vietnamese", "Other"
+    ],
+    validation: (values: string[]) =>
+      values.length > 0 ? null : "Please select at least one cuisine",
+  },
+  {
+    id: "fun_activities",
+    text: "What sounds fun to do with a friend?",
+    type: "multi_select",
+    useTextBox: true,
+    textBoxPlaceholder: "Search activities...",
+    maxSelections: 3,
+    options: [
+      "Learn a new sport", "Learn a new language", "Join a book club",
+      "Take a cooking class", "Try a new fitness class", "Travel somewhere new",
+      "Go to a live event or show", "Volunteer together", "Start a creative project", "Other"
+    ],
+    validation: (values: string[]) =>
+      values.length > 0 ? null : "Please select at least one activity",
+  },
 
-    // Part C — Work, Life & Anchors (8)
-    {
-      id: "work_study",
-      text: "What do you do for work or study?",
-      type: "text",
-      placeholder: "Tell us about your work or studies",
-    },
-    {
-      id: "industries",
-      text: "Which industries best describe you?",
-      type: "multi_select",
-      options: [
-        "Tech",
-        "Healthcare",
-        "Education",
-        "Arts",
-        "Business",
-        "Trades",
-        "Student",
-        "Other",
-      ],
-      maxSelections: 3,
-      validation: (values: string[]) =>
-        values.length > 0 ? null : "Please select at least one industry",
-    },
-    {
-      id: "current_life_stage",
-      text: "Current life stage?",
-      type: "single_select",
-      options: [
-        "Student",
-        "Early career",
-        "Parent",
-        "Mid-career",
-        "Retired",
-        "Other",
-      ],
-    },
-    {
-      id: "grew_up_here_or_moved",
-      text: "Did you grow up here or move later?",
-      type: "single_select",
-      options: ["Local", "Newcomer", "Relocated"],
-    },
-    {
-      id: "time_in_city",
-      text: "How long have you lived in [user's city]?",
-      type: "single_select",
-      options: ["<1 yr", "1–3 yrs", "3–5 yrs", "5+ yrs"],
-    },
-    {
-      id: "lifestyle_priorities",
-      text: "Which lifestyle priorities are important to you?",
-      type: "multi_select",
-      options: [
-        "Healthy eating & fitness",
-        "Environmental consciousness",
-        "Work-life balance",
-        "Financial responsibility",
-        "Personal growth & learning",
-        "Family & relationships",
-        "Career advancement",
-        "Creative expression",
-        "Community involvement",
-        "Travel & experiences"
-      ],
-      maxSelections: 5,
-      validation: (values: string[]) =>
-        values.length > 0 ? null : "Please select at least one priority",
-    },
+  // 👥 Types of Friends You're Looking For (1)
+  {
+    id: "friend_types_seeking",
+    text: "What kinds of friends are you hoping to find?",
+    type: "multi_select",
+    useTextBox: true,
+    textBoxPlaceholder: "Search friend types...",
+    maxSelections: 5,
+    options: [
+      "Running partner", "Gym partner", "Hiking companion", "Coffee friend",
+      "Brunch or dinner friend", "Movie night friend", "Concert or festival companion",
+      "Board game or trivia friend", "Gaming friend", "Study/work buddy",
+      "Foodie friend (try new restaurants)", "Travel or road trip companion",
+      "Adventure friend (kayaking, camping, climbing, etc.)", "Shopping companion",
+      "Volunteering friend", "Wingman/wingwoman"
+    ],
+    validation: (values: string[]) =>
+      values.length > 0 ? null : "Please select at least one friend type",
+  },
 
-    // Part D — Communication & Logistics (5)
-    {
-      id: "smoking_preference",
-      text: "Do you smoke or vape?",
-      type: "single_select",
-      options: ["Yes, regularly", "Occasionally/socially", "No, never"],
-    },
-    {
-      id: "punctuality_importance",
-      text: "How important is punctuality to you?",
-      type: "likert",
-      options: [
-        "Not important at all",
-        "Somewhat important",
-        "Moderately important", 
-        "Very important",
-        "Extremely important"
-      ],
-    },
-    {
-      id: "preferred_meetup_times",
-      text: "When do you usually prefer to meet up?",
-      type: "multi_select",
-      options: [
-        "Weekday day",
-        "Weekday evening",
-        "Weekend day",
-        "Weekend evening",
-      ],
-      validation: (values: string[]) =>
-        values.length > 0 ? null : "Please select at least one time",
-    },
-    {
-      id: "travel_distance",
-      text: "How far are you willing to travel for meetups?",
-      type: "single_select",
-      options: ["1 mile", "5 miles", "10 miles", "20 miles"],
-    },
-    {
-      id: "conversation_topics",
-      text: "What topics energize you in conversation?",
-      type: "multi_select",
-      options: [
-        "Career & professional goals",
-        "Personal relationships & dating",
-        "Current events & news",
-        "Philosophy & life meaning",
-        "Hobbies & personal interests",
-        "Travel & experiences",
-        "Health & wellness",
-        "Technology & innovation",
-        "Arts & creativity",
-        "Pop culture & entertainment"
-      ],
-      maxSelections: 5,
-      validation: (values: string[]) =>
-        values.length > 0 ? null : "Please select at least one topic",
-    },
-    {
-      id: "hangout_preference",
-      text: "Do you prefer casual 1:1 hangouts or group meetups for first meetings?",
-      type: "single_select",
-      options: ["1:1", "Small group", "No preference"],
-    },
+  // 🔵 Lifestyle & Social Fit (11)
+  {
+    id: "hangout_frequency",
+    text: "How often do you like hanging out with friends?",
+    type: "single_select",
+    options: ["Daily", "A few times a week", "Weekly", "Once in a while"],
+    validation: (value: string) => value ? null : "Please select a frequency",
+  },
+  {
+    id: "social_setting",
+    text: "What kind of social setting do you enjoy most?",
+    type: "single_select",
+    options: ["Big groups", "Small groups", "One on one"],
+    validation: (value: string) => value ? null : "Please select a setting",
+  },
+  {
+    id: "social_activity_level",
+    text: "How socially active do you like to be?",
+    type: "single_select",
+    options: [
+      "I love being busy with friends often",
+      "A few quality hangouts each week is ideal",
+      "I prefer less frequent, lower-key meetups"
+    ],
+    validation: (value: string) => value ? null : "Please select an activity level",
+  },
+  {
+    id: "personality_type",
+    text: "Are you more of an introvert, extrovert, or in between?",
+    type: "single_select",
+    options: ["Introvert", "Extrovert", "Ambivert"],
+    validation: (value: string) => value ? null : "Please select a personality type",
+  },
+  {
+    id: "communication_preference",
+    text: "What's your preferred way to stay connected with friends?",
+    type: "single_select",
+    options: ["Texting", "Phone calls", "In person", "Group chats"],
+    validation: (value: string) => value ? null : "Please select a communication preference",
+  },
+  {
+    id: "active_friends_preference",
+    text: "Do you like having active friends?",
+    type: "single_select",
+    options: ["Definitely", "Somewhat", "Not really"],
+    validation: (value: string) => value ? null : "Please select a preference",
+  },
+  {
+    id: "travel_with_friends",
+    text: "How do you feel about traveling with friends?",
+    type: "single_select",
+    options: ["Love it", "Sometimes", "Rarely", "Not my thing"],
+    validation: (value: string) => value ? null : "Please select an option",
+  },
+  {
+    id: "holiday_preference",
+    text: "How do you like to spend holidays?",
+    type: "single_select",
+    options: ["With family", "With friends", "Traveling", "Solo quiet"],
+    validation: (value: string) => value ? null : "Please select a preference",
+  },
+  {
+    id: "routine_vs_flexible",
+    text: "Do you prefer structured routines or going with the flow?",
+    type: "single_select",
+    options: [
+      "Love routine",
+      "Mix of both",
+      "Mostly flexible",
+      "Go with the flow entirely"
+    ],
+    validation: (value: string) => value ? null : "Please select a preference",
+  },
+  {
+    id: "weekend_preference",
+    text: "Which weekend sounds better?",
+    type: "single_select",
+    options: ["Outdoor adventure", "Brunch and city time", "Relaxing at home", "Road trip"],
+    validation: (value: string) => value ? null : "Please select a weekend preference",
+  },
+  {
+    id: "availability_times",
+    text: "When are you usually most available to meet up with friends?",
+    type: "single_select",
+    options: ["Weekday daytime", "Weekday evening", "Weekend daytime", "Weekend evening"],
+    validation: (value: string) => value ? null : "Please select an availability time",
+  },
 
-    // Part E — Creative Open-Ended (5)
-    {
-      id: "friendship_frequency",
-      text: "How often would you like to hang out with a close friend?",
-      type: "single_select",
-      options: ["Weekly", "Bi-weekly", "Monthly", "Occasionally"],
-    },
-    {
-      id: "free_saturday_activity",
-      text: "If you had a free Saturday, how would you spend it?",
-      type: "text",
-      placeholder: "Describe your ideal Saturday",
-    },
-    {
-      id: "friendship_values",
-      text: "What's most important to you in a friendship?",
-      type: "multi_select",
-      options: [
-        "Trust & loyalty",
-        "Fun & laughter",
-        "Personal growth",
-        "Emotional support",
-        "Shared adventures",
-        "Consistency & reliability",
-        "Deep conversations",
-        "Mutual respect"
-      ],
-      maxSelections: 4,
-      validation: (values: string[]) =>
-        values.length > 0 ? null : "Please select at least one value",
-    },
-    {
-      id: "friends_describe_three_words",
-      text: "If friends described you in 3 words, what might they say?",
-      type: "text",
-      placeholder: "What words come to mind?",
-    },
-    {
-      id: "conflict_style",
-      text: "How do you prefer to handle disagreements with friends?",
-      type: "single_select",
-      options: [
-        "Direct conversation right away",
-        "Give some space first, then talk",
-        "Try to avoid conflict when possible",
-        "Work through it together patiently"
-      ],
-    },
+  // 🟠 Values & Friendship Dynamics (6)
+  {
+    id: "friendship_commitment",
+    text: "Friendships should be:",
+    type: "single_select",
+    options: ["Lifelong commitments", "Okay if seasonal", "Depends on the friendship"],
+    validation: (value: string) => value ? null : "Please select a commitment level",
+  },
+  {
+    id: "friendship_pace",
+    text: "Which pace feels right for new friendships?",
+    type: "single_select",
+    options: ["Quick bonding", "Build slowly", "Depends on the person"],
+    validation: (value: string) => value ? null : "Please select a pace",
+  },
+  {
+    id: "shared_vs_different",
+    text: "Do you want friends with shared interests or different perspectives?",
+    type: "single_select",
+    options: ["Mostly shared", "Mix of both", "Mostly different"],
+    validation: (value: string) => value ? null : "Please select a preference",
+  },
+  {
+    id: "values_importance",
+    text: "How important is it for friends to share your values?",
+    type: "single_select",
+    options: ["Not important", "Somewhat important", "Very important"],
+    validation: (value: string) => value ? null : "Please select an importance level",
+  },
+  {
+    id: "honesty_approach",
+    text: "What role do you think honesty should play in friendships?",
+    type: "single_select",
+    options: ["Always tell it straight", "Gentle honesty matters", "Depends on situation"],
+    validation: (value: string) => value ? null : "Please select an approach",
+  },
+  {
+    id: "deep_conversation_frequency",
+    text: "How often do you like deep conversations with friends?",
+    type: "single_select",
+    options: ["Rarely", "Sometimes", "Often", "Almost always"],
+    validation: (value: string) => value ? null : "Please select a frequency",
+  },
 
-    // Part F — Let's Get Deeper (About You) (5)
-    {
-      id: "role_model_and_why",
-      text: "Who do you consider a role model, and why?",
-      type: "text",
-      placeholder: "Tell us about someone who inspires you",
-    },
-    {
-      id: "proud_of_lately",
-      text: "What's something you're proud of lately?",
-      type: "text",
-      placeholder: "Share an achievement or moment",
-    },
-    {
-      id: "morning_motivation",
-      text: "What motivates you to get out of bed in the morning?",
-      type: "text",
-      placeholder: "What drives you?",
-    },
-    {
-      id: "social_values",
-      text: "Which social/political topics do you feel strongly about?",
-      type: "multi_select",
-      options: [
-        "Environmental sustainability",
-        "Social justice & equality",
-        "Community involvement",
-        "Mental health awareness",
-        "Economic policy",
-        "Education reform",
-        "Healthcare access",
-        "Technology & privacy",
-        "Not particularly political",
-        "Prefer not to discuss politics"
-      ],
-      maxSelections: 5,
-    },
-    {
-      id: "looking_for_in_friend",
-      text: "What are you looking for in a friend?",
-      type: "text",
-      placeholder: "What qualities matter most to you?",
-    },
-  ];
+  // 🌍 Ideological Alignment (5)
+  {
+    id: "news_engagement",
+    text: "How do you usually engage with news and current events?",
+    type: "single_select",
+    options: [
+      "I follow it closely",
+      "I check in occasionally",
+      "I skim headlines only",
+      "I mostly avoid it"
+    ],
+    validation: (value: string) => value ? null : "Please select an engagement level",
+  },
+  {
+    id: "political_alignment_importance",
+    text: "How important is it for your friends to share your political views?",
+    type: "single_select",
+    options: ["Not important at all", "Somewhat important", "Very important"],
+    validation: (value: string) => value ? null : "Please select an importance level",
+  },
+  {
+    id: "important_issues",
+    text: "Which issues matter most to you personally?",
+    type: "multi_select",
+    maxSelections: 3,
+    options: [
+      "Climate and environment",
+      "Social justice and equality",
+      "Health and wellness",
+      "Education and learning",
+      "Technology and innovation",
+      "Community and volunteering",
+      "Other"
+    ],
+    validation: (values: string[]) =>
+      values.length > 0 ? null : "Please select at least one issue",
+  },
+  {
+    id: "big_picture_discussions",
+    text: "Do you prefer discussing big-picture topics (politics, philosophy, culture) with friends?",
+    type: "single_select",
+    options: ["Rarely", "Sometimes", "Often", "Almost always"],
+    validation: (value: string) => value ? null : "Please select a frequency",
+  },
+  {
+    id: "worldview_preference",
+    text: "When it comes to differences in worldview, do you prefer friends who are:",
+    type: "single_select",
+    options: [
+      "Aligned with me",
+      "A mix of aligned and different",
+      "Very different (I enjoy debate)"
+    ],
+    validation: (value: string) => value ? null : "Please select a preference",
+  },
 
+  // 🔴 Lifestyle Context (8 including conditional)
+  {
+    id: "partnered_friend_preference",
+    text: "Would you prefer to connect with friends who are also partnered?",
+    type: "single_select",
+    options: ["Yes, that's important", "Doesn't matter to me", "I prefer the opposite"],
+    conditionalOn: "relationship_status", // This comes from onboarding
+    showIf: ["partnered"],
+    validation: (value: string) => value ? null : "Please select a preference",
+  },
+  {
+    id: "single_friend_preference",
+    text: "Would you prefer to connect with friends who are single?",
+    type: "single_select",
+    options: ["Yes, that's important", "Doesn't matter to me", "I prefer the opposite"],
+    conditionalOn: "relationship_status", // This comes from onboarding
+    showIf: ["single"],
+    validation: (value: string) => value ? null : "Please select a preference",
+  },
+  {
+    id: "has_kids",
+    text: "Do you have kids?",
+    type: "single_select",
+    options: ["Yes", "No", "Prefer not to say"],
+    validation: (value: string) => value ? null : "Please select an option",
+  },
+  {
+    id: "kids_friend_preference",
+    text: "Would you like to connect with friends who also have kids?",
+    type: "single_select",
+    options: ["Yes, that's important", "Doesn't matter to me", "No preference"],
+    validation: (value: string) => value ? null : "Please select a preference",
+  },
+  {
+    id: "location_preference",
+    text: "Do you prefer making friends who live:",
+    type: "single_select",
+    options: [
+      "Very close by (same neighborhood)",
+      "Within the same city",
+      "Anywhere, as long as we connect"
+    ],
+    validation: (value: string) => value ? null : "Please select a location preference",
+  },
+  {
+    id: "meetup_budget",
+    text: "What budget feels right for your meetups?",
+    type: "single_select",
+    options: [
+      "Free (tennis at the park, walk on the beach, game night at home)",
+      "Around $10 (coffee, Chipotle, casual snack)",
+      "Around $20 (lunch, drinks, casual sit-down)",
+      "Around $30+ (dinner out, nicer night plans)"
+    ],
+    validation: (value: string) => value ? null : "Please select a budget preference",
+  },
+  {
+    id: "life_stage",
+    text: "Which stage of life feels most like you right now?",
+    type: "single_select",
+    options: [
+      "School or university",
+      "Early career",
+      "Career-focused",
+      "Family-focused",
+      "Transitioning or figuring it out"
+    ],
+    validation: (value: string) => value ? null : "Please select a life stage",
+  },
+  {
+    id: "work_life_approach",
+    text: "Which best describes your approach to work and life?",
+    type: "single_select",
+    options: [
+      "My job is just a job — I prioritize life outside of work",
+      "My career is a central part of who I am",
+      "Somewhere in the middle"
+    ],
+    validation: (value: string) => value ? null : "Please select an approach",
+  },
+];
 
-export  const profileQuestions = [
-    {
-      id: "name",
-      text: "What's your first name?",
-      type: "text",
-      placeholder: "Enter your first name",
-      validation: (value: string) =>
-        value.trim().length > 0 ? null : "Please enter your first name",
+export const profileQuestions = [
+  {
+    id: "name",
+    text: "What's your first name?",
+    type: "text",
+    placeholder: "Enter your first name",
+    validation: (value: string) =>
+      value.trim().length > 0 ? null : "Please enter your first name",
+  },
+  {
+    id: "last_name",
+    text: "What's your last name? (or just initial)",
+    type: "text",
+    placeholder: "Enter your last name or initial",
+    validation: (value: string) =>
+      value.trim().length > 0
+        ? null
+        : "Please enter your last name or initial",
+  },
+  {
+    id: "birthdate",
+    text: "When's your birthday? (You must be 18+ to use this app)",
+    type: "date",
+    placeholder: "MM/DD/YYYY",
+    validation: (value: string) => {
+      const birthDate = new Date(value);
+      const today = new Date();
+      let age = today.getFullYear() - birthDate.getFullYear();
+      const monthDiff = today.getMonth() - birthDate.getMonth();
+      if (
+        monthDiff < 0 ||
+        (monthDiff === 0 && today.getDate() < birthDate.getDate())
+      ) {
+        age--;
+      }
+      return age >= 18 ? null : "You must be 18 or older to use this app";
     },
-    {
-      id: "last_name",
-      text: "What's your last name? (or just initial)",
-      type: "text",
-      placeholder: "Enter your last name or initial",
-      validation: (value: string) =>
-        value.trim().length > 0
-          ? null
-          : "Please enter your last name or initial",
-    },
-    {
-      id: "birthdate",
-      text: "When's your birthday? (You must be 18+ to use this app)",
-      type: "date",
-      placeholder: "MM/DD/YYYY",
-      validation: (value: string) => {
-        const birthDate = new Date(value);
-        const today = new Date();
-        let age = today.getFullYear() - birthDate.getFullYear();
-        const monthDiff = today.getMonth() - birthDate.getMonth();
-        if (
-          monthDiff < 0 ||
-          (monthDiff === 0 && today.getDate() < birthDate.getDate())
-        ) {
-          age--;
-        }
-        return age >= 18 ? null : "You must be 18 or older to use this app";
-      },
-    },
-    {
-      id: "gender",
-      text: "What's your gender?",
-      type: "chips",
-      options: ["Male", "Female", "Non-binary", "Other", "Prefer not to say"],
-      validation: (value: string) =>
-        value ? null : "Please select your gender",
-    },
-    {
-      id: "pronouns",
-      text: "What are your pronouns?",
-      type: "chips",
-      options: ["He/Him", "She/Her", "They/Them", "Other", "Prefer not to say"],
-      validation: (value: string) =>
-        value ? null : "Please select your pronouns",
-    },
-    {
-      id: "sexual_orientation",
-      text: "What's your sexual orientation?",
-      type: "chips",
-      options: [
-        "Straight",
-        "Gay",
-        "Lesbian",
-        "Bisexual",
-        "Pansexual",
-        "Asexual",
-        "Other",
-        "Prefer not to say",
-      ],
-      validation: (value: string) =>
-        value ? null : "Please select your sexual orientation",
-    },
-    {
-      id: "profilePhoto",
-      text: "Would you like to add a profile photo?",
-      type: "photo",
-      options: ["Yes, upload photo", "Skip for now"],
-      validation: (value: string) => (value ? null : "Please make a selection"),
-    },
-    {
-      id: "location",
-      text: "Let me get your location to find friends nearby. Can I access your location?",
-      type: "location",
-      options: ["Yes, use my location", "No, I will enter manually"],
-      validation: (value: string) => (value ? null : "Please make a selection"),
-    },
-    {
-      id: "meetRadius",
-      text: "What's your preferred meet radius?",
-      type: "chips",
-      options: ["1 mile", "5 miles", "10 miles", "20 miles"],
-      validation: (value: string) =>
-        value ? null : "Please select your preferred meet radius",
-    },
-    {
-      id: "relationshipStatus",
-      text: "What's your relationship status?",
-      type: "chips",
-      options: [
-        "Single",
-        "In a relationship",
-        "Married",
-        "Divorced",
-        "Widowed",
-        "Prefer not to say",
-      ],
-      validation: (value: string) =>
-        value ? null : "Please select your relationship status",
-    },
-    {
-      id: "languages",
-      text: "What languages do you speak? (Choose up to 5)",
-      type: "language_select",
-      options: [
-        "English",
-        "Spanish",
-        "French",
-        "German",
-        "Italian",
-        "Portuguese",
-        "Russian",
-        "Chinese",
-        "Japanese",
-        "Korean",
-        "Arabic",
-        "Hindi",
-        "Bengali",
-        "Dutch",
-        "Swedish",
-        "Norwegian",
-        "Danish",
-        "Finnish",
-        "Polish",
-        "Czech",
-        "Hungarian",
-        "Turkish",
-        "Greek",
-        "Hebrew",
-        "Thai",
-        "Vietnamese",
-        "Indonesian",
-        "Malay",
-        "Tagalog",
-        "Other",
-      ],
-      maxSelections: 5,
-      validation: (values: string[]) =>
-        values.length > 0 ? null : "Please select at least one language",
-    },
-  ];  
+  },
+  {
+    id: "gender",
+    text: "What's your gender?",
+    type: "chips",
+    options: ["Male", "Female", "Non-binary", "Other", "Prefer not to say"],
+    validation: (value: string) =>
+      value ? null : "Please select your gender",
+  },
+  {
+    id: "pronouns",
+    text: "What are your pronouns?",
+    type: "chips",
+    options: ["He/Him", "She/Her", "They/Them", "Other", "Prefer not to say"],
+    validation: (value: string) =>
+      value ? null : "Please select your pronouns",
+  },
+  {
+    id: "sexual_orientation",
+    text: "What's your sexual orientation?",
+    type: "chips",
+    options: [
+      "Straight",
+      "Gay",
+      "Lesbian",
+      "Bisexual",
+      "Pansexual",
+      "Asexual",
+      "Queer",
+      "Other",
+      "Prefer not to say",
+    ],
+    validation: (value: string) =>
+      value ? null : "Please select your sexual orientation",
+  },
+  {
+    id: "relationship_status",
+    text: "What's your relationship status?",
+    type: "chips",
+    options: [
+      "Single",
+      "In a relationship",
+      "Married",
+      "Divorced",
+      "Widowed",
+      "It's complicated",
+      "Prefer not to say",
+    ],
+    validation: (value: string) =>
+      value ? null : "Please select your relationship status",
+  },
+];
