@@ -470,7 +470,7 @@ export const intakeQuestions = [
     type: "single_select",
     options: ["Yes, that's important", "Doesn't matter to me", "I prefer the opposite"],
     conditionalOn: "relationship_status", // This comes from onboarding
-    showIf: ["partnered"],
+    showIf: ["In a relationship", "Married"],
     validation: (value: string) => value ? null : "Please select a preference",
   },
   {
@@ -479,7 +479,7 @@ export const intakeQuestions = [
     type: "single_select",
     options: ["Yes, that's important", "Doesn't matter to me", "I prefer the opposite"],
     conditionalOn: "relationship_status", // This comes from onboarding
-    showIf: ["single"],
+    showIf: ["Single", "Divorced", "Widowed"],
     validation: (value: string) => value ? null : "Please select a preference",
   },
   {
