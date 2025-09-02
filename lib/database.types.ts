@@ -419,7 +419,7 @@ export type Database = {
           travel_distance?: string | null
           try_new_activities?: number | null
           updated_at?: string | null
-          user_id?: string
+          user_id: string
           value_balance_talking?: number | null
           work_study?: string | null
         }
@@ -463,6 +463,7 @@ export type Database = {
           honesty_approach: string | null
           important_issues: string[] | null
           is_gamer: string | null
+          kids_friend_preference: string | null
           lazy_sunday: string | null
           live_music_frequency: string | null
           music_genres: string[] | null
@@ -522,6 +523,7 @@ export type Database = {
           honesty_approach?: string | null
           important_issues?: string[] | null
           is_gamer?: string | null
+          kids_friend_preference?: string | null
           lazy_sunday?: string | null
           live_music_frequency?: string | null
           music_genres?: string[] | null
@@ -581,6 +583,7 @@ export type Database = {
           honesty_approach?: string | null
           important_issues?: string[] | null
           is_gamer?: string | null
+          kids_friend_preference?: string | null
           lazy_sunday?: string | null
           live_music_frequency?: string | null
           music_genres?: string[] | null

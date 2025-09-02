@@ -494,6 +494,8 @@ export const intakeQuestions = [
     text: "Would you like to connect with friends who also have kids?",
     type: "single_select",
     options: ["Yes, that's important", "Doesn't matter to me", "No preference"],
+    conditionalOn: "has_kids",
+    showIf: ["Yes"],
     validation: (value: string) => value ? null : "Please select a preference",
   },
   {
