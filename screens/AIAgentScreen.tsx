@@ -977,7 +977,7 @@ export default function AIAgentScreen() {
       setMessages((prev) => [...prev, confirmMessage]);
       
       setTimeout(() => {
-        moveToNextProfileQuestion();
+        moveToNextQuestion();
       }, 1500);
       
       setIsTyping(false);
@@ -1643,7 +1643,7 @@ export default function AIAgentScreen() {
                               
                               // Move to next question
                               setTimeout(() => {
-                                moveToNextProfileQuestion();
+                                moveToNextQuestion();
                               }, 1500);
                             } else {
                               // Permission denied, offer manual entry
