@@ -98,6 +98,10 @@ export interface IntakeResponse {
   budget_consciousness: string[];
   life_stage: string;
   work_life_approach: string;
+  time_commitment: string;
+  social_media_usage: string;
+  networking_vs_friendship: string;
+  age_range_preference: string;
   
   // Metadata
   embed_vector?: number[];

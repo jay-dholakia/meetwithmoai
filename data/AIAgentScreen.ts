@@ -549,6 +549,53 @@ export const intakeQuestions = [
     ],
     validation: (value: string) => value ? null : "Please select an approach",
   },
+  {
+    id: "time_commitment",
+    text: "How much time are you typically looking to invest in new friendships?",
+    type: "single_select",
+    options: [
+      "Low-key - occasional hangouts when schedules align",
+      "Moderate - regular meetups, maybe once or twice a month",
+      "High - frequent hangouts, building close friendships",
+      "Flexible - depends on the connection and circumstances"
+    ],
+    validation: (value: string) => value ? null : "Please select a time commitment level",
+  },
+  {
+    id: "social_media_usage",
+    text: "How do you typically use social media in friendships?",
+    type: "single_select",
+    options: [
+      "Very active - I love sharing and staying connected online",
+      "Moderate - I use it to keep in touch and share occasionally",
+      "Minimal - I prefer in-person or direct communication",
+      "Private - I keep my social media separate from new friendships"
+    ],
+    validation: (value: string) => value ? null : "Please select your social media usage preference",
+  },
+  {
+    id: "networking_vs_friendship",
+    text: "What are you primarily looking for through this platform?",
+    type: "single_select",
+    options: [
+      "Genuine friendships - personal connections and companionship",
+      "Professional networking - career connections and opportunities",
+      "Both - open to friendships that could also benefit my career",
+      "Social expansion - meeting new people in my area"
+    ],
+    validation: (value: string) => value ? null : "Please select what you're looking for",
+  },
+  {
+    id: "age_range_preference",
+    text: "What age range would you prefer for new friends?",
+    type: "single_select",
+    options: [
+      "Similar to my age (within 3 years)",
+      "Slightly younger or older (within 5 years)",
+      "Wide range - age doesn't matter much to me"
+    ],
+    validation: (value: string) => value ? null : "Please select an age range preference",
+  },
 ];
 
 export const profileQuestions = [
