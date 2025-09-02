@@ -354,9 +354,13 @@ export const intakeQuestions = [
   {
     id: "availability_times",
     text: "When are you usually most available to meet up with friends?",
-    type: "single_select",
+    type: "multi_select",
     options: ["Weekday daytime", "Weekday evening", "Weekend daytime", "Weekend evening"],
-    validation: (value: string) => value ? null : "Please select an availability time",
+    useTextBox: true,
+    searchPlaceholder: "Search availability times...",
+    maxSelections: 4,
+    validation: (values: string[]) => 
+      values.length > 0 ? null : "Please select at least one availability time",
   },
 
   // 🟠 Values & Friendship Dynamics (6)

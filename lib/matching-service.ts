@@ -72,7 +72,7 @@ export interface IntakeResponse {
   holiday_preference: string;
   routine_vs_flexible: string;
   weekend_preference: string;
-  availability_times: string;
+  availability_times: string[];
   
   // 🟠 Values & Friendship Dynamics (6)
   friendship_commitment: string;
