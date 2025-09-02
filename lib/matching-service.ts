@@ -95,7 +95,7 @@ export interface IntakeResponse {
   has_kids: string;
   kids_friend_preference: string;
   location_preference: string;
-  meetup_budget: string;
+  budget_consciousness: string[];
   life_stage: string;
   work_life_approach: string;
   

@@ -440,7 +440,7 @@ export type Database = {
           availability_times: string[] | null
           big_picture_discussions: string | null
           book_types: string[] | null
-          budget_consciousness: string | null
+          budget_consciousness: string[] | null
           coffee_or_tea: string | null
           communication_preference: string | null
           completed_at: string | null
@@ -466,6 +466,7 @@ export type Database = {
           kids_friend_preference: string | null
           lazy_sunday: string | null
           live_music_frequency: string | null
+          location_preference: string | null
           music_genres: string[] | null
           networking_vs_friendship: string | null
           news_engagement: string | null
@@ -500,7 +501,7 @@ export type Database = {
           availability_times?: string[] | null
           big_picture_discussions?: string | null
           book_types?: string[] | null
-          budget_consciousness?: string | null
+          budget_consciousness?: string[] | null
           coffee_or_tea?: string | null
           communication_preference?: string | null
           completed_at?: string | null
@@ -526,6 +527,7 @@ export type Database = {
           kids_friend_preference?: string | null
           lazy_sunday?: string | null
           live_music_frequency?: string | null
+          location_preference?: string | null
           music_genres?: string[] | null
           networking_vs_friendship?: string | null
           news_engagement?: string | null
@@ -560,7 +562,7 @@ export type Database = {
           availability_times?: string[] | null
           big_picture_discussions?: string | null
           book_types?: string[] | null
-          budget_consciousness?: string | null
+          budget_consciousness?: string[] | null
           coffee_or_tea?: string | null
           communication_preference?: string | null
           completed_at?: string | null
@@ -586,6 +588,7 @@ export type Database = {
           kids_friend_preference?: string | null
           lazy_sunday?: string | null
           live_music_frequency?: string | null
+          location_preference?: string | null
           music_genres?: string[] | null
           networking_vs_friendship?: string | null
           news_engagement?: string | null

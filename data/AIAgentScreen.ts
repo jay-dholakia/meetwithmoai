@@ -510,16 +510,20 @@ export const intakeQuestions = [
     validation: (value: string) => value ? null : "Please select a location preference",
   },
   {
-    id: "meetup_budget",
-    text: "What budget feels right for your meetups?",
-    type: "single_select",
+    id: "budget_consciousness",
+    text: "Select what types of budget fit your preferences for meetups:",
+    type: "multi_select",
     options: [
       "Free (tennis at the park, walk on the beach, game night at home)",
       "Around $10 (coffee, Chipotle, casual snack)",
       "Around $20 (lunch, drinks, casual sit-down)",
       "Around $30+ (dinner out, nicer night plans)"
     ],
-    validation: (value: string) => value ? null : "Please select a budget preference",
+    useTextBox: true,
+    searchPlaceholder: "Search budget preferences...",
+    maxSelections: 4,
+    validation: (values: string[]) =>
+      values.length > 0 ? null : "Please select at least one budget preference",
   },
   {
     id: "life_stage",
