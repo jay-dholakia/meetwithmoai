@@ -18,16 +18,15 @@ import { supabase } from '../lib/mcp-supabase';
 
 interface Profile {
   id: string;
-  name: string;
-  initial: string;
-  city: string;
-  lat: number;
-  lng: number;
-  radius_km: number;
-  avatar_url?: string;
-  bio_text?: string;
-  is_active: boolean;
-  is_paused: boolean;
+  first_name: string;
+  city: string | null;
+  lat: number | null;
+  lng: number | null;
+  radius_km: number | null;
+  avatar_url?: string | null;
+  bio_text?: string | null;
+  is_active: boolean | null;
+  is_paused: boolean | null;
 }
 
 interface Preferences {
@@ -162,7 +161,7 @@ export default function ProfileScreen() {
           <Image source={{ uri: profile.avatar_url }} style={styles.avatar} />
         ) : (
           <View style={[styles.avatarPlaceholder, { backgroundColor: theme.colors.primary }]}>
-            <Text style={styles.avatarText}>{profile?.initial || '?'}</Text>
+            <Text style={styles.avatarText}>{profile?.first_name?.charAt(0).toUpperCase() || '?'}</Text>
           </View>
         )}
         <View style={styles.avatarOverlay}>
@@ -172,7 +171,7 @@ export default function ProfileScreen() {
 
       <View style={styles.profileInfo}>
         <Text style={[styles.profileName, { color: theme.colors.text }]}>
-          {profile?.name || 'Set your name'}
+          {profile?.first_name || 'Set your name'}
         </Text>
         <Text style={[styles.profileLocation, { color: theme.colors.textSecondary }]}>
           📍 {profile?.city || 'Set your location'}
