@@ -74,13 +74,6 @@ export interface IntakeResponse {
   weekend_preference: string;
   availability_times: string[];
   
-  // 🟠 Values & Friendship Dynamics (6)
-  friendship_commitment: string;
-  friendship_pace: string;
-  shared_vs_different: string;
-  values_importance: string;
-  honesty_approach: string;
-  deep_conversation_frequency: string;
   
   // 🌍 Ideological Alignment (5)
   news_engagement: string;

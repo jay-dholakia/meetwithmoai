@@ -419,7 +419,7 @@ export type Database = {
           travel_distance?: string | null
           try_new_activities?: number | null
           updated_at?: string | null
-          user_id: string
+          user_id?: string
           value_balance_talking?: number | null
           work_study?: string | null
         }
@@ -445,7 +445,6 @@ export type Database = {
           communication_preference: string | null
           completed_at: string | null
           cultural_activities: string[] | null
-          deep_conversation_frequency: string | null
           default_hangout: string | null
           embed_vector: string | null
           enjoys_cooking: string | null
@@ -453,14 +452,11 @@ export type Database = {
           favorite_cuisines: string[] | null
           friend_type: string | null
           friend_types_seeking: string[] | null
-          friendship_commitment: string | null
-          friendship_pace: string | null
           fun_activities: string[] | null
           gaming_types: string[] | null
           hangout_frequency: string | null
           has_kids: string | null
           holiday_preference: string | null
-          honesty_approach: string | null
           important_issues: string[] | null
           is_gamer: string | null
           kids_friend_preference: string | null
@@ -480,7 +476,6 @@ export type Database = {
           recharge_method: string | null
           routine_vs_flexible: string | null
           sense_of_humor: string | null
-          shared_vs_different: string | null
           single_friend_preference: string | null
           social_activity_level: string | null
           social_media_usage: string | null
@@ -491,7 +486,6 @@ export type Database = {
           trying_restaurants: string | null
           updated_at: string | null
           user_id: string
-          values_importance: string | null
           watching_with_friends: string | null
           weekend_preference: string | null
           work_life_approach: string | null
@@ -508,7 +502,6 @@ export type Database = {
           communication_preference?: string | null
           completed_at?: string | null
           cultural_activities?: string[] | null
-          deep_conversation_frequency?: string | null
           default_hangout?: string | null
           embed_vector?: string | null
           enjoys_cooking?: string | null
@@ -516,14 +509,11 @@ export type Database = {
           favorite_cuisines?: string[] | null
           friend_type?: string | null
           friend_types_seeking?: string[] | null
-          friendship_commitment?: string | null
-          friendship_pace?: string | null
           fun_activities?: string[] | null
           gaming_types?: string[] | null
           hangout_frequency?: string | null
           has_kids?: string | null
           holiday_preference?: string | null
-          honesty_approach?: string | null
           important_issues?: string[] | null
           is_gamer?: string | null
           kids_friend_preference?: string | null
@@ -543,7 +533,6 @@ export type Database = {
           recharge_method?: string | null
           routine_vs_flexible?: string | null
           sense_of_humor?: string | null
-          shared_vs_different?: string | null
           single_friend_preference?: string | null
           social_activity_level?: string | null
           social_media_usage?: string | null
@@ -554,7 +543,6 @@ export type Database = {
           trying_restaurants?: string | null
           updated_at?: string | null
           user_id: string
-          values_importance?: string | null
           watching_with_friends?: string | null
           weekend_preference?: string | null
           work_life_approach?: string | null
@@ -571,7 +559,6 @@ export type Database = {
           communication_preference?: string | null
           completed_at?: string | null
           cultural_activities?: string[] | null
-          deep_conversation_frequency?: string | null
           default_hangout?: string | null
           embed_vector?: string | null
           enjoys_cooking?: string | null
@@ -579,14 +566,11 @@ export type Database = {
           favorite_cuisines?: string[] | null
           friend_type?: string | null
           friend_types_seeking?: string[] | null
-          friendship_commitment?: string | null
-          friendship_pace?: string | null
           fun_activities?: string[] | null
           gaming_types?: string[] | null
           hangout_frequency?: string | null
           has_kids?: string | null
           holiday_preference?: string | null
-          honesty_approach?: string | null
           important_issues?: string[] | null
           is_gamer?: string | null
           kids_friend_preference?: string | null
@@ -606,7 +590,6 @@ export type Database = {
           recharge_method?: string | null
           routine_vs_flexible?: string | null
           sense_of_humor?: string | null
-          shared_vs_different?: string | null
           single_friend_preference?: string | null
           social_activity_level?: string | null
           social_media_usage?: string | null
@@ -617,7 +600,6 @@ export type Database = {
           trying_restaurants?: string | null
           updated_at?: string | null
           user_id?: string
-          values_importance?: string | null
           watching_with_friends?: string | null
           weekend_preference?: string | null
           work_life_approach?: string | null

@@ -363,49 +363,7 @@ export const intakeQuestions = [
       values.length > 0 ? null : "Please select at least one availability time",
   },
 
-  // 🟠 Values & Friendship Dynamics (6)
-  {
-    id: "friendship_commitment",
-    text: "Friendships should be:",
-    type: "single_select",
-    options: ["Lifelong commitments", "Okay if seasonal", "Depends on the friendship"],
-    validation: (value: string) => value ? null : "Please select a commitment level",
-  },
-  {
-    id: "friendship_pace",
-    text: "Which pace feels right for new friendships?",
-    type: "single_select",
-    options: ["Quick bonding", "Build slowly", "Depends on the person"],
-    validation: (value: string) => value ? null : "Please select a pace",
-  },
-  {
-    id: "shared_vs_different",
-    text: "Do you want friends with shared interests or different perspectives?",
-      type: "single_select",
-    options: ["Mostly shared", "Mix of both", "Mostly different"],
-    validation: (value: string) => value ? null : "Please select a preference",
-  },
-  {
-    id: "values_importance",
-    text: "How important is it for friends to share your values?",
-      type: "single_select",
-    options: ["Not important", "Somewhat important", "Very important"],
-    validation: (value: string) => value ? null : "Please select an importance level",
-    },
-    {
-    id: "honesty_approach",
-    text: "What role do you think honesty should play in friendships?",
-      type: "single_select",
-    options: ["Always tell it straight", "Gentle honesty matters", "Depends on situation"],
-    validation: (value: string) => value ? null : "Please select an approach",
-  },
-  {
-    id: "deep_conversation_frequency",
-    text: "How often do you like deep conversations with friends?",
-    type: "single_select",
-    options: ["Rarely", "Sometimes", "Often", "Almost always"],
-    validation: (value: string) => value ? null : "Please select a frequency",
-  },
+
 
   // 🌍 Ideological Alignment (5)
   {
