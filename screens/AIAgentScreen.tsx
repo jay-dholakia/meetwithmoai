@@ -246,72 +246,51 @@ export default function AIAgentScreen() {
         setTimeout(() => {
           askNextProfileQuestion();
         }, 1000);
-      } else if (!intakeData) {
-        console.log("Profile complete, starting intake...");
+      } else if (!isIntakeComplete(intakeData)) {
+        console.log("Profile complete, checking intake questions...");
         setIsProfileComplete(true);
+        const firstUnansweredIntake = findFirstUnansweredIntakeQuestion(intakeData);
+        setCurrentQuestion(firstUnansweredIntake);
         setTimeout(() => {
           askNextQuestion();
         }, 1000);
       } else {
         console.log(
-          "Both profile and intake complete, checking for matches..."
+          "Both profile and intake complete, showing completion message..."
         );
         setIsProfileComplete(true);
-        await checkForWeeklyMatches();
+        setTimeout(() => {
+          const completionMessage: Message = {
+            id: `completion-${Date.now()}-${Math.random()}`,
+            text: "🎉 You're all set! We have everything we need to find you great matches.\n\nWe'll send over your next set of matches this weekend. In the meantime, feel free to chat with me about anything!",
+            sender: "ai",
+            timestamp: new Date(),
+            type: "text",
+          };
+          setMessages((prev) => [...prev, completionMessage]);
+          saveMessageToHistory(completionMessage);
+        }, 1000);
       }
     } else {
-      if (hasStartedIntake) {
-        console.log(
-          "User has started intake questions, continuing from database state..."
-        );
-        setIsProfileComplete(true);
-        if (intakeData) {
-          const answeredQuestions = Object.keys(intakeData).filter(
-            (key) =>
-              key !== "user_id" &&
-              key !== "created_at" &&
-              key !== "updated_at" &&
-              intakeData[key] !== null
-          );
-          const lastAnsweredQuestion =
-            answeredQuestions[answeredQuestions.length - 1];
-          const nextQuestionIndex =
-            intakeQuestions.findIndex((q) => q.id === lastAnsweredQuestion) + 1;
-          if (nextQuestionIndex < intakeQuestions.length) {
-            setCurrentQuestion(nextQuestionIndex);
-            // ADD THIS LINE TO ACTUALLY DISPLAY THE QUESTION
-            setTimeout(() => {
-              const question = intakeQuestions[nextQuestionIndex];
-              const questionMessage: Message = {
-                id: `question-${question.id}-${Date.now()}-${Math.random()}`,
-                text: question.text,
-                sender: "ai" as const,
-                timestamp: new Date(),
-                type: "question",
-                data: question,
-              };
-              setMessages((prev) => [...prev, questionMessage]);
-            }, 1000);
-          } else {
-            completeIntake();
-          }
-        }
-      } else if (isProfileComplete) {
-        console.log(
-          "Profile complete but no intake started, starting intake..."
-        );
-        setIsProfileComplete(true);
-        setCurrentQuestion(0);
-        setTimeout(() => {
-          askNextQuestion();
-        }, 1000);
-      } else {
+      if (!isProfileComplete) {
         console.log("Profile not complete, continuing profile collection...");
         const firstUnansweredStep = findFirstUnansweredProfileStep(profileData);
         setCurrentProfileStep(firstUnansweredStep);
         setTimeout(() => {
           askNextProfileQuestion();
         }, 1000);
+      } else if (!isIntakeComplete(intakeData)) {
+        console.log("Profile complete, continuing intake questions...");
+        setIsProfileComplete(true);
+        const firstUnansweredIntake = findFirstUnansweredIntakeQuestion(intakeData);
+        setCurrentQuestion(firstUnansweredIntake);
+        setTimeout(() => {
+          askNextQuestion();
+        }, 1000);
+      } else {
+        console.log("Both profile and intake complete, ready for matches...");
+        setIsProfileComplete(true);
+        // Don't add completion message again if messages already exist
       }
     }
   };
@@ -367,6 +346,44 @@ export default function AIAgentScreen() {
 
     // All questions answered
     return profileQuestions.length;
+  };
+
+  const findFirstUnansweredIntakeQuestion = (intakeData: any) => {
+    if (!intakeData) return 0;
+
+    // Check each intake question in order
+    for (let i = 0; i < intakeQuestions.length; i++) {
+      const question = intakeQuestions[i];
+      const fieldValue = intakeData[question.id];
+      
+      // Skip conditional questions that shouldn't be shown
+      if (question.conditionalOn && question.showIf) {
+        const conditionalValue = intakeData[question.conditionalOn];
+        if (!conditionalValue || !question.showIf.includes(conditionalValue)) {
+          continue; // Skip this question as it's conditional and conditions aren't met
+        }
+      }
+
+      // Check if question is answered
+      let isAnswered = false;
+      if (question.type === "multi_select") {
+        isAnswered = !!(fieldValue && Array.isArray(fieldValue) && fieldValue.length > 0);
+      } else {
+        isAnswered = !!(fieldValue && fieldValue !== null && fieldValue !== "");
+      }
+
+      if (!isAnswered) {
+        console.log(`First unanswered intake question: ${question.id} at step ${i}`);
+        return i;
+      }
+    }
+
+    // All questions answered
+    return intakeQuestions.length;
+  };
+
+  const isIntakeComplete = (intakeData: any) => {
+    return findFirstUnansweredIntakeQuestion(intakeData) >= intakeQuestions.length;
   };
 
   const askNextProfileQuestion = () => {
