@@ -437,7 +437,7 @@ export type Database = {
         Row: {
           active_friends_preference: string | null
           age_range_preference: string | null
-          availability_times: string | null
+          availability_times: string[] | null
           big_picture_discussions: string | null
           book_types: string[] | null
           budget_consciousness: string | null
@@ -458,6 +458,7 @@ export type Database = {
           fun_activities: string[] | null
           gaming_types: string[] | null
           hangout_frequency: string | null
+          has_kids: string | null
           holiday_preference: string | null
           honesty_approach: string | null
           important_issues: string[] | null
@@ -495,7 +496,7 @@ export type Database = {
         Insert: {
           active_friends_preference?: string | null
           age_range_preference?: string | null
-          availability_times?: string | null
+          availability_times?: string[] | null
           big_picture_discussions?: string | null
           book_types?: string[] | null
           budget_consciousness?: string | null
@@ -516,6 +517,7 @@ export type Database = {
           fun_activities?: string[] | null
           gaming_types?: string[] | null
           hangout_frequency?: string | null
+          has_kids?: string | null
           holiday_preference?: string | null
           honesty_approach?: string | null
           important_issues?: string[] | null
@@ -553,7 +555,7 @@ export type Database = {
         Update: {
           active_friends_preference?: string | null
           age_range_preference?: string | null
-          availability_times?: string | null
+          availability_times?: string[] | null
           big_picture_discussions?: string | null
           book_types?: string[] | null
           budget_consciousness?: string | null
@@ -574,6 +576,7 @@ export type Database = {
           fun_activities?: string[] | null
           gaming_types?: string[] | null
           hangout_frequency?: string | null
+          has_kids?: string | null
           holiday_preference?: string | null
           honesty_approach?: string | null
           important_issues?: string[] | null
