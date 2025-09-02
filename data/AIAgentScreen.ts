@@ -644,4 +644,21 @@ export const profileQuestions = [
       validation: (value: string) =>
         value ? null : "Please select your relationship status",
     },
+    {
+      id: "location",
+      text: "Where are you located?",
+      type: "chips",
+      options: [
+        "Yes, use my location",
+        "Manual: Los Angeles, CA",
+        "Manual: New York, NY", 
+        "Manual: San Francisco, CA",
+        "Manual: Chicago, IL",
+        "Manual: Austin, TX",
+        "Manual: Seattle, WA",
+        "Manual: Other"
+      ],
+      validation: (value: string) =>
+        value ? null : "Please select your location",
+    },
   ];  
