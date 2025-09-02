@@ -494,6 +494,7 @@ export type Database = {
           values_importance: string | null
           watching_with_friends: string | null
           weekend_preference: string | null
+          work_life_approach: string | null
           worldview_preference: string | null
         }
         Insert: {
@@ -556,6 +557,7 @@ export type Database = {
           values_importance?: string | null
           watching_with_friends?: string | null
           weekend_preference?: string | null
+          work_life_approach?: string | null
           worldview_preference?: string | null
         }
         Update: {
@@ -618,6 +620,7 @@ export type Database = {
           values_importance?: string | null
           watching_with_friends?: string | null
           weekend_preference?: string | null
+          work_life_approach?: string | null
           worldview_preference?: string | null
         }
         Relationships: [
