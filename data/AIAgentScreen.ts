@@ -646,19 +646,13 @@ export const profileQuestions = [
     },
     {
       id: "location",
-      text: "Where are you located?",
-      type: "chips",
+      text: "We'd like to find friends near you. How would you like to set your location?",
+      type: "location_permission",
       options: [
-        "Yes, use my location",
-        "Manual: Los Angeles, CA",
-        "Manual: New York, NY", 
-        "Manual: San Francisco, CA",
-        "Manual: Chicago, IL",
-        "Manual: Austin, TX",
-        "Manual: Seattle, WA",
-        "Manual: Other"
+        "Use My Location",
+        "Enter Manually"
       ],
       validation: (value: string) =>
-        value ? null : "Please select your location",
+        value ? null : "Please choose a location option",
     },
   ];  

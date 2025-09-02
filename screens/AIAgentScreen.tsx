@@ -13,6 +13,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import * as Location from 'expo-location';
 import { useTheme } from "../contexts/ThemeContext";
 import { useAuth } from "../contexts/AuthContext";
 import { supabase } from "../lib/mcp-supabase";
@@ -53,6 +54,7 @@ export default function AIAgentScreen() {
     Record<string, string[]>
   >({});
   const [waitingForCityInput, setWaitingForCityInput] = useState(false);
+  const [waitingForLocationInput, setWaitingForLocationInput] = useState(false);
   const flatListRef = useRef<FlatList>(null);
   const isInitializedRef = useRef(false);
 
@@ -386,6 +388,47 @@ export default function AIAgentScreen() {
     return findFirstUnansweredIntakeQuestion(intakeData) >= intakeQuestions.length;
   };
 
+  const requestLocationPermission = async () => {
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert(
+          'Location Permission',
+          'Location access was denied. You can enter your city manually instead.',
+          [{ text: 'OK' }]
+        );
+        return null;
+      }
+
+      const location = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+      });
+
+      const [address] = await Location.reverseGeocodeAsync({
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude,
+      });
+
+      const city = address.city && address.region 
+        ? `${address.city}, ${address.region}` 
+        : address.city || address.region || 'Unknown Location';
+
+      return {
+        city,
+        lat: location.coords.latitude,
+        lng: location.coords.longitude,
+      };
+    } catch (error) {
+      console.error('Error getting location:', error);
+      Alert.alert(
+        'Location Error', 
+        'Unable to get your location. Please try entering it manually.',
+        [{ text: 'OK' }]
+      );
+      return null;
+    }
+  };
+
   const askNextProfileQuestion = () => {
     console.log(
       "askNextProfileQuestion called, currentProfileStep:",
@@ -625,16 +668,30 @@ export default function AIAgentScreen() {
           break;
         case "location":
           if (typeof answer === "string") {
-            if (answer === "Yes, use my location") {
-              profileToUpdate.city = "San Francisco"; // Default for now
+            if (answer === "Use My Location") {
+              // Location permission and coordinates will be handled separately
+              // This case is handled by the location permission UI flow
+              console.log("Location permission flow initiated");
+            } else if (answer === "Enter Manually") {
+              // Manual entry will be handled by a text input
+              console.log("Manual location entry initiated");
+            } else if (answer.startsWith("manual_city:")) {
+              // Handle manual city input
+              const city = answer.replace("manual_city:", "");
+              profileToUpdate.city = city;
+              // Set default coordinates (could be improved with geocoding)
               profileToUpdate.lat = 37.7749;
               profileToUpdate.lng = -122.4194;
-            } else if (answer.startsWith("Manual: ")) {
-              const city = answer.replace("Manual: ", "");
-              profileToUpdate.city = city;
-              // Set default coordinates for the city (you could use a geocoding service here)
-              profileToUpdate.lat = 37.7749; // Default to San Francisco for now
-              profileToUpdate.lng = -122.4194;
+            } else if (answer.startsWith("location_data:")) {
+              // Handle location permission result
+              try {
+                const locationData = JSON.parse(answer.replace("location_data:", ""));
+                profileToUpdate.city = locationData.city;
+                profileToUpdate.lat = locationData.lat;
+                profileToUpdate.lng = locationData.lng;
+              } catch (error) {
+                console.error("Error parsing location data:", error);
+              }
             }
           }
           break;
@@ -902,6 +959,29 @@ export default function AIAgentScreen() {
       setWaitingForCityInput(false);
       moveToNextQuestion();
       setIsTyping(false);
+      return;
+    }
+
+    if (waitingForLocationInput) {
+      console.log("Saving manual location input:", currentInput);
+      await saveProfileAnswerToRemote("location", `manual_city:${currentInput}`);
+      setWaitingForLocationInput(false);
+      
+      const confirmMessage: Message = {
+        id: `location-manual-confirm-${Date.now()}`,
+        text: `Perfect! I've set your location to ${currentInput}.`,
+        sender: "ai" as const,
+        timestamp: new Date(),
+        type: "text",
+      };
+      setMessages((prev) => [...prev, confirmMessage]);
+      
+      setTimeout(() => {
+        moveToNextProfileQuestion();
+      }, 1500);
+      
+      setIsTyping(false);
+      setCurrentInput("");
       return;
     }
 
@@ -1524,6 +1604,84 @@ export default function AIAgentScreen() {
                     <Text style={styles.optionText}>{option}</Text>
                   </TouchableOpacity>
                 ))}
+
+              {/* Location permission handling */}
+              {item.data.type === "location_permission" &&
+                item.data.options &&
+                Array.isArray(item.data.options) && (
+                  <View style={styles.locationContainer}>
+                    {item.data.options.map((option: string, index: number) => (
+                      <TouchableOpacity
+                        key={index}
+                        style={[styles.optionChip, index === 0 ? styles.primaryLocationButton : styles.secondaryLocationButton]}
+                        onPress={async () => {
+                          // Add user's selection as a message
+                          const userSelectionMessage: Message = {
+                            id: `location-selection-${Date.now()}`,
+                            text: option,
+                            sender: "user" as const,
+                            timestamp: new Date(),
+                            type: "text",
+                          };
+                          setMessages((prev) => [...prev, userSelectionMessage]);
+
+                          if (option === "Use My Location") {
+                            // Request location permission
+                            const locationData = await requestLocationPermission();
+                            if (locationData) {
+                              // Save location data
+                              await saveProfileAnswerToRemote(item.data.id, `location_data:${JSON.stringify(locationData)}`);
+                              
+                              const confirmMessage: Message = {
+                                id: `location-confirm-${Date.now()}`,
+                                text: `Great! I've set your location to ${locationData.city}.`,
+                                sender: "ai" as const,
+                                timestamp: new Date(),
+                                type: "text",
+                              };
+                              setMessages((prev) => [...prev, confirmMessage]);
+                              
+                              // Move to next question
+                              setTimeout(() => {
+                                moveToNextProfileQuestion();
+                              }, 1500);
+                            } else {
+                              // Permission denied, offer manual entry
+                              const manualMessage: Message = {
+                                id: `manual-fallback-${Date.now()}`,
+                                text: "No worries! Please enter your city manually:",
+                                sender: "ai" as const,
+                                timestamp: new Date(),
+                                type: "text",
+                              };
+                              setMessages((prev) => [...prev, manualMessage]);
+                              
+                              // Show manual input (handled by text input logic)
+                              setInputPlaceholder("Enter your city (e.g., Los Angeles, CA)");
+                              setWaitingForLocationInput(true);
+                            }
+                          } else if (option === "Enter Manually") {
+                            // Show manual input
+                            const manualMessage: Message = {
+                              id: `manual-entry-${Date.now()}`,
+                              text: "Please enter your city:",
+                              sender: "ai" as const,
+                              timestamp: new Date(),
+                              type: "text",
+                            };
+                            setMessages((prev) => [...prev, manualMessage]);
+                            setInputPlaceholder("Enter your city (e.g., Los Angeles, CA)");
+                            setWaitingForLocationInput(true);
+                          }
+                        }}
+                      >
+                        <Text style={[styles.optionText, index === 0 ? styles.primaryLocationText : styles.secondaryLocationText]}>
+                          {index === 0 ? "📍 " : "✏️ "}{option}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                )}
             </View>
           )}
 
@@ -1813,6 +1971,27 @@ const styles = StyleSheet.create({
   optionText: {
     color: "#FFFFFF",
     fontSize: 14,
+  },
+  locationContainer: {
+    flexDirection: "column",
+    gap: 12,
+  },
+  primaryLocationButton: {
+    backgroundColor: "#007AFF",
+    borderColor: "#007AFF",
+  },
+  secondaryLocationButton: {
+    backgroundColor: "transparent",
+    borderColor: "#3C3C3E",
+    borderWidth: 1,
+  },
+  primaryLocationText: {
+    color: "#FFFFFF",
+    fontWeight: "600",
+  },
+  secondaryLocationText: {
+    color: "#FFFFFF",
+    fontWeight: "400",
   },
   multiSelectContainer: {
     width: "100%",
