@@ -189,7 +189,7 @@ export default function AIAgentScreen() {
       .single();
 
     const { data: intakeData, error: intakeError } = await supabase
-      .from("intake_responses")
+      .from("intake_responses_v3")
       .select("*")
       .eq("user_id", user?.id)
       .single();
@@ -485,7 +485,7 @@ export default function AIAgentScreen() {
     try {
       // Get current intake data from database
       const { data: existingIntake } = await supabase
-        .from("intake_responses")
+        .from("intake_responses_v3")
         .select("*")
         .eq("user_id", user.id)
         .single();
@@ -515,7 +515,7 @@ export default function AIAgentScreen() {
       );
 
       const { data, error } = await supabase
-        .from("intake_responses")
+        .from("intake_responses_v3")
         .upsert(intakeToUpdate);
 
       if (error) {
@@ -753,7 +753,7 @@ export default function AIAgentScreen() {
     if (user) {
       // The intake responses are already saved individually as the user answers each question
       // Just mark as completed by updating the updated_at timestamp
-      await supabase.from("intake_responses").upsert({
+      await supabase.from("intake_responses_v3").upsert({
         user_id: user.id,
         updated_at: new Date().toISOString(),
       });
