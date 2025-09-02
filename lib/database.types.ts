@@ -465,6 +465,7 @@ export type Database = {
           is_gamer: string | null
           kids_friend_preference: string | null
           lazy_sunday: string | null
+          life_stage: string | null
           live_music_frequency: string | null
           location_preference: string | null
           music_genres: string[] | null
@@ -526,6 +527,7 @@ export type Database = {
           is_gamer?: string | null
           kids_friend_preference?: string | null
           lazy_sunday?: string | null
+          life_stage?: string | null
           live_music_frequency?: string | null
           location_preference?: string | null
           music_genres?: string[] | null
@@ -587,6 +589,7 @@ export type Database = {
           is_gamer?: string | null
           kids_friend_preference?: string | null
           lazy_sunday?: string | null
+          life_stage?: string | null
           live_music_frequency?: string | null
           location_preference?: string | null
           music_genres?: string[] | null
