@@ -60,13 +60,13 @@ export default function AIAgentScreen() {
 
   const saveMessageToHistory = async (message: Message) => {
     if (!user) return;
-
+    
     try {
       const { error } = await supabase.from("ai_chat_history").insert({
-        user_id: user.id,
-        message_data: message,
-      });
-
+          user_id: user.id,
+          message_data: message,
+        });
+      
       if (error) {
         console.error("Error saving message to history:", error);
       }
@@ -77,19 +77,19 @@ export default function AIAgentScreen() {
 
   const loadChatHistory = async () => {
     if (!user) return;
-
+    
     try {
       const { data, error } = await supabase
         .from("ai_chat_history")
         .select("message_data")
         .eq("user_id", user.id)
         .order("created_at", { ascending: true });
-
+      
       if (error) {
         console.error("Error loading chat history:", error);
         return;
       }
-
+      
       if (data && data.length > 0) {
         const historyMessages = data.map((item) => {
           const message = item.message_data as Message;
@@ -109,13 +109,13 @@ export default function AIAgentScreen() {
 
   const clearChatHistory = async () => {
     if (!user) return;
-
+    
     try {
       const { error } = await supabase
         .from("ai_chat_history")
         .delete()
         .eq("user_id", user.id);
-
+      
       if (error) {
         console.error("Error clearing chat history:", error);
       } else {
@@ -151,12 +151,12 @@ export default function AIAgentScreen() {
       console.log("Chat already initialized, skipping");
       return;
     }
-
+    
     console.log("Initializing chat...");
     isInitializedRef.current = true;
-
+    
     if (!user) return;
-
+    
     const { data: historyData, error: historyError } = await supabase
       .from("ai_chat_history")
       .select("message_data")
@@ -181,7 +181,7 @@ export default function AIAgentScreen() {
     }
 
     console.log("Querying database for user ID:", user?.id);
-
+    
     const { data: profileData, error: profileError } = await supabase
       .from("profiles")
       .select(
@@ -203,12 +203,12 @@ export default function AIAgentScreen() {
 
     const isProfileComplete = !!(
       profileData &&
-      profileData.first_name &&
+      profileData.first_name && 
       profileData.first_name !== "Cooking/Dining out, Concerts/Live music" &&
-      profileData.birthdate &&
-      profileData.gender &&
-      profileData.pronouns &&
-      profileData.relationship_status &&
+      profileData.birthdate && 
+      profileData.gender && 
+      profileData.pronouns && 
+      profileData.relationship_status && 
       profileData.languages &&
       Array.isArray(profileData.languages) &&
       profileData.languages.length > 0 &&
@@ -236,7 +236,7 @@ export default function AIAgentScreen() {
         timestamp: new Date(),
         type: "text",
       };
-
+      
       setMessages([welcomeMessage]);
       await saveMessageToHistory(welcomeMessage);
 
@@ -245,18 +245,18 @@ export default function AIAgentScreen() {
         const firstUnansweredStep = findFirstUnansweredProfileStep(profileData);
         console.log("First unanswered profile step:", firstUnansweredStep);
         setCurrentProfileStep(firstUnansweredStep);
-        setTimeout(() => {
-          askNextProfileQuestion();
-        }, 1000);
+      setTimeout(() => {
+        askNextProfileQuestion();
+      }, 1000);
       } else if (!isIntakeComplete(intakeData)) {
         console.log("Profile complete, checking intake questions...");
-        setIsProfileComplete(true);
+      setIsProfileComplete(true);
         const firstUnansweredIntake = findFirstUnansweredIntakeQuestion(intakeData);
         setCurrentQuestion(firstUnansweredIntake);
-        setTimeout(() => {
-          askNextQuestion();
-        }, 1000);
-      } else {
+      setTimeout(() => {
+        askNextQuestion();
+      }, 1000);
+    } else {
         console.log(
           "Both profile and intake complete, showing completion message..."
         );
@@ -273,7 +273,7 @@ export default function AIAgentScreen() {
           saveMessageToHistory(completionMessage);
         }, 1000);
       }
-    } else {
+      } else {
       if (!isProfileComplete) {
         console.log("Profile not complete, continuing profile collection...");
         const firstUnansweredStep = findFirstUnansweredProfileStep(profileData);
@@ -299,7 +299,7 @@ export default function AIAgentScreen() {
 
   const findFirstUnansweredProfileStep = (profileData: any) => {
     if (!profileData) return 0;
-
+    
     // Check each profile question in order
     for (let i = 0; i < profileQuestions.length; i++) {
       const question = profileQuestions[i];
@@ -313,7 +313,7 @@ export default function AIAgentScreen() {
       }
       
       let isAnswered = false;
-
+      
       switch (question.id) {
         case "name":
           isAnswered = !!profileData.first_name;
@@ -348,13 +348,13 @@ export default function AIAgentScreen() {
           );
           break;
       }
-
+      
       if (!isAnswered) {
         console.log(`First unanswered question: ${question.id} at step ${i}`);
         return i;
       }
     }
-
+    
     // All questions answered
     return profileQuestions.length;
   };
@@ -445,7 +445,7 @@ export default function AIAgentScreen() {
       "total questions:",
       profileQuestions.length
     );
-
+    
     if (currentProfileStep < profileQuestions.length) {
       const question = profileQuestions[currentProfileStep];
       
@@ -462,7 +462,7 @@ export default function AIAgentScreen() {
       }
       
       console.log("Asking profile question:", question.id, question.text);
-
+      
       const questionMessage: Message = {
         id: `profile-${
           question.id
@@ -489,7 +489,7 @@ export default function AIAgentScreen() {
     setCurrentProfileStep((prev) => {
       const nextStep = prev + 1;
       console.log("Moving to next question, step:", nextStep);
-
+      
       // Ask next profile question after a short delay
       setTimeout(() => {
         if (nextStep < profileQuestions.length) {
@@ -533,7 +533,7 @@ export default function AIAgentScreen() {
           completeProfile();
         }
       }, 500);
-
+      
       return nextStep;
     });
   };
@@ -547,6 +547,19 @@ export default function AIAgentScreen() {
     );
     if (currentQuestion < intakeQuestions.length) {
       const question = intakeQuestions[currentQuestion];
+      
+      // Skip conditional questions that shouldn't be shown
+      if (question.conditionalOn && question.showIf) {
+        const conditionalValue = intakeAnswers[question.conditionalOn];
+        if (!conditionalValue || !question.showIf.includes(conditionalValue)) {
+          console.log(`Skipping conditional intake question ${question.id} - condition not met`);
+          // Move to next question
+          setCurrentQuestion(currentQuestion + 1);
+          setTimeout(() => askNextQuestion(), 100);
+          return;
+        }
+      }
+      
       console.log("Asking intake question:", question.id, question.text);
       const questionMessage: Message = {
         id: `question-${question.id}-${Date.now()}-${Math.random()}`,
@@ -676,8 +689,8 @@ export default function AIAgentScreen() {
           break;
         case "gender":
           if (typeof answer === "string") {
-            // Store in dedicated gender column
-            profileToUpdate.gender = answer;
+          // Store in dedicated gender column
+          profileToUpdate.gender = answer;
           }
           break;
         case "pronouns":
@@ -689,7 +702,7 @@ export default function AIAgentScreen() {
         case "sexual_orientation":
           if (typeof answer === "string") {
             // Store sexual orientation in a dedicated column
-            profileToUpdate.sexual_orientation = answer;
+          profileToUpdate.sexual_orientation = answer;
           }
           break;
 
@@ -716,8 +729,8 @@ export default function AIAgentScreen() {
               const city = answer.replace("manual_city:", "");
               profileToUpdate.city = city;
               // Set default coordinates (could be improved with geocoding)
-              profileToUpdate.lat = 37.7749;
-              profileToUpdate.lng = -122.4194;
+            profileToUpdate.lat = 37.7749;
+            profileToUpdate.lng = -122.4194;
             } else if (answer.startsWith("location_data:")) {
               // Handle location permission result
               try {
@@ -770,7 +783,7 @@ export default function AIAgentScreen() {
 
   const completeProfile = async () => {
     console.log("completeProfile called, user:", user?.id);
-
+    
     // Update bio_text with clean format using dedicated columns
     if (user) {
       const { data: existingProfile } = await supabase
@@ -802,14 +815,14 @@ export default function AIAgentScreen() {
 
         await supabase
           .from("profiles")
-          .update({
+          .update({ 
             bio_text: cleanBioText,
             updated_at: new Date().toISOString(),
           })
           .eq("id", user.id);
       }
     }
-
+    
     const completionMessage: Message = {
       id: "profile-completion",
       text: "Great! Now let's dive into what you're looking for in friendships. I'll ask you about 50 questions to understand your preferences, communication style, and what makes a great friend for you.\n\nThis will take about 15-20 minutes. Ready to continue?",
@@ -881,7 +894,7 @@ export default function AIAgentScreen() {
     try {
       // Get user's current matches
       const matches = await MatchingService.getUserMatches(user.id);
-
+      
       if (matches.length > 0) {
         setWeeklyMatches(matches);
         showNextMatch();
@@ -916,7 +929,7 @@ export default function AIAgentScreen() {
     }
 
     const match = weeklyMatches[currentMatchIndex];
-
+    
     // Get the other user's profile
     const otherUserId = match.user_a === user?.id ? match.user_b : match.user_a;
     const { data: otherUser } = await supabase
@@ -1056,16 +1069,7 @@ export default function AIAgentScreen() {
 
         setTimeout(() => {
           if (nextQuestionIndex < intakeQuestions.length) {
-            const question = intakeQuestions[nextQuestionIndex];
-            const questionMessage: Message = {
-              id: `question-${question.id}-${Date.now()}-${Math.random()}`,
-              text: question.text,
-              sender: "ai" as const,
-              timestamp: new Date(),
-              type: "question",
-              data: question,
-            };
-            setMessages((prev) => [...prev, questionMessage]);
+          askNextQuestion();
           } else {
             completeIntake();
           }
@@ -1081,17 +1085,17 @@ export default function AIAgentScreen() {
         currentIntakeQuestion.type === "single_select" ||
         currentIntakeQuestion.type === "scale"
       ) {
-        const errorMessage: Message = {
-          id: `error-${Date.now()}`,
+            const errorMessage: Message = {
+              id: `error-${Date.now()}`,
           text: "Please select one of the options above by tapping on it.",
-          sender: "ai",
-          timestamp: new Date(),
-          type: "text",
-        };
-        setMessages((prev) => [...prev, errorMessage]);
-        setIsTyping(false);
-        return;
-      }
+              sender: "ai",
+              timestamp: new Date(),
+              type: "text",
+            };
+            setMessages((prev) => [...prev, errorMessage]);
+            setIsTyping(false);
+            return;
+          }
 
       // Handle multi-select questions
       if (currentIntakeQuestion.type === "multi_select") {
@@ -1112,7 +1116,7 @@ export default function AIAgentScreen() {
             .filter((s) => s.length > 0);
           console.log("DEBUG: Parsed from input:", selectedOptions);
         }
-
+        
         if (selectedOptions.length > 0) {
           console.log("DEBUG: About to save and move to next question");
 
@@ -1143,21 +1147,7 @@ export default function AIAgentScreen() {
               nextQuestionIndex
             );
             if (nextQuestionIndex < intakeQuestions.length) {
-              const question = intakeQuestions[nextQuestionIndex];
-              console.log(
-                "DEBUG: Next question is:",
-                question.id,
-                question.text
-              );
-              const questionMessage: Message = {
-                id: `question-${question.id}-${Date.now()}-${Math.random()}`,
-                text: question.text,
-                sender: "ai" as const,
-                timestamp: new Date(),
-                type: "question",
-                data: question,
-              };
-              setMessages((prev) => [...prev, questionMessage]);
+            askNextQuestion();
             } else {
               completeIntake();
             }
@@ -1168,17 +1158,17 @@ export default function AIAgentScreen() {
           return;
         }
 
-        const errorMessage: Message = {
+          const errorMessage: Message = {
           id: `error-${Date.now()}`,
-          text: "Please select at least one option before continuing.",
-          sender: "ai",
-          timestamp: new Date(),
-          type: "text",
-        };
-        setMessages((prev) => [...prev, errorMessage]);
-        setIsTyping(false);
-        return;
-      }
+            text: "Please select at least one option before continuing.",
+            sender: "ai",
+            timestamp: new Date(),
+            type: "text",
+          };
+          setMessages((prev) => [...prev, errorMessage]);
+          setIsTyping(false);
+          return;
+        }
 
       setIsTyping(false);
       return;
@@ -1202,7 +1192,7 @@ export default function AIAgentScreen() {
           currentProfileQuestion.id,
           currentInput
         );
-
+        
         await saveProfileAnswerToRemote(
           currentProfileQuestion.id,
           currentInput
@@ -1226,8 +1216,8 @@ export default function AIAgentScreen() {
           );
           setSelectedLanguages([]);
           moveToNextQuestion();
-          setIsTyping(false);
-          return;
+        setIsTyping(false);
+        return;
         } else {
           const errorMessage: Message = {
             id: (Date.now() + 1).toString(),
@@ -1291,38 +1281,38 @@ export default function AIAgentScreen() {
 
   const renderMessage = ({ item }: { item: Message }) => {
     const isUser = item.sender === "user";
-
+    
     return (
       <View
         style={[
-          styles.messageContainer,
+        styles.messageContainer,
           isUser ? styles.userMessage : styles.aiMessage,
         ]}
       >
         <View
           style={[
-            styles.messageBubble,
+          styles.messageBubble,
             isUser ? styles.userBubble : styles.aiBubble,
           ]}
         >
           <Text
             style={[
-              styles.messageText,
+            styles.messageText,
               isUser ? styles.userText : styles.aiText,
             ]}
           >
             {item.text}
           </Text>
-
-          {/* Fix: Add check for item.data.options existence */}
-          {item.type === "question" &&
-            item.data &&
-            item.data.options &&
-            Array.isArray(item.data.options) &&
+          
+                      {/* Fix: Add check for item.data.options existence */}
+            {item.type === "question" &&
+              item.data &&
+              item.data.options &&
+              Array.isArray(item.data.options) &&
             (item.data.type === "single_select" ||
               item.data.type === "likert" ||
               item.data.type === "scale") &&
-            (() => {
+                (() => {
               console.log(
                 "Rendering question with options:",
                 item.data.id,
@@ -1331,52 +1321,41 @@ export default function AIAgentScreen() {
                 "options:",
                 item.data.options
               );
-              return (
-                <View style={styles.questionOptions}>
-                  {item.data.options.map((option: string, index: number) => (
-                    <TouchableOpacity
-                      key={index}
-                      style={styles.optionChip}
-                      onPress={async () => {
-                        const userSelectionMessage: Message = {
-                          id: `selection-${Date.now()}`,
-                          text: option,
-                          sender: "user",
-                          timestamp: new Date(),
-                          type: "text",
-                        };
-                        setMessages((prev) => [...prev, userSelectionMessage]);
+                  return (
+            <View style={styles.questionOptions}>
+              {item.data.options.map((option: string, index: number) => (
+                <TouchableOpacity
+                  key={index}
+                  style={styles.optionChip}
+                          onPress={async () => {
+                    const userSelectionMessage: Message = {
+                      id: `selection-${Date.now()}`,
+                      text: option,
+                              sender: "user",
+                      timestamp: new Date(),
+                              type: "text",
+                            };
+                            setMessages((prev) => [...prev, userSelectionMessage]);
 
-                        await saveIntakeAnswerToRemote(item.data.id, option);
-
+                            await saveIntakeAnswerToRemote(item.data.id, option);
+                    
                         const nextQuestionIndex = currentQuestion + 1;
                         setCurrentQuestion(nextQuestionIndex);
-
-                        setTimeout(() => {
+                    
+                    setTimeout(() => {
                           if (nextQuestionIndex < intakeQuestions.length) {
-                            const question = intakeQuestions[nextQuestionIndex];
-                            const questionMessage: Message = {
-                              id: `question-${
-                                question.id
-                              }-${Date.now()}-${Math.random()}`,
-                              text: question.text,
-                              sender: "ai" as const,
-                              timestamp: new Date(),
-                              type: "question",
-                              data: question,
-                            };
-                            setMessages((prev) => [...prev, questionMessage]);
-                          } else {
-                            completeIntake();
-                          }
-                        }, 500);
-                      }}
-                    >
-                      <Text style={styles.optionText}>{option}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              );
+                            askNextQuestion();
+                      } else {
+                        completeIntake();
+                      }
+                    }, 500);
+                  }}
+                >
+                  <Text style={styles.optionText}>{option}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+                  );
             })()}
 
           {/* Fix: Add check for profile question options */}
@@ -1389,19 +1368,19 @@ export default function AIAgentScreen() {
                   <TouchableOpacity
                     key={index}
                     style={styles.optionChip}
-                    onPress={async () => {
-                      // Add user's selection as a message
-                      const userSelectionMessage: Message = {
+                                         onPress={async () => {
+                       // Add user's selection as a message
+                       const userSelectionMessage: Message = {
                         id: `profile-selection-${
                           item.data.id
                         }-${currentProfileStep}-${Date.now()}`,
-                        text: option,
+                         text: option,
                         sender: "user" as const,
-                        timestamp: new Date(),
+                         timestamp: new Date(),
                         type: "text",
-                      };
+                       };
                       setMessages((prev) => [...prev, userSelectionMessage]);
-
+                       
                       // Special handling for ready_to_start transition
                       if (item.data.id === "ready_to_start") {
                         if (option === "Yes, let's start!") {
@@ -1424,9 +1403,9 @@ export default function AIAgentScreen() {
                       }
 
                       // Save directly to remote database for other profile questions
-                      await saveProfileAnswerToRemote(item.data.id, option);
-
-                      // Move to next profile question
+                       await saveProfileAnswerToRemote(item.data.id, option);
+                       
+                       // Move to next profile question
                       moveToNextQuestion();
                     }}
                   >
@@ -1447,23 +1426,23 @@ export default function AIAgentScreen() {
                     <View style={styles.multiSelectOptionsWrapper}>
                       {item.data.options.map(
                         (option: string, index: number) => (
-                          <TouchableOpacity
-                            key={index}
-                            style={[
+                      <TouchableOpacity
+                        key={index}
+                        style={[
                               styles.multiSelectChipInline, // Use new style for inline chips
                               selectedMultiSelectOptions[
                                 item.data.id
                               ]?.includes(option) && styles.selectedChip,
-                            ]}
-                            onPress={() => {
-                              const questionId = item.data.id;
+                        ]}
+                        onPress={() => {
+                          const questionId = item.data.id;
                               setSelectedMultiSelectOptions((prev) => {
                                 const currentSelections =
                                   prev[questionId] || [];
-                                let newSelections;
-
-                                if (currentSelections.includes(option)) {
-                                  // Remove if already selected
+                            let newSelections;
+                            
+                            if (currentSelections.includes(option)) {
+                              // Remove if already selected
                                   newSelections = currentSelections.filter(
                                     (item) => item !== option
                                   );
@@ -1472,38 +1451,38 @@ export default function AIAgentScreen() {
                                   currentSelections.length >=
                                     item.data.maxSelections
                                 ) {
-                                  // Don't add if at limit
-                                  newSelections = currentSelections;
-                                } else {
-                                  // Add if under limit
+                              // Don't add if at limit
+                              newSelections = currentSelections;
+                         } else {
+                              // Add if under limit
                                   newSelections = [
                                     ...currentSelections,
                                     option,
                                   ];
-                                }
-
-                                // Update the input text to show selected options
+                            }
+                            
+                            // Update the input text to show selected options
                                 setInputText(newSelections.join(", "));
-
-                                return {
-                                  ...prev,
+                            
+                            return {
+                              ...prev,
                                   [questionId]: newSelections,
-                                };
-                              });
-                            }}
-                          >
+                            };
+                          });
+                        }}
+                      >
                             <Text
                               style={[
-                                styles.optionText,
+                          styles.optionText,
                                 selectedMultiSelectOptions[
                                   item.data.id
                                 ]?.includes(option) &&
                                   styles.selectedOptionText,
                               ]}
                             >
-                              {option}
-                            </Text>
-                          </TouchableOpacity>
+                          {option}
+                        </Text>
+                  </TouchableOpacity>
                         )
                       )}
                     </View>
@@ -1521,45 +1500,45 @@ export default function AIAgentScreen() {
                     <View style={styles.languageOptionsGrid}>
                       {item.data.options.map(
                         (option: string, index: number) => (
-                          <TouchableOpacity
-                            key={index}
-                            style={[
-                              styles.multiSelectChip,
+                      <TouchableOpacity
+                        key={index}
+                        style={[
+                          styles.multiSelectChip,
                               selectedLanguages.includes(option) &&
                                 styles.selectedChip,
-                            ]}
-                            onPress={() => {
+                        ]}
+                        onPress={() => {
                               setSelectedLanguages((prev) => {
-                                let newSelection;
-                                if (prev.includes(option)) {
-                                  // Remove if already selected
+                            let newSelection;
+                            if (prev.includes(option)) {
+                              // Remove if already selected
                                   newSelection = prev.filter(
                                     (lang) => lang !== option
                                   );
-                                } else if (prev.length < 5) {
-                                  // Add if under limit
-                                  newSelection = [...prev, option];
-                                } else {
-                                  // Don't add if at limit
-                                  newSelection = prev;
-                                }
-
-                                // Update the input text to show selected languages
+                            } else if (prev.length < 5) {
+                              // Add if under limit
+                              newSelection = [...prev, option];
+                            } else {
+                              // Don't add if at limit
+                              newSelection = prev;
+                            }
+                            
+                            // Update the input text to show selected languages
                                 setInputText(newSelection.join(", "));
-                                return newSelection;
-                              });
-                            }}
-                          >
+                            return newSelection;
+                          });
+                        }}
+                      >
                             <Text
                               style={[
-                                styles.optionText,
+                          styles.optionText,
                                 selectedLanguages.includes(option) &&
                                   styles.selectedOptionText,
                               ]}
                             >
-                              {option}
-                            </Text>
-                          </TouchableOpacity>
+                          {option}
+                        </Text>
+                      </TouchableOpacity>
                         )
                       )}
                     </View>
@@ -1604,15 +1583,15 @@ export default function AIAgentScreen() {
                   <TouchableOpacity
                     key={index}
                     style={styles.optionChip}
-                    onPress={async () => {
-                      // Add user's selection as a message
-                      const userSelectionMessage: Message = {
+                                         onPress={async () => {
+                       // Add user's selection as a message
+                       const userSelectionMessage: Message = {
                         id: `profile-selection-${
                           item.data.id
                         }-${currentProfileStep}-${Date.now()}`,
-                        text: option,
+                         text: option,
                         sender: "user",
-                        timestamp: new Date(),
+                         timestamp: new Date(),
                         type: "text",
                       };
                       setMessages((prev) => [...prev, userSelectionMessage]);
@@ -1647,20 +1626,20 @@ export default function AIAgentScreen() {
                 Array.isArray(item.data.options) && (
                   <View style={styles.locationContainer}>
                     {item.data.options.map((option: string, index: number) => (
-                      <TouchableOpacity
-                        key={index}
+                  <TouchableOpacity
+                    key={index}
                         style={[styles.optionChip, index === 0 ? styles.primaryLocationButton : styles.secondaryLocationButton]}
-                        onPress={async () => {
-                          // Add user's selection as a message
-                          const userSelectionMessage: Message = {
+                    onPress={async () => {
+                      // Add user's selection as a message
+                      const userSelectionMessage: Message = {
                             id: `location-selection-${Date.now()}`,
-                            text: option,
+                        text: option,
                             sender: "user" as const,
-                            timestamp: new Date(),
-                            type: "text",
-                          };
-                          setMessages((prev) => [...prev, userSelectionMessage]);
-
+                        timestamp: new Date(),
+                        type: "text",
+                      };
+                      setMessages((prev) => [...prev, userSelectionMessage]);
+                       
                           if (option === "Use My Location") {
                             // Request location permission
                             const locationData = await requestLocationPermission();
@@ -1679,7 +1658,7 @@ export default function AIAgentScreen() {
                               
                               // Move to next question
                               setTimeout(() => {
-                                moveToNextQuestion();
+                      moveToNextQuestion();
                               }, 1500);
                             } else {
                               // Permission denied, offer manual entry
@@ -1714,8 +1693,8 @@ export default function AIAgentScreen() {
                         <Text style={[styles.optionText, index === 0 ? styles.primaryLocationText : styles.secondaryLocationText]}>
                           {index === 0 ? "📍 " : "✏️ "}{option}
                         </Text>
-                      </TouchableOpacity>
-                    ))}
+                  </TouchableOpacity>
+                ))}
                   </View>
                 )}
             </View>
@@ -1734,23 +1713,23 @@ export default function AIAgentScreen() {
                     : "Tap options to add them to the text box below, then press send:"}
                 </Text>
                 <View style={styles.multiSelectOptionsWrapper}>
-                  {item.data.options.map((option: string, index: number) => (
-                    <TouchableOpacity
-                      key={index}
-                      style={[
-                        styles.multiSelectChip,
+                {item.data.options.map((option: string, index: number) => (
+                  <TouchableOpacity
+                    key={index}
+                    style={[
+                      styles.multiSelectChip,
                         selectedMultiSelectOptions[item.data.id]?.includes(
                           option
                         ) && styles.selectedChip,
-                      ]}
-                      onPress={() => {
-                        const questionId = item.data.id;
+                    ]}
+                    onPress={() => {
+                      const questionId = item.data.id;
                         setSelectedMultiSelectOptions((prev) => {
-                          const currentSelections = prev[questionId] || [];
-                          let newSelections;
-
-                          if (currentSelections.includes(option)) {
-                            // Remove if already selected
+                        const currentSelections = prev[questionId] || [];
+                        let newSelections;
+                        
+                        if (currentSelections.includes(option)) {
+                          // Remove if already selected
                             newSelections = currentSelections.filter(
                               (item) => item !== option
                             );
@@ -1758,39 +1737,39 @@ export default function AIAgentScreen() {
                             item.data.maxSelections &&
                             currentSelections.length >= item.data.maxSelections
                           ) {
-                            // Don't add if at limit
-                            newSelections = currentSelections;
-                          } else {
-                            // Add if under limit
-                            newSelections = [...currentSelections, option];
-                          }
-
-                          // Update the input text to show selected options
+                          // Don't add if at limit
+                          newSelections = currentSelections;
+                         } else {
+                          // Add if under limit
+                          newSelections = [...currentSelections, option];
+                        }
+                        
+                        // Update the input text to show selected options
                           setInputText(newSelections.join(", "));
-
-                          return {
-                            ...prev,
+                        
+                        return {
+                          ...prev,
                             [questionId]: newSelections,
-                          };
-                        });
-                      }}
-                    >
+                        };
+                      });
+                    }}
+                  >
                       <Text
                         style={[
-                          styles.optionText,
+                      styles.optionText,
                           selectedMultiSelectOptions[item.data.id]?.includes(
                             option
                           ) && styles.selectedOptionText,
                         ]}
                       >
-                        {option}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
+                      {option}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
                 </View>
-              </View>
-            )}
-
+            </View>
+          )}
+          
           {item.type === "match-card" && item.data && (
             <MatchCard
               match={item.data.match}
@@ -1803,8 +1782,8 @@ export default function AIAgentScreen() {
         <Text style={styles.timestamp}>
           {item.timestamp
             ? item.timestamp.toLocaleTimeString([], {
-                hour: "2-digit",
-                minute: "2-digit",
+            hour: "2-digit",
+            minute: "2-digit",
               })
             : ""}
         </Text>
@@ -1821,7 +1800,7 @@ export default function AIAgentScreen() {
     if (lastMessage.type === "question" && lastMessage.data?.options) {
       const questionType = lastMessage.data.type;
       // Only disable for questions that should use option chips (NOT text or multi_select)
-      return (
+  return (
         questionType === "single_select" ||
         questionType === "likert" ||
         questionType === "scale"
