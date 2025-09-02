@@ -81,29 +81,7 @@ export const intakeQuestions = [
       validation: (values: string[]) =>
         values.length > 0 ? null : "Please select at least one activity",
     },
-    {
-    id: "is_gamer",
-    text: "Do you consider yourself a gamer?",
-    type: "single_select",
-    options: ["Yes", "Sometimes", "No"],
-    validation: (value: string) => value ? null : "Please select an option",
-  },
-  {
-    id: "gaming_types",
-    text: "Nice, what do you play?",
-    type: "multi_select",
-    useTextBox: true,
-    textBoxPlaceholder: "Search game types...",
-    options: [
-      "Fortnite", "Call of Duty", "Minecraft", "Roblox", "League of Legends",
-      "Valorant", "Counter-Strike", "Grand Theft Auto V (GTA Online)",
-      "Apex Legends", "Elden Ring", "Other"
-    ],
-    conditionalOn: "is_gamer",
-    showIf: ["Yes", "Sometimes"],
-    validation: (values: string[]) =>
-      values.length > 0 ? null : "Please select at least one game type",
-  },
+
   {
     id: "plays_nyt_games",
     text: "Do you play any New York Times games?",
@@ -553,6 +531,29 @@ export const intakeQuestions = [
       "Wide range - age doesn't matter much to me"
     ],
     validation: (value: string) => value ? null : "Please select an age range preference",
+  },
+  {
+    id: "is_gamer",
+    text: "Do you consider yourself a gamer?",
+    type: "single_select",
+    options: ["Yes", "Sometimes", "No"],
+    validation: (value: string) => value ? null : "Please select an option",
+  },
+  {
+    id: "gaming_types",
+    text: "Nice, what do you play?",
+    type: "multi_select",
+    useTextBox: true,
+    textBoxPlaceholder: "Search game types...",
+    options: [
+      "Fortnite", "Call of Duty", "Minecraft", "Roblox", "League of Legends",
+      "Valorant", "Counter-Strike", "Grand Theft Auto V (GTA Online)",
+      "Apex Legends", "Elden Ring", "Other"
+    ],
+    conditionalOn: "is_gamer",
+    showIf: ["Yes", "Sometimes"],
+    validation: (values: string[]) =>
+      values.length > 0 ? null : "Please select at least one game type",
   },
 ];
 

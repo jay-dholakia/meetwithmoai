@@ -692,6 +692,7 @@ export default function AIAgentScreen() {
             profileToUpdate.sexual_orientation = answer;
           }
           break;
+
         case "profilePhoto":
           if (typeof answer === "string") {
             // Handle profile photo upload (placeholder for now)
