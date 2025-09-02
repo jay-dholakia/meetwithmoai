@@ -303,6 +303,15 @@ export default function AIAgentScreen() {
     // Check each profile question in order
     for (let i = 0; i < profileQuestions.length; i++) {
       const question = profileQuestions[i];
+      
+      // Skip conditional questions that shouldn't be shown
+      if (question.conditionalOn && question.showIf) {
+        const conditionalValue = profileData[question.conditionalOn];
+        if (!conditionalValue || !question.showIf.includes(conditionalValue)) {
+          continue; // Skip this question as it's conditional and conditions aren't met
+        }
+      }
+      
       let isAnswered = false;
 
       switch (question.id) {
@@ -439,6 +448,19 @@ export default function AIAgentScreen() {
 
     if (currentProfileStep < profileQuestions.length) {
       const question = profileQuestions[currentProfileStep];
+      
+      // Skip conditional questions that shouldn't be shown
+      if (question.conditionalOn && question.showIf) {
+        const conditionalValue = profileData[question.conditionalOn];
+        if (!conditionalValue || !question.showIf.includes(conditionalValue)) {
+          console.log(`Skipping conditional question ${question.id} - condition not met`);
+          // Move to next question
+          setCurrentProfileStep(currentProfileStep + 1);
+          setTimeout(() => askNextProfileQuestion(), 100);
+          return;
+        }
+      }
+      
       console.log("Asking profile question:", question.id, question.text);
 
       const questionMessage: Message = {
@@ -473,6 +495,19 @@ export default function AIAgentScreen() {
         if (nextStep < profileQuestions.length) {
           // Use the nextStep directly instead of relying on state
           const question = profileQuestions[nextStep];
+          
+          // Skip conditional questions that shouldn't be shown
+          if (question.conditionalOn && question.showIf) {
+            const conditionalValue = profileData[question.conditionalOn];
+            if (!conditionalValue || !question.showIf.includes(conditionalValue)) {
+              console.log(`Skipping conditional question ${question.id} in moveToNextQuestion - condition not met`);
+              // Recursively move to next question
+              setCurrentProfileStep(nextStep);
+              setTimeout(() => moveToNextQuestion(), 100);
+              return;
+            }
+          }
+          
           console.log(
             "Asking next profile question:",
             question.id,
