@@ -1086,7 +1086,6 @@ export default function AIAgentScreen() {
 
         // Move to next question
         const nextQuestionIndex = currentQuestion + 1;
-        setCurrentQuestion(nextQuestionIndex);
 
         setTimeout(() => {
           if (nextQuestionIndex < intakeQuestions.length) {
@@ -1165,8 +1164,6 @@ export default function AIAgentScreen() {
             "to",
             nextQuestionIndex
           );
-
-          setCurrentQuestion(nextQuestionIndex);
 
           setTimeout(() => {
             console.log(
@@ -1373,7 +1370,6 @@ export default function AIAgentScreen() {
                         };
 
                         const nextQuestionIndex = currentQuestion + 1;
-                        setCurrentQuestion(nextQuestionIndex);
                     
                     setTimeout(() => {
                           if (nextQuestionIndex < intakeQuestions.length) {
