@@ -636,6 +636,12 @@ export default function AIAgentScreen() {
         console.error("Error saving intake answer:", error);
       } else {
         console.log("Intake answer saved successfully:", data);
+        
+        // Update local intakeAnswers state for conditional logic
+        setIntakeAnswers(prev => ({
+          ...prev,
+          [questionId]: answer
+        }));
       }
     } catch (error) {
       console.error("Error in saveIntakeAnswerToRemote:", error);
