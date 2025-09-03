@@ -538,7 +538,7 @@ export default function AIAgentScreen() {
     });
   };
 
-  const checkAndAskQuestion = (questionIndex: number) => {
+  const checkAndAskQuestion = (questionIndex: number, latestAnswers?: Record<string, any>) => {
     console.log("checkAndAskQuestion called with index:", questionIndex);
     
     if (questionIndex >= intakeQuestions.length) {
@@ -550,11 +550,13 @@ export default function AIAgentScreen() {
     
     // Skip conditional questions that shouldn't be shown
     if (question.conditionalOn && question.showIf) {
-      const conditionalValue = intakeAnswers[question.conditionalOn];
+      // Use latest answers if provided, otherwise fall back to state
+      const answersToCheck = latestAnswers || intakeAnswers;
+      const conditionalValue = answersToCheck[question.conditionalOn];
       if (!conditionalValue || !question.showIf.includes(conditionalValue)) {
         console.log(`Skipping conditional intake question ${question.id} at index ${questionIndex} - condition not met`);
-        // Recursively check the next question
-        checkAndAskQuestion(questionIndex + 1);
+        // Recursively check the next question, passing along latest answers
+        checkAndAskQuestion(questionIndex + 1, latestAnswers);
         return;
       }
     }
@@ -638,10 +640,11 @@ export default function AIAgentScreen() {
         console.log("Intake answer saved successfully:", data);
         
         // Update local intakeAnswers state for conditional logic
-        setIntakeAnswers(prev => ({
-          ...prev,
+        const updatedAnswers = {
+          ...intakeAnswers,
           [questionId]: answer
-        }));
+        };
+        setIntakeAnswers(updatedAnswers);
       }
     } catch (error) {
       console.error("Error in saveIntakeAnswerToRemote:", error);
@@ -1075,13 +1078,19 @@ export default function AIAgentScreen() {
 
         await saveIntakeAnswerToRemote(currentIntakeQuestion.id, currentInput);
 
+        // Create updated answers object with the latest input
+        const updatedAnswers = {
+          ...intakeAnswers,
+          [currentIntakeQuestion.id]: currentInput
+        };
+
         // Move to next question
         const nextQuestionIndex = currentQuestion + 1;
         setCurrentQuestion(nextQuestionIndex);
 
         setTimeout(() => {
           if (nextQuestionIndex < intakeQuestions.length) {
-            checkAndAskQuestion(nextQuestionIndex);
+            checkAndAskQuestion(nextQuestionIndex, updatedAnswers);
           } else {
             completeIntake();
           }
@@ -1137,6 +1146,12 @@ export default function AIAgentScreen() {
             selectedOptions
           );
 
+          // Create updated answers object with the latest multi-select
+          const updatedAnswers = {
+            ...intakeAnswers,
+            [currentIntakeQuestion.id]: selectedOptions
+          };
+
           setSelectedMultiSelectOptions((prev) => {
             const newState = { ...prev };
             delete newState[currentIntakeQuestion.id];
@@ -1159,7 +1174,7 @@ export default function AIAgentScreen() {
               nextQuestionIndex
             );
             if (nextQuestionIndex < intakeQuestions.length) {
-              checkAndAskQuestion(nextQuestionIndex);
+              checkAndAskQuestion(nextQuestionIndex, updatedAnswers);
             } else {
               completeIntake();
             }
@@ -1351,12 +1366,18 @@ export default function AIAgentScreen() {
 
                             await saveIntakeAnswerToRemote(item.data.id, option);
                     
+                        // Create updated answers object with the latest selection
+                        const updatedAnswers = {
+                          ...intakeAnswers,
+                          [item.data.id]: option
+                        };
+
                         const nextQuestionIndex = currentQuestion + 1;
                         setCurrentQuestion(nextQuestionIndex);
                     
                     setTimeout(() => {
                           if (nextQuestionIndex < intakeQuestions.length) {
-                            checkAndAskQuestion(nextQuestionIndex);
+                            checkAndAskQuestion(nextQuestionIndex, updatedAnswers);
                       } else {
                         completeIntake();
                       }
