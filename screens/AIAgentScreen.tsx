@@ -1075,7 +1075,7 @@ export default function AIAgentScreen() {
 
         setTimeout(() => {
           if (nextQuestionIndex < intakeQuestions.length) {
-          askNextQuestion();
+            checkAndAskQuestion(nextQuestionIndex);
           } else {
             completeIntake();
           }
@@ -1153,7 +1153,7 @@ export default function AIAgentScreen() {
               nextQuestionIndex
             );
             if (nextQuestionIndex < intakeQuestions.length) {
-            askNextQuestion();
+              checkAndAskQuestion(nextQuestionIndex);
             } else {
               completeIntake();
             }
@@ -1350,7 +1350,7 @@ export default function AIAgentScreen() {
                     
                     setTimeout(() => {
                           if (nextQuestionIndex < intakeQuestions.length) {
-                            askNextQuestion();
+                            checkAndAskQuestion(nextQuestionIndex);
                       } else {
                         completeIntake();
                       }
