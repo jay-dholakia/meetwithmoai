@@ -538,6 +538,45 @@ export default function AIAgentScreen() {
     });
   };
 
+  const checkAndAskQuestion = (questionIndex: number) => {
+    console.log("checkAndAskQuestion called with index:", questionIndex);
+    
+    if (questionIndex >= intakeQuestions.length) {
+      completeIntake();
+      return;
+    }
+    
+    const question = intakeQuestions[questionIndex];
+    
+    // Skip conditional questions that shouldn't be shown
+    if (question.conditionalOn && question.showIf) {
+      const conditionalValue = intakeAnswers[question.conditionalOn];
+      if (!conditionalValue || !question.showIf.includes(conditionalValue)) {
+        console.log(`Skipping conditional intake question ${question.id} at index ${questionIndex} - condition not met`);
+        // Recursively check the next question
+        checkAndAskQuestion(questionIndex + 1);
+        return;
+      }
+    }
+    
+    // Update the current question state and ask the question
+    setCurrentQuestion(questionIndex);
+    console.log("Asking intake question:", question.id, question.text);
+    const questionMessage: Message = {
+      id: `question-${question.id}-${Date.now()}-${Math.random()}`,
+      text: question.text,
+      sender: "ai" as const,
+      timestamp: new Date(),
+      type: "question",
+      data: question,
+    };
+    setMessages((prev) => {
+      const newMessages = [...prev, questionMessage];
+      saveMessageToHistory(questionMessage);
+      return newMessages;
+    });
+  };
+
   const askNextQuestion = () => {
     console.log(
       "askNextQuestion called, currentQuestion:",
@@ -545,40 +584,7 @@ export default function AIAgentScreen() {
       "intakeQuestions.length:",
       intakeQuestions.length
     );
-    if (currentQuestion < intakeQuestions.length) {
-      const question = intakeQuestions[currentQuestion];
-      
-      // Skip conditional questions that shouldn't be shown
-      if (question.conditionalOn && question.showIf) {
-        const conditionalValue = intakeAnswers[question.conditionalOn];
-        if (!conditionalValue || !question.showIf.includes(conditionalValue)) {
-          console.log(`Skipping conditional intake question ${question.id} - condition not met`);
-          // Move to next question
-          setCurrentQuestion(currentQuestion + 1);
-          setTimeout(() => askNextQuestion(), 100);
-          return;
-        }
-      }
-      
-      console.log("Asking intake question:", question.id, question.text);
-      const questionMessage: Message = {
-        id: `question-${question.id}-${Date.now()}-${Math.random()}`,
-        text: question.text,
-        sender: "ai" as const,
-        timestamp: new Date(),
-        type: "question",
-        data: question,
-      };
-      setMessages((prev) => {
-        const newMessages = [...prev, questionMessage];
-        saveMessageToHistory(questionMessage);
-        return newMessages;
-      });
-    } else {
-      console.log("Intake complete, calling completeIntake");
-      // Intake complete
-      completeIntake();
-    }
+    checkAndAskQuestion(currentQuestion);
   };
 
   const saveIntakeAnswerToRemote = async (
