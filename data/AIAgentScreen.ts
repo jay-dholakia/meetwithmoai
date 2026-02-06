@@ -50,13 +50,13 @@ export const intakeQuestions = [
   },
   {
     id: "default_hangout",
-    text: "What's your default first hangout idea with a new friend?",
+    text: "What's your ideal first café meetup with a new connection?",
     type: "single_select",
     options: [
-      "Grab food or coffee",
-      "Go for a walk or something outdoors",
-      "Watch a movie/show together",
-      "Play a game (board or video)"
+      "Coffee and conversation",
+      "Coffee with a walk nearby",
+      "Working together at a café",
+      "Café with board games or activities"
     ],
     validation: (value: string) => value ? null : "Please select a hangout idea",
   },

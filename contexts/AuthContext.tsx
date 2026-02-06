@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react'
 import { Session, User } from '@supabase/supabase-js'
-import { supabase } from '../lib/supabase'
+import { supabase } from '../lib/mcp-supabase'
 
 interface AuthContextType {
   user: User | null
@@ -54,7 +54,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const signUp = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
     })
@@ -62,10 +62,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     })
+    
+    // Provide better error messages
+    if (error) {
+      if (error.message.includes('Invalid login credentials')) {
+        return { error: { ...error, message: 'Invalid email or password. Please check your credentials and try again.' } }
+      }
+    }
+    
     return { error }
   }
 
@@ -103,6 +111,11 @@ export function useAuth() {
   }
   return context
 }
+
+
+
+
+
 
 
 

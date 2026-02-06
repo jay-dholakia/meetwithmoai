@@ -23,8 +23,8 @@ CREATE EXTENSION IF NOT EXISTS "pg_trgm";
 -- Profiles table
 CREATE TABLE IF NOT EXISTS profiles (
   id UUID REFERENCES auth.users(id) ON DELETE CASCADE PRIMARY KEY,
-  name VARCHAR(50) NOT NULL,
-  initial VARCHAR(1),
+  first_name VARCHAR(50) NOT NULL,
+  last_name VARCHAR(50),
   city VARCHAR(100) NOT NULL,
   lat DECIMAL(10, 8),
   lng DECIMAL(11, 8),

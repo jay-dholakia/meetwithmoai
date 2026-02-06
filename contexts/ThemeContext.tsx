@@ -57,16 +57,16 @@ export interface Theme {
 
 const theme: Theme = {
   colors: {
-    background: '#0A0B0D',
-    surface: '#1C1C1E',
-    primary: '#7C6CFF',
-    secondary: '#6366F1',
-    text: '#FFFFFF',
-    textSecondary: '#8E8E93',
-    border: '#2C2C2E',
-    success: '#34C759',
-    error: '#FF3B30',
-    warning: '#FF9500',
+    background: '#FEFFFE', // Clean white with subtle warmth
+    surface: '#F0F5F0', // Slightly darker matcha-tinted surface for better contrast
+    primary: '#6B8E23', // Rich matcha green
+    secondary: '#8FBC8F', // Soft sage green
+    text: '#2D3D2D', // Dark charcoal for readability
+    textSecondary: '#6B7B6B', // Muted green-gray
+    border: '#DDE8DD', // Slightly darker matcha border for better definition
+    success: '#4CAF50', // Matcha success green
+    error: '#FF5252',
+    warning: '#FFC107',
   },
   spacing: {
     xs: 4,

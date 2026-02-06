@@ -68,3 +68,11 @@ echo -e "   • Check the Supabase dashboard for monitoring"
 
 
 
+
+
+
+
+
+
+
+

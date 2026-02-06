@@ -27,6 +27,7 @@ interface Profile {
   bio_text?: string | null;
   is_active: boolean | null;
   is_paused: boolean | null;
+  in_matcha_bowl: boolean | null;
 }
 
 interface Preferences {
@@ -233,6 +234,21 @@ export default function ProfileScreen() {
       <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
         Account
       </Text>
+
+      <TouchableOpacity style={styles.settingItem}>
+        <View style={styles.settingLeft}>
+          <Ionicons name="cafe-outline" size={24} color={theme.colors.text} />
+          <Text style={[styles.settingText, { color: theme.colors.text }]}>
+            Matcha matching
+          </Text>
+        </View>
+        <Switch
+          value={profile?.in_matcha_bowl || false}
+          onValueChange={(value) => updateProfile({ in_matcha_bowl: value })}
+          trackColor={{ false: theme.colors.border, true: theme.colors.primary }}
+          thumbColor="#FFFFFF"
+        />
+      </TouchableOpacity>
 
       <TouchableOpacity style={styles.settingItem}>
         <View style={styles.settingLeft}>

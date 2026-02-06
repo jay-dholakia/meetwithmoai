@@ -45,11 +45,18 @@ export default function AuthScreen() {
     try {
       setAuthLoading(true);
       
-      if (isSignUp) {
-        await signUp(email, password);
-      } else {
-        await signIn(email, password);
+      const { error } = isSignUp 
+        ? await signUp(email, password)
+        : await signIn(email, password);
+      
+      if (error) {
+        Alert.alert('Error', error.message || 'Authentication failed');
+        return;
       }
+      
+      // When email confirmation is disabled, signup automatically signs the user in
+      // The AuthContext will detect the session change and redirect to the main app
+      // No need for additional alerts or manual redirects
     } catch (error) {
       Alert.alert('Error', error instanceof Error ? error.message : 'Authentication failed');
     } finally {
@@ -83,22 +90,22 @@ export default function AuthScreen() {
         <ScrollView contentContainerStyle={styles.scrollContent}>
           <View style={styles.header}>
             <View style={[styles.logoContainer, { backgroundColor: theme.colors.primary }]}>
-              <Text style={styles.logoText}>🤝</Text>
+              <Text style={styles.logoText}>🍵</Text>
             </View>
             <Text style={[styles.title, { color: theme.colors.text }]}>
-              Moai Friends
+              Matcha
             </Text>
             <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>
-              Find meaningful friendships nearby
+              Local connections at cafés
             </Text>
           </View>
 
-          <View style={[styles.formContainer, { backgroundColor: theme.colors.surface }]}>
+          <View style={[styles.formContainer, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
             <Text style={[styles.formTitle, { color: theme.colors.text }]}>
               {isSignUp ? 'Create Account' : 'Welcome Back'}
             </Text>
 
-            <View style={styles.inputContainer}>
+            <View style={[styles.inputContainer, { backgroundColor: theme.colors.background, borderColor: theme.colors.border }]}>
               <Ionicons name="mail-outline" size={20} color={theme.colors.textSecondary} />
               <TextInput
                 style={[styles.input, { color: theme.colors.text }]}
@@ -112,7 +119,7 @@ export default function AuthScreen() {
               />
             </View>
 
-            <View style={styles.inputContainer}>
+            <View style={[styles.inputContainer, { backgroundColor: theme.colors.background, borderColor: theme.colors.border }]}>
               <Ionicons name="lock-closed-outline" size={20} color={theme.colors.textSecondary} />
               <TextInput
                 style={[styles.input, { color: theme.colors.text }]}
@@ -126,7 +133,7 @@ export default function AuthScreen() {
             </View>
 
             {isSignUp && (
-              <View style={styles.inputContainer}>
+              <View style={[styles.inputContainer, { backgroundColor: theme.colors.background, borderColor: theme.colors.border }]}>
                 <Ionicons name="lock-closed-outline" size={20} color={theme.colors.textSecondary} />
                 <TextInput
                   style={[styles.input, { color: theme.colors.text }]}
@@ -149,7 +156,7 @@ export default function AuthScreen() {
               disabled={authLoading}
             >
               {authLoading ? (
-                <ActivityIndicator color="#FFFFFF" />
+                <ActivityIndicator color={theme.colors.text} />
               ) : (
                 <Text style={styles.authButtonText}>
                   {isSignUp ? 'Create Account' : 'Sign In'}
@@ -227,7 +234,6 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 24,
     borderWidth: 1,
-    borderColor: '#2C2C2E',
   },
   formTitle: {
     fontSize: 24,
@@ -238,13 +244,11 @@ const styles = StyleSheet.create({
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#0A0B0D',
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 12,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: '#2C2C2E',
   },
   input: {
     flex: 1,

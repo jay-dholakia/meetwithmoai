@@ -1,10 +1,10 @@
-# 🤝 Moai Friends
+# 🍵 Matcha
 
-A sleek, modern 1-on-1 friend-matching app where AI guides meaningful connections through thoughtful onboarding, intake, and weekly introductions.
+A sleek, modern café connection app where AI guides meaningful local connections through thoughtful onboarding, intake, and weekly introductions at cafés.
 
 ## 🎯 Vision
 
-**Purpose**: Help people make new friends nearby, not romantic partners.
+**Purpose**: Help people make new local connections at cafés, not romantic partners.
 
 **Model**: 
 - **Home = AI chat** — handles onboarding, intake, and weekly matches
@@ -16,13 +16,13 @@ A sleek, modern 1-on-1 friend-matching app where AI guides meaningful connection
 
 ### iOS Tabs (3 total):
 
-1. **🤖 AI Agent (Home)** — chat with AI; intake and weekly matches happen here
-2. **💬 Moai Matches (Chats)** — list of ongoing triad conversations  
+1. **🍵 Matcha AI (Home)** — chat with AI; intake and weekly connections happen here
+2. **☕ Café Connections (Chats)** — list of ongoing café conversations  
 3. **👤 Profile** — edit info, availability, reminders, pause, safety link
 
 ## 🎨 Design & UX
 
-- **Dark theme**: `#0A0B0D` background, `#7C6CFF` accent
+- **Matcha theme**: `#0F1B0F` background, `#7CB342` matcha green accent
 - **Typography**: Inter Tight for headers, Inter for body
 - **Controls**: chip buttons, Likert sliders, short text, availability grid
 - **Animations**: subtle typing indicator, 400–600ms micro-delays

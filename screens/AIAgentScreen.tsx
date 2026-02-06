@@ -57,6 +57,7 @@ export default function AIAgentScreen() {
   const [waitingForLocationInput, setWaitingForLocationInput] = useState(false);
   const flatListRef = useRef<FlatList>(null);
   const isInitializedRef = useRef(false);
+  const isAskingQuestionRef = useRef(false);
 
   const saveMessageToHistory = async (message: Message) => {
     if (!user) return;
@@ -135,7 +136,7 @@ export default function AIAgentScreen() {
   };
 
   const intakeOutro = {
-    text: "🎉 All set! Thanks for sharing. I'll use this to curate your weekly friend intros. They'll show up here every Sunday. Want a Friday reminder?",
+    text: "🎉 All set! Thanks for sharing. I'll use this to curate your weekly café connections. They'll show up here every Sunday. Want a Friday reminder?",
     type: "outro",
     options: ["Yes", "No"],
   };
@@ -231,7 +232,7 @@ export default function AIAgentScreen() {
     if (existingMessages.length === 0) {
       const welcomeMessage: Message = {
         id: `welcome-${Date.now()}-${Math.random()}`,
-        text: "👋 Hi! I'm Moai, your AI friend-finding assistant. I'll help you meet new people nearby through thoughtful matching.\n\nFirst, let me get to know you a bit better with some basic information, then we'll dive into what you're looking for in friendships.\n\nReady to begin?",
+        text: "☕ Hi! I'm Matcha, your AI café connection assistant. I'll help you meet like-minded people at local cafés through thoughtful matching.\n\nFirst, let me get to know you a bit better with some basic information, then we'll explore what you're looking for in café connections.\n\nReady to begin?",
         sender: "ai",
         timestamp: new Date(),
         type: "text",
@@ -261,6 +262,7 @@ export default function AIAgentScreen() {
           "Both profile and intake complete, showing completion message..."
         );
         setIsProfileComplete(true);
+        setCurrentQuestion(intakeQuestions.length); // Set to completion state
         setTimeout(() => {
           const completionMessage: Message = {
             id: `completion-${Date.now()}-${Math.random()}`,
@@ -292,6 +294,7 @@ export default function AIAgentScreen() {
       } else {
         console.log("Both profile and intake complete, ready for matches...");
         setIsProfileComplete(true);
+        setCurrentQuestion(intakeQuestions.length); // Set to completion state
         // Don't add completion message again if messages already exist
       }
     }
@@ -360,7 +363,12 @@ export default function AIAgentScreen() {
   };
 
   const findFirstUnansweredIntakeQuestion = (intakeData: any) => {
-    if (!intakeData) return 0;
+    if (!intakeData) {
+      console.log("findFirstUnansweredIntakeQuestion: no intakeData");
+      return 0;
+    }
+
+    console.log("findFirstUnansweredIntakeQuestion: checking", Object.keys(intakeData).length, "fields");
 
     // Check each intake question in order
     for (let i = 0; i < intakeQuestions.length; i++) {
@@ -371,6 +379,7 @@ export default function AIAgentScreen() {
       if (question.conditionalOn && question.showIf) {
         const conditionalValue = intakeData[question.conditionalOn];
         if (!conditionalValue || !question.showIf.includes(conditionalValue)) {
+          console.log(`Skipping conditional question ${question.id} - condition not met`);
           continue; // Skip this question as it's conditional and conditions aren't met
         }
       }
@@ -383,6 +392,8 @@ export default function AIAgentScreen() {
         isAnswered = !!(fieldValue && fieldValue !== null && fieldValue !== "");
       }
 
+      console.log(`Question ${i} (${question.id}): value="${fieldValue}", isAnswered=${isAnswered}`);
+
       if (!isAnswered) {
         console.log(`First unanswered intake question: ${question.id} at step ${i}`);
         return i;
@@ -390,11 +401,20 @@ export default function AIAgentScreen() {
     }
 
     // All questions answered
+    console.log("All intake questions answered, returning", intakeQuestions.length);
     return intakeQuestions.length;
   };
 
   const isIntakeComplete = (intakeData: any) => {
-    return findFirstUnansweredIntakeQuestion(intakeData) >= intakeQuestions.length;
+    const firstUnanswered = findFirstUnansweredIntakeQuestion(intakeData);
+    const isComplete = firstUnanswered >= intakeQuestions.length;
+    console.log("isIntakeComplete check:", {
+      intakeData: intakeData ? Object.keys(intakeData).length : 'null',
+      firstUnanswered,
+      intakeQuestionsLength: intakeQuestions.length,
+      isComplete
+    });
+    return isComplete;
   };
 
   const requestLocationPermission = async () => {
@@ -580,13 +600,25 @@ export default function AIAgentScreen() {
   };
 
   const askNextQuestion = () => {
+    if (isAskingQuestionRef.current) {
+      console.log("askNextQuestion called but already asking a question, skipping");
+      return;
+    }
+    
     console.log(
       "askNextQuestion called, currentQuestion:",
       currentQuestion,
       "intakeQuestions.length:",
       intakeQuestions.length
     );
+    
+    isAskingQuestionRef.current = true;
     checkAndAskQuestion(currentQuestion);
+    
+    // Reset the flag after a short delay to allow for the next question
+    setTimeout(() => {
+      isAskingQuestionRef.current = false;
+    }, 2000);
   };
 
   const saveIntakeAnswerToRemote = async (
@@ -880,7 +912,7 @@ export default function AIAgentScreen() {
   const completeIntake = async () => {
     const completionMessage: Message = {
       id: "completion",
-      text: "🎉 All done! I'll use this information to curate your weekly friend introductions. You'll see them here every Sunday at noon.\n\nWant a Friday reminder?",
+      text: "🎉 All done! I'll use this information to curate your weekly café connections. You'll see them here every Sunday at noon.\n\nWant a Friday reminder?",
       sender: "ai" as const,
       timestamp: new Date(),
       type: "text",
@@ -917,7 +949,7 @@ export default function AIAgentScreen() {
         // Show welcome back message if no matches
         const welcomeBackMessage: Message = {
           id: "welcome-back",
-          text: "Welcome back! Your weekly friend introductions will appear here every Sunday. For now, feel free to chat with me about anything!",
+          text: "Welcome back! Your weekly café connections will appear here every Sunday. For now, feel free to chat with me about anything!",
           sender: "ai",
           timestamp: new Date(),
           type: "text",
@@ -934,7 +966,7 @@ export default function AIAgentScreen() {
       // All matches shown
       const noMoreMatchesMessage: Message = {
         id: "no-more-matches",
-        text: "That's all your introductions for this week! Check back next Sunday for new friend suggestions. Feel free to chat with me about anything!",
+        text: "That's all your café connections for this week! Check back next Sunday for new local suggestions. Feel free to chat with me about anything!",
         sender: "ai",
         timestamp: new Date(),
         type: "text",
@@ -958,7 +990,7 @@ export default function AIAgentScreen() {
         id: `match-${match.id}`,
         text: `Here's your ${currentMatchIndex + 1}${
           currentMatchIndex === 0 ? "st" : currentMatchIndex === 1 ? "nd" : "rd"
-        } friend introduction for the week:`,
+        } café connection for the week:`,
         sender: "ai",
         timestamp: new Date(),
         type: "match-card",
@@ -1853,10 +1885,11 @@ export default function AIAgentScreen() {
   return (
     <SafeAreaView
       style={[styles.container, { backgroundColor: theme.colors.background }]}
+      edges={['top', 'left', 'right']}
     >
       <View style={styles.header}>
         <Text style={[styles.headerTitle, { color: theme.colors.text }]}>
-          🤖 Moai AI
+          🍵 Matcha AI
         </Text>
       </View>
 
@@ -1875,7 +1908,7 @@ export default function AIAgentScreen() {
           <Text
             style={[styles.typingText, { color: theme.colors.textSecondary }]}
           >
-            Moai is typing...
+            Matcha is typing...
           </Text>
           <ActivityIndicator size="small" color={theme.colors.primary} />
         </View>
@@ -1883,7 +1916,7 @@ export default function AIAgentScreen() {
 
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
-        style={styles.inputContainer}
+        style={[styles.inputContainer, { borderTopColor: theme.colors.border, backgroundColor: theme.colors.surface }]}
       >
         <View
           style={[
@@ -1938,7 +1971,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: "#1C1C1E",
+    borderBottomColor: "#1A2B1A",
   },
   headerTitle: {
     fontSize: 20,
@@ -1971,12 +2004,12 @@ const styles = StyleSheet.create({
     borderRadius: 20,
   },
   userBubble: {
-    backgroundColor: "#7C6CFF",
+    backgroundColor: "#7CB342",
     borderBottomRightRadius: 4,
     alignSelf: "flex-end", // Add this
   },
   aiBubble: {
-    backgroundColor: "#1C1C1E",
+    backgroundColor: "#1A2B1A",
     borderBottomLeftRadius: 4,
     alignSelf: "flex-start", // Add this
   },
@@ -1994,7 +2027,7 @@ const styles = StyleSheet.create({
     position: "absolute",
     bottom: -18,
     fontSize: 12,
-    color: "#8E8E93",
+    color: "#A5B5A5",
     marginTop: 4,
     marginHorizontal: 8,
   },
@@ -2005,12 +2038,12 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   optionChip: {
-    backgroundColor: "#2C2C2E",
+    backgroundColor: "#2D3D2D",
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: "#3C3C3E",
+    borderColor: "#3D4D3D",
   },
   optionText: {
     color: "#FFFFFF",
@@ -2085,9 +2118,9 @@ const styles = StyleSheet.create({
   },
   inputContainer: {
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingTop: 12,
+    paddingBottom: 4,
     borderTopWidth: 1,
-    borderTopColor: "#1C1C1E",
   },
   inputWrapper: {
     flexDirection: "row",

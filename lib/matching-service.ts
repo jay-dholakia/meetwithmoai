@@ -17,8 +17,8 @@ export interface MatchCandidate {
 
 export interface UserProfile {
   id: string;
-  name: string;
-  initial: string;
+  first_name: string;
+  last_name: string | null;
   city: string;
   lat: number;
   lng: number;
@@ -266,9 +266,9 @@ export class MatchingService {
     const differences = [];
     
     if (userA.intake.hobbies.length > userB.intake.hobbies.length) {
-      differences.push(`${userA.profile.name} could introduce ${userB.profile.name} to new activities`);
+      differences.push(`${userA.profile.first_name} could introduce ${userB.profile.first_name} to new activities`);
     } else if (userB.intake.hobbies.length > userA.intake.hobbies.length) {
-      differences.push(`${userB.profile.name} could introduce ${userA.profile.name} to new activities`);
+      differences.push(`${userB.profile.first_name} could introduce ${userA.profile.first_name} to new activities`);
     }
     
     if (userA.profile.city !== userB.profile.city) {

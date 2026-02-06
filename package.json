@@ -1,5 +1,5 @@
 {
-  "name": "moai-friends",
+  "name": "matcha-cafe-connections",
   "version": "1.0.0",
   "main": "index.ts",
   "scripts": {
@@ -43,6 +43,7 @@
     "react-native-reanimated": "~3.17.4",
     "react-native-safe-area-context": "4.10.5",
     "react-native-screens": "~4.0.0",
+    "react-native-svg": "^15.15.2",
     "react-native-url-polyfill": "^2.0.0",
     "react-native-web": "^0.20.0"
   },
