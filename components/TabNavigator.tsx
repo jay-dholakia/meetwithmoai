@@ -7,6 +7,13 @@ import AIAgentScreen from '../screens/AIAgentScreen';
 import MoaiMatchesScreen from '../screens/MoaiMatchesScreen';
 import ConversationScreen from '../screens/ConversationScreen';
 import ProfileScreen from '../screens/ProfileScreen';
+import EditProfileScreen from '../screens/EditProfileScreen';
+import EditQuestionnaireScreen from '../screens/EditQuestionnaireScreen';
+import BlockedUsersScreen from '../screens/BlockedUsersScreen';
+import NotificationPreferencesScreen from '../screens/NotificationPreferencesScreen';
+import MatchStatisticsScreen from '../screens/MatchStatisticsScreen';
+import SafetyPrivacyScreen from '../screens/SafetyPrivacyScreen';
+import HelpSupportScreen from '../screens/HelpSupportScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
@@ -20,6 +27,26 @@ function ConnectionsStack() {
   );
 }
 
+function ProfileStack() {
+  return (
+    <Stack.Navigator 
+      screenOptions={{ 
+        headerShown: false,
+        animation: 'slide_from_right',
+      }}
+    >
+      <Stack.Screen name="ProfileMain" component={ProfileScreen} />
+      <Stack.Screen name="EditProfile" component={EditProfileScreen} />
+      <Stack.Screen name="EditQuestionnaire" component={EditQuestionnaireScreen} />
+      <Stack.Screen name="BlockedUsers" component={BlockedUsersScreen} />
+      <Stack.Screen name="NotificationPreferences" component={NotificationPreferencesScreen} />
+      <Stack.Screen name="MatchStatistics" component={MatchStatisticsScreen} />
+      <Stack.Screen name="SafetyPrivacy" component={SafetyPrivacyScreen} />
+      <Stack.Screen name="HelpSupport" component={HelpSupportScreen} />
+    </Stack.Navigator>
+  );
+}
+
 export default function TabNavigator() {
   const insets = useSafeAreaInsets();
   
@@ -29,10 +56,10 @@ export default function TabNavigator() {
         tabBarIcon: ({ focused, color, size }) => {
           let iconName: keyof typeof Ionicons.glyphMap;
 
-          if (route.name === 'Matcha AI') {
+          if (route.name === 'Mili') {
+            iconName = focused ? 'sparkles' : 'sparkles-outline';
+          } else if (route.name === 'People') {
             iconName = focused ? 'cafe' : 'cafe-outline';
-          } else if (route.name === 'Connections') {
-            iconName = focused ? 'people' : 'people-outline';
           } else if (route.name === 'Profile') {
             iconName = focused ? 'person' : 'person-outline';
           } else {
@@ -64,18 +91,18 @@ export default function TabNavigator() {
       })}
     >
       <Tab.Screen 
-        name="Matcha AI" 
+        name="Mili" 
         component={AIAgentScreen}
         options={{ headerShown: false }}
       />
       <Tab.Screen 
-        name="Connections" 
+        name="People" 
         component={ConnectionsStack}
         options={{ headerShown: false }}
       />
       <Tab.Screen 
         name="Profile" 
-        component={ProfileScreen}
+        component={ProfileStack}
         options={{ headerShown: false }}
       />
     </Tab.Navigator>

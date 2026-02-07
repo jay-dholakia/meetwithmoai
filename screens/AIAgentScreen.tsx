@@ -20,7 +20,7 @@ import { supabase } from "../lib/mcp-supabase";
 import { openAIService } from "../lib/openai";
 import { MatchingService } from "../lib/matching-service";
 import MatchCard from "../components/MatchCard";
-import { intakeQuestions, profileQuestions } from "../data/AIAgentScreen";
+import { intakeQuestions, profileQuestions, questionToColumnMap } from "../data/AIAgentScreen";
 
 interface Message {
   id: string;
@@ -191,11 +191,25 @@ export default function AIAgentScreen() {
       .eq("id", user?.id)
       .single();
 
-    const { data: intakeData, error: intakeError } = await supabase
-      .from("intake_responses_v3")
+    // Check for v4 intake first, fall back to v3 for existing users
+    const { data: intakeDataV4, error: intakeErrorV4 } = await supabase
+      .from("intake_responses_v4")
       .select("*")
       .eq("user_id", user?.id)
       .single();
+
+    // If v4 doesn't exist, check v3 for backward compatibility
+    let intakeData = intakeDataV4;
+    let intakeError = intakeErrorV4;
+    if (intakeErrorV4 && intakeErrorV4.code === 'PGRST116') {
+      const { data: intakeDataV3, error: intakeErrorV3 } = await supabase
+        .from("intake_responses_v3")
+        .select("*")
+        .eq("user_id", user?.id)
+        .single();
+      intakeData = intakeDataV3;
+      intakeError = intakeErrorV3;
+    }
 
     console.log("Profile data from database:", profileData);
     console.log("Profile error:", profileError);
@@ -219,20 +233,30 @@ export default function AIAgentScreen() {
 
     console.log("Is profile complete:", isProfileComplete);
 
-    const hasStartedIntake =
-      intakeData &&
-      Object.keys(intakeData).some(
-        (key) =>
-          key !== "user_id" &&
-          key !== "created_at" &&
-          key !== "updated_at" &&
-          intakeData[key] !== null
-      );
+    // Check if intake is started (v4 or v3 format)
+    let hasStartedIntake = false;
+    if (intakeData) {
+      if (intakeData.responses && Array.isArray(intakeData.responses)) {
+        // v4 format: check if any responses exist
+        hasStartedIntake = intakeData.responses.length > 0;
+      } else {
+        // v3 format: backward compatibility
+        hasStartedIntake = Object.keys(intakeData).some(
+          (key) =>
+            key !== "user_id" &&
+            key !== "created_at" &&
+            key !== "updated_at" &&
+            key !== "completed_at" &&
+            key !== "embed_vector" &&
+            intakeData[key] !== null
+        );
+      }
+    }
 
     if (existingMessages.length === 0) {
       const welcomeMessage: Message = {
         id: `welcome-${Date.now()}-${Math.random()}`,
-        text: "☕ Hi! I'm Matcha, your AI café connection assistant. I'll help you meet like-minded people at local cafés through thoughtful matching.\n\nFirst, let me get to know you a bit better with some basic information, then we'll explore what you're looking for in café connections.\n\nReady to begin?",
+        text: "☕ Hi! I'm Mili, your AI café connection assistant. I'll help you meet like-minded people at local cafés through thoughtful matching.\n\nFirst, let me get to know you a bit better with some basic information, then we'll explore what you're looking for in café connections.\n\nReady to begin?",
         sender: "ai",
         timestamp: new Date(),
         type: "text",
@@ -368,16 +392,29 @@ export default function AIAgentScreen() {
       return 0;
     }
 
-    console.log("findFirstUnansweredIntakeQuestion: checking", Object.keys(intakeData).length, "fields");
+    // Handle v4 format (JSON array) vs v3 format (columns)
+    const isV4Format = intakeData.responses && Array.isArray(intakeData.responses);
+    const responsesMap = isV4Format 
+      ? new Map(intakeData.responses.map((r: any) => [r.question_id, r.answer]))
+      : null;
+
+    console.log("findFirstUnansweredIntakeQuestion: checking", 
+      isV4Format ? `${intakeData.responses.length} responses (v4)` : `${Object.keys(intakeData).length} fields (v3)`);
 
     // Check each intake question in order
     for (let i = 0; i < intakeQuestions.length; i++) {
       const question = intakeQuestions[i];
-      const fieldValue = intakeData[question.id];
+      
+      // Get answer from v4 format (JSON) or v3 format (columns)
+      const fieldValue = isV4Format 
+        ? responsesMap?.get(question.id)
+        : intakeData[question.id];
       
       // Skip conditional questions that shouldn't be shown
       if (question.conditionalOn && question.showIf) {
-        const conditionalValue = intakeData[question.conditionalOn];
+        const conditionalValue = isV4Format 
+          ? responsesMap?.get(question.conditionalOn)
+          : intakeData[question.conditionalOn];
         if (!conditionalValue || !question.showIf.includes(conditionalValue)) {
           console.log(`Skipping conditional question ${question.id} - condition not met`);
           continue; // Skip this question as it's conditional and conditions aren't met
@@ -631,39 +668,80 @@ export default function AIAgentScreen() {
     }
 
     try {
-      // Get current intake data from database
+      // Get current v4 intake data from database
       const { data: existingIntake } = await supabase
-        .from("intake_responses_v3")
+        .from("intake_responses_v4")
         .select("*")
         .eq("user_id", user.id)
         .single();
 
-      let intakeToUpdate: any = {
+      // Find the question to get its metadata
+      const question = intakeQuestions.find(q => q.id === questionId);
+      if (!question) {
+        console.error("Question not found:", questionId);
+        return;
+      }
+
+      // Get existing responses array or create new one
+      const existingResponses: any[] = existingIntake?.responses || [];
+      
+      // Find if this question already has a response
+      const responseIndex = existingResponses.findIndex(r => r.question_id === questionId);
+      
+      // Create response object
+      const responseObj = {
+        question_id: questionId,
+        question_text: question.text,
+        answer: Array.isArray(answer) ? answer : answer,
+        type: question.type === "open_ended" ? "open_ended" : "structured",
+        answered_at: new Date().toISOString()
+      };
+
+      // Update or add response
+      let updatedResponses: any[];
+      if (responseIndex >= 0) {
+        updatedResponses = [...existingResponses];
+        updatedResponses[responseIndex] = responseObj;
+      } else {
+        updatedResponses = [...existingResponses, responseObj];
+      }
+
+      // Build update object
+      const intakeToUpdate: any = {
         user_id: user.id,
+        responses: updatedResponses,
         updated_at: new Date().toISOString(),
       };
 
-      // If intake exists, merge with existing data to preserve required fields
-      if (existingIntake) {
-        intakeToUpdate = { ...existingIntake, ...intakeToUpdate };
+      // Extract and update filtered columns if this question maps to one
+      const columnName = questionToColumnMap[questionId];
+      if (columnName) {
+        if (columnName === "availability_times" && Array.isArray(answer)) {
+          intakeToUpdate[columnName] = answer;
+        } else if (typeof answer === "string") {
+          intakeToUpdate[columnName] = answer;
+        }
       }
 
-      // Update based on the question ID
-      intakeToUpdate[questionId] = Array.isArray(answer) ? answer : answer;
+      // If intake exists, preserve embed_vector and completed_at
+      if (existingIntake) {
+        if (existingIntake.embed_vector) {
+          intakeToUpdate.embed_vector = existingIntake.embed_vector;
+        }
+        if (existingIntake.completed_at) {
+          intakeToUpdate.completed_at = existingIntake.completed_at;
+        }
+      }
 
       console.log(
-        "Updating intake in database:",
+        "Updating intake v4 in database:",
         intakeToUpdate,
         "for question:",
-        questionId,
-        "answer type:",
-        typeof answer,
-        "is array:",
-        Array.isArray(answer)
+        questionId
       );
 
       const { data, error } = await supabase
-        .from("intake_responses_v3")
+        .from("intake_responses_v4")
         .upsert(intakeToUpdate);
 
       if (error) {
@@ -810,6 +888,11 @@ export default function AIAgentScreen() {
             ? answer
             : [answer as string];
           break;
+        case "has_kids":
+          if (typeof answer === "string") {
+            profileToUpdate.has_kids = answer;
+          }
+          break;
       }
 
       console.log("Updating profile in database:", profileToUpdate);
@@ -912,24 +995,84 @@ export default function AIAgentScreen() {
   const completeIntake = async () => {
     const completionMessage: Message = {
       id: "completion",
-      text: "🎉 All done! I'll use this information to curate your weekly café connections. You'll see them here every Sunday at noon.\n\nWant a Friday reminder?",
+      text: "🎉 All done! I'll use this information to curate your café connections. You'll see match suggestions in the Connections tab!\n\nWant to chat about anything else?",
       sender: "ai" as const,
       timestamp: new Date(),
       type: "text",
     };
     setMessages((prev) => [...prev, completionMessage]);
 
-    // Save intake responses to database
+    // Generate embeddings and save final v4 record
     if (user) {
-      // The intake responses are already saved individually as the user answers each question
-      // Just mark as completed by updating the updated_at timestamp
-      await supabase.from("intake_responses_v3").upsert({
-        user_id: user.id,
-        updated_at: new Date().toISOString(),
-      });
+      try {
+        // Get all responses from v4 table
+        const { data: existingIntake, error: fetchError } = await supabase
+          .from("intake_responses_v4")
+          .select("*")
+          .eq("user_id", user.id)
+          .single();
+
+        if (fetchError && fetchError.code !== 'PGRST116') { // PGRST116 = no rows returned
+          console.error("Error fetching intake for embedding:", fetchError);
+          return;
+        }
+
+        if (!existingIntake || !existingIntake.responses || existingIntake.responses.length === 0) {
+          console.error("No responses found to generate embedding");
+          return;
+        }
+
+        // Combine all responses into text for embedding
+        const allAnswersText = existingIntake.responses
+          .map((r: any) => `${r.question_text}: ${r.answer}`)
+          .join('\n\n');
+
+        // Generate embedding
+        const embedding = await openAIService.generateEmbedding(allAnswersText);
+
+        // Update v4 record with embedding and completed_at
+        const { error: updateError } = await supabase
+          .from("intake_responses_v4")
+          .upsert({
+            user_id: user.id,
+            responses: existingIntake.responses,
+            embed_vector: embedding,
+            completed_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+            // Preserve filtered columns
+            life_stage: existingIntake.life_stage,
+            drive_distance: existingIntake.drive_distance,
+            availability_times: existingIntake.availability_times,
+            age_range_preference: existingIntake.age_range_preference,
+            political_classification: existingIntake.political_classification,
+            political_alignment_important: existingIntake.political_alignment_important,
+          });
+
+        if (updateError) {
+          console.error("Error saving final intake with embedding:", updateError);
+        } else {
+          console.log("Intake completed and embedding generated successfully");
+          
+          // Trigger match replenishment
+          try {
+            await fetch(`https://hgllvhohhyamsbljekrd.supabase.co/functions/v1/replenish-matches`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
+              },
+              body: JSON.stringify({ user_id: user.id }),
+            });
+          } catch (error) {
+            console.error("Error triggering match replenishment:", error);
+          }
+        }
+      } catch (error) {
+        console.error("Error completing intake:", error);
+      }
     }
 
-    // Check for weekly matches after completing intake
+    // Check for matches after completing intake
     setTimeout(() => {
       checkForWeeklyMatches();
     }, 2000);
@@ -1029,6 +1172,190 @@ export default function AIAgentScreen() {
     }
   };
 
+  const fetchConnectionContext = async () => {
+    if (!user) return null;
+
+    try {
+      // Fetch all matches (active, opted-in, and passed)
+      const { data: matchesData } = await supabase
+        .from('matcha_match_candidates')
+        .select('*')
+        .or(`user_a.eq.${user.id},user_b.eq.${user.id}`)
+        .in('status', ['active', 'opted_in_a', 'opted_in_b', 'mutual_opt_in', 'passed'])
+        .gt('expires_at', new Date().toISOString());
+
+      // Fetch active conversations
+      const { data: conversationsData } = await supabase
+        .from('conversations')
+        .select('*')
+        .or(`user_a.eq.${user.id},user_b.eq.${user.id}`)
+        .eq('conversation_type', 'matcha')
+        .eq('status', 'active');
+
+      // Fetch opt-ins and passes
+      const { data: optInsData } = await supabase
+        .from('matcha_opt_ins')
+        .select('*')
+        .eq('user_id', user.id);
+
+      // Get match IDs from opt_ins to fetch their data
+      const optInMatchIds = optInsData?.map(optIn => optIn.match_id) || [];
+      
+      // Fetch match data for passed/opted-in matches that might not be in active matches
+      let additionalMatchesData: any[] = [];
+      if (optInMatchIds.length > 0) {
+        const { data: additionalMatches } = await supabase
+          .from('matcha_match_candidates')
+          .select('*')
+          .in('id', optInMatchIds);
+        additionalMatchesData = additionalMatches || [];
+      }
+
+      // Combine all matches
+      const allMatchesData = [...(matchesData || []), ...additionalMatchesData];
+      const uniqueMatchesMap = new Map();
+      allMatchesData.forEach((match: any) => {
+        if (!uniqueMatchesMap.has(match.id)) {
+          uniqueMatchesMap.set(match.id, match);
+        }
+      });
+      const allMatches = Array.from(uniqueMatchesMap.values());
+
+      // Get all unique user IDs
+      const userIds = new Set<string>();
+      allMatches.forEach((match: any) => {
+        userIds.add(match.user_a);
+        userIds.add(match.user_b);
+      });
+      conversationsData?.forEach((conv: any) => {
+        userIds.add(conv.user_a);
+        userIds.add(conv.user_b);
+      });
+
+      // Fetch all profiles
+      const { data: profilesData } = await supabase
+        .from('profiles')
+        .select('id, first_name, last_name, age, city')
+        .in('id', Array.from(userIds));
+
+      const profilesMap = new Map();
+      profilesData?.forEach((profile: any) => {
+        profilesMap.set(profile.id, profile);
+      });
+
+      // Process matches
+      const activeMatches: Array<{ 
+        name: string; 
+        age?: number; 
+        sharedInterests?: string[]; 
+        conversationHooks?: string[];
+        matchScore?: string;
+        matchReasons?: any;
+      }> = [];
+      const optedInMatches: Array<{ name: string; status: string; matchReasons?: any }> = [];
+      const passedMatches: Array<{ name: string; reason?: string; matchReasons?: any; matchScore?: string }> = [];
+
+      allMatches.forEach((match: any) => {
+        const isUserA = match.user_a === user.id;
+        const otherUserId = isUserA ? match.user_b : match.user_a;
+        const otherUser = profilesMap.get(otherUserId);
+        if (!otherUser) return;
+
+        const name = `${otherUser.first_name || 'Unknown'} ${otherUser.last_name ? otherUser.last_name.charAt(0) + '.' : ''}`;
+        const sharedInterests = match.reasons?.shared_interests || [];
+        const conversationHooks = match.reasons?.conversation_hooks || [];
+        const matchScore = match.score;
+
+        if (match.status === 'active') {
+          activeMatches.push({
+            name: name.trim(),
+            age: otherUser.age,
+            sharedInterests: sharedInterests,
+            conversationHooks: conversationHooks,
+            matchScore: matchScore,
+            matchReasons: match.reasons
+          });
+        } else if (match.status === 'opted_in_a' || match.status === 'opted_in_b') {
+          const userOptedIn = (isUserA && match.status === 'opted_in_a') || (!isUserA && match.status === 'opted_in_b');
+          if (userOptedIn) {
+            optedInMatches.push({
+              name: name.trim(),
+              status: match.status,
+              matchReasons: match.reasons
+            });
+          }
+        } else if (match.status === 'passed') {
+          passedMatches.push({
+            name: name.trim(),
+            matchReasons: match.reasons,
+            matchScore: matchScore
+          });
+        }
+      });
+
+      // Process opt-ins and passes
+      if (optInsData && allMatches.length > 0) {
+        const matchesMap = new Map();
+        allMatches.forEach((match: any) => {
+          matchesMap.set(match.id, match);
+        });
+
+        optInsData.forEach((optIn: any) => {
+          const match = matchesMap.get(optIn.match_id);
+          if (!match) return;
+
+          const isUserA = match.user_a === user.id;
+          const otherUserId = isUserA ? match.user_b : match.user_a;
+          const otherUser = profilesMap.get(otherUserId);
+          if (!otherUser) return;
+
+          const name = `${otherUser.first_name || 'Unknown'} ${otherUser.last_name ? otherUser.last_name.charAt(0) + '.' : ''}`;
+
+          if (optIn.decision === 'opt_in') {
+            if (match.status === 'mutual_opt_in') {
+              optedInMatches.push({
+                name: name.trim(),
+                status: 'mutual_opt_in',
+                matchReasons: match.reasons
+              });
+            }
+          } else if (optIn.decision === 'pass') {
+            passedMatches.push({
+              name: name.trim(),
+              matchReasons: match.reasons,
+              matchScore: match.score
+            });
+          }
+        });
+      }
+
+      // Process conversations
+      const activeConversations: Array<{ name: string; age?: number; city?: string }> = [];
+      conversationsData?.forEach((conv: any) => {
+        const isUserA = conv.user_a === user.id;
+        const otherUserId = isUserA ? conv.user_b : conv.user_a;
+        const otherUser = profilesMap.get(otherUserId);
+        if (!otherUser) return;
+
+        activeConversations.push({
+          name: `${otherUser.first_name || 'Unknown'} ${otherUser.last_name ? otherUser.last_name.charAt(0) + '.' : ''}`.trim(),
+          age: otherUser.age,
+          city: otherUser.city
+        });
+      });
+
+      return {
+        activeMatches,
+        activeConversations,
+        optedInMatches,
+        passedMatches
+      };
+    } catch (error) {
+      console.error('Error fetching connection context:', error);
+      return null;
+    }
+  };
+
   const handleSendMessage = async () => {
     if (!inputText.trim()) return;
 
@@ -1098,8 +1425,8 @@ export default function AIAgentScreen() {
         intakeQuestions.length
       );
 
-      // Handle text-type questions
-      if (currentIntakeQuestion.type === "text") {
+      // Handle text-type and open-ended questions
+      if (currentIntakeQuestion.type === "text" || currentIntakeQuestion.type === "open_ended") {
         console.log(
           "Saving intake answer to remote database:",
           currentIntakeQuestion.id,
@@ -1118,6 +1445,54 @@ export default function AIAgentScreen() {
 
         // Move to next question
         const nextQuestionIndex = currentQuestion + 1;
+
+        setTimeout(() => {
+          if (nextQuestionIndex < intakeQuestions.length) {
+            checkAndAskQuestion(nextQuestionIndex, updatedAnswers);
+          } else {
+            completeIntake();
+          }
+        }, 1000);
+
+        setIsTyping(false);
+        return;
+      }
+
+      // Handle option-based questions that require selection (not text input)
+      // Open-ended questions should allow text input
+      if (
+        currentIntakeQuestion.type === "open_ended" ||
+        currentIntakeQuestion.type === "text"
+      ) {
+        // Handle open-ended/text questions - save the answer
+        const validationResult = currentIntakeQuestion.validation
+          ? currentIntakeQuestion.validation(currentInput)
+          : null;
+
+        if (validationResult) {
+          const errorMessage: Message = {
+            id: `error-${Date.now()}`,
+            text: validationResult,
+            sender: "ai",
+            timestamp: new Date(),
+            type: "text",
+          };
+          setMessages((prev) => [...prev, errorMessage]);
+          setIsTyping(false);
+          return;
+        }
+
+        // Save answer and move to next question
+        await saveIntakeAnswerToRemote(currentIntakeQuestion.id, currentInput);
+        const updatedAnswers = {
+          ...intakeAnswers,
+          [currentIntakeQuestion.id]: currentInput,
+        };
+        setIntakeAnswers(updatedAnswers);
+
+        const nextQuestionIndex = currentQuestion + 1;
+        setCurrentQuestion(nextQuestionIndex);
+        setInputText("");
 
         setTimeout(() => {
           if (nextQuestionIndex < intakeQuestions.length) {
@@ -1313,7 +1688,8 @@ export default function AIAgentScreen() {
 
     // Handle general chat when both profile and intake are complete
     try {
-      const response = await openAIService.generateChatResponse(currentInput);
+      const connectionContext = await fetchConnectionContext();
+      const response = await openAIService.generateChatResponse(currentInput, connectionContext || undefined);
       const aiMessage: Message = {
         id: (Date.now() + 1).toString(),
         text: response,
@@ -1860,7 +2236,7 @@ export default function AIAgentScreen() {
 
     if (lastMessage.type === "question" && lastMessage.data?.options) {
       const questionType = lastMessage.data.type;
-      // Only disable for questions that should use option chips (NOT text or multi_select)
+      // Only disable for questions that should use option chips (NOT text, open_ended, or multi_select)
   return (
         questionType === "single_select" ||
         questionType === "likert" ||
@@ -1889,7 +2265,7 @@ export default function AIAgentScreen() {
     >
       <View style={styles.header}>
         <Text style={[styles.headerTitle, { color: theme.colors.text }]}>
-          🍵 Matcha AI
+          ✨ Mili
         </Text>
       </View>
 
@@ -1908,7 +2284,7 @@ export default function AIAgentScreen() {
           <Text
             style={[styles.typingText, { color: theme.colors.textSecondary }]}
           >
-            Matcha is typing...
+            Mili is typing...
           </Text>
           <ActivityIndicator size="small" color={theme.colors.primary} />
         </View>

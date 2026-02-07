@@ -96,7 +96,7 @@ export default function AuthScreen() {
               Matcha
             </Text>
             <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>
-              Local connections at cafés
+              Real people, real conversation.
             </Text>
           </View>
 

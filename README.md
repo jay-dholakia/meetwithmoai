@@ -16,7 +16,7 @@ A sleek, modern café connection app where AI guides meaningful local connection
 
 ### iOS Tabs (3 total):
 
-1. **🍵 Matcha AI (Home)** — chat with AI; intake and weekly connections happen here
+1. **✨ Mili (Home)** — chat with AI; intake and weekly connections happen here
 2. **☕ Café Connections (Chats)** — list of ongoing café conversations  
 3. **👤 Profile** — edit info, availability, reminders, pause, safety link
 

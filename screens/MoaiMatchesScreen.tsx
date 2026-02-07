@@ -97,6 +97,8 @@ export default function MoaiMatchesScreen({ navigation }: any) {
   const loadMatches = async () => {
     try {
       // Get active match candidates for the user
+      // Only show matches where both users score each other above 0.3 threshold
+      // Exception: show opted-in matches even if below threshold (user already started the process)
       const { data: matchData, error } = await supabase
         .from('matcha_match_candidates')
         .select('*')
@@ -107,9 +109,15 @@ export default function MoaiMatchesScreen({ navigation }: any) {
 
       if (error) throw error;
 
-      // Get all unique user IDs from matches
+      // Filter: only show matches with score >= 0.3 OR already opted in (in progress)
+      const filteredMatches = matchData?.filter((match: any) => {
+        const isOptedIn = match.status === 'opted_in_a' || match.status === 'opted_in_b';
+        return match.score >= 0.3 || isOptedIn;
+      }) || [];
+
+      // Get all unique user IDs from filtered matches
       const userIds = new Set<string>();
-      matchData?.forEach(match => {
+      filteredMatches.forEach(match => {
         userIds.add(match.user_a);
         userIds.add(match.user_b);
       });
@@ -117,25 +125,62 @@ export default function MoaiMatchesScreen({ navigation }: any) {
       // Fetch all profiles at once
       const { data: profilesData, error: profilesError } = await supabase
         .from('profiles')
-        .select('id, first_name, last_name, avatar_url, age, bio_text')
+        .select('id, first_name, last_name, avatar_url, age, bio_text, city, gender, relationship_status, has_kids')
         .in('id', Array.from(userIds));
 
       if (profilesError) throw profilesError;
 
-      // Create a map of profiles by ID
+      // Fetch intake responses for richer profile information
+      const { data: intakeData, error: intakeError } = await supabase
+        .from('intake_responses_v4')
+        .select('user_id, responses, life_stage')
+        .in('user_id', Array.from(userIds));
+
+      if (intakeError) console.error('Error loading intake data:', intakeError);
+
+      // Fetch opt-ins to check if user has opted in (fallback if match status wasn't updated)
+      const { data: optInsData, error: optInsError } = await supabase
+        .from('matcha_opt_ins')
+        .select('match_id, user_id, decision')
+        .eq('user_id', user?.id)
+        .eq('decision', 'opt_in');
+
+      if (optInsError) console.error('Error loading opt-ins:', optInsError);
+      
+      // Create a map of match IDs where user has opted in
+      const userOptInMap = new Map<string, boolean>();
+      optInsData?.forEach(optIn => {
+        userOptInMap.set(optIn.match_id, true);
+      });
+
+      // Create maps for quick lookup
       const profilesMap = new Map();
       profilesData?.forEach(profile => {
         profilesMap.set(profile.id, profile);
       });
 
-      const processedMatches = matchData?.map((match: any) => {
+      const intakeMap = new Map();
+      intakeData?.forEach(intake => {
+        intakeMap.set(intake.user_id, intake);
+      });
+
+      const processedMatches = filteredMatches.map((match: any) => {
         const isUserA = match.user_a === user?.id;
         const otherUserId = isUserA ? match.user_b : match.user_a;
         const otherUserProfile = profilesMap.get(otherUserId);
+        const otherUserIntake = intakeMap.get(otherUserId);
+        
+        // Fix match status if user has opted in but status wasn't updated
+        const hasUserOptedIn = userOptInMap.get(match.id);
+        if (hasUserOptedIn && match.status === 'active') {
+          // Update status based on which user opted in
+          match.status = isUserA ? 'opted_in_a' : 'opted_in_b';
+        }
 
         return {
           ...match,
-          other_user: otherUserProfile || null
+          other_user: otherUserProfile || null,
+          other_user_intake: otherUserIntake || null
         };
       }) || [];
 
@@ -165,6 +210,10 @@ export default function MoaiMatchesScreen({ navigation }: any) {
   const loadConversations = async () => {
     try {
       // Get Matcha conversations where user is either user_a or user_b
+      // Only show conversations with activity in the last 30 days to filter out old inactive chats
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      
       const { data, error } = await supabase
         .from('conversations')
         .select(`
@@ -300,6 +349,7 @@ export default function MoaiMatchesScreen({ navigation }: any) {
     <MatchCard
       match={item}
       otherUser={item.other_user}
+      otherUserIntake={(item as any).other_user_intake}
       onMatchUpdate={handleMatchUpdate}
       activeChatCount={activeChatCount}
     />
@@ -431,7 +481,7 @@ export default function MoaiMatchesScreen({ navigation }: any) {
           renderItem={renderConversation}
           keyExtractor={(item) => item.id}
           style={styles.list}
-          contentContainerStyle={styles.listContainer}
+          contentContainerStyle={styles.conversationListContainer}
           refreshControl={
             <RefreshControl
               refreshing={loading}
@@ -452,7 +502,7 @@ export default function MoaiMatchesScreen({ navigation }: any) {
         subtitle: "We're working on finding great café connections for you! New matches appear daily, so check back soon."
       } : {
         title: "No matches yet",
-        subtitle: "Complete your questionnaire in Matcha AI to start receiving personalized match suggestions!"
+        subtitle: "Complete your questionnaire in Mili to start receiving personalized match suggestions!"
       };
 
       return (
@@ -492,13 +542,10 @@ export default function MoaiMatchesScreen({ navigation }: any) {
   };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top', 'left', 'right']}>
       <View style={styles.header}>
         <Text style={[styles.headerTitle, { color: theme.colors.text }]}>
-          ☕ Café Connections
-        </Text>
-        <Text style={[styles.headerSubtitle, { color: theme.colors.textSecondary }]}>
-          Your local café conversations
+          People
         </Text>
       </View>
 
@@ -536,6 +583,9 @@ const styles = StyleSheet.create({
   listContainer: {
     paddingVertical: 8,
     paddingHorizontal: 16,
+  },
+  conversationListContainer: {
+    paddingVertical: 8,
   },
   emptyContainer: {
     flex: 1,

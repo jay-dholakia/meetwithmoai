@@ -173,38 +173,132 @@ export const openAIService = {
     }
   },
 
-  // Generate chat responses for Moai AI
-  async generateChatResponse(userMessage: string): Promise<string> {
+  // Generate chat responses for Mili AI
+  async generateChatResponse(
+    userMessage: string, 
+    context?: {
+      activeMatches?: Array<{ 
+        name: string; 
+        age?: number; 
+        sharedInterests?: string[]; 
+        conversationHooks?: string[];
+        matchScore?: string;
+        matchReasons?: any;
+      }>;
+      activeConversations?: Array<{ name: string; age?: number; city?: string }>;
+      passedMatches?: Array<{ 
+        name: string; 
+        reason?: string; 
+        matchReasons?: any; 
+        matchScore?: string;
+      }>;
+      optedInMatches?: Array<{ 
+        name: string; 
+        status: string; 
+        matchReasons?: any;
+      }>;
+    }
+  ): Promise<string> {
     try {
+      let contextText = '';
+      
+      if (context) {
+        const contextParts: string[] = [];
+        
+        if (context.activeMatches && context.activeMatches.length > 0) {
+          contextParts.push(`Active Match Suggestions (${context.activeMatches.length}):\n${context.activeMatches.map((m: any) => {
+            let matchInfo = `- ${m.name}${m.age ? ` (${m.age})` : ''}`;
+            if (m.matchScore) matchInfo += ` - Match score: ${m.matchScore}`;
+            if (m.sharedInterests && m.sharedInterests.length > 0) {
+              matchInfo += `\n  Matching reasons: ${m.sharedInterests.join(', ')}`;
+            }
+            if (m.conversationHooks && m.conversationHooks.length > 0) {
+              matchInfo += `\n  Conversation starters: ${m.conversationHooks.join('; ')}`;
+            }
+            return matchInfo;
+          }).join('\n\n')}`);
+        }
+        
+        if (context.activeConversations && context.activeConversations.length > 0) {
+          contextParts.push(`Active Conversations (${context.activeConversations.length}):\n${context.activeConversations.map((c: any) => 
+            `- ${c.name}${c.age ? ` (${c.age})` : ''}${c.city ? ` from ${c.city}` : ''}`
+          ).join('\n')}`);
+        }
+        
+        if (context.optedInMatches && context.optedInMatches.length > 0) {
+          contextParts.push(`Matches You've Opted Into (${context.optedInMatches.length}):\n${context.optedInMatches.map((m: any) => {
+            let matchInfo = `- ${m.name}${m.status === 'mutual_opt_in' ? ' (mutual match - chat created)' : ' (waiting for them to respond)'}`;
+            if (m.matchReasons?.shared_interests && m.matchReasons.shared_interests.length > 0) {
+              matchInfo += `\n  Why you matched: ${m.matchReasons.shared_interests.join(', ')}`;
+            }
+            return matchInfo;
+          }).join('\n\n')}`);
+        }
+        
+        if (context.passedMatches && context.passedMatches.length > 0) {
+          contextParts.push(`Matches You've Passed On (${context.passedMatches.length}):\n${context.passedMatches.map((m: any) => {
+            let matchInfo = `- ${m.name}`;
+            if (m.matchReasons?.shared_interests && m.matchReasons.shared_interests.length > 0) {
+              matchInfo += `\n  Why they were matched: ${m.matchReasons.shared_interests.join(', ')}`;
+            }
+            if (m.matchScore) matchInfo += ` (match score: ${m.matchScore})`;
+            return matchInfo;
+          }).join('\n\n')}`);
+        }
+        
+        if (contextParts.length > 0) {
+          contextText = `\n\nUser's Connection Context:\n${contextParts.join('\n\n')}\n\nIMPORTANT: When users ask about why they were matched with someone, be concise and direct. List the specific shared interests from the matching reasons (e.g., "Both are planners, both enjoy outdoor walks"). Keep responses brief - 1-2 sentences max. Don't add fluff like "If you're interested..." or "feel free to reach out" unless directly asked.`;
+        }
+      }
+      
       const completion = await openai.chat.completions.create({
         model: "gpt-3.5-turbo",
         messages: [
           {
             role: "system",
-            content: `You are Moai, a friendly AI assistant for a friend-matching app. Your role is to:
+            content: `You are Mili, a friendly and intelligent AI assistant for Matcha, a café connection app. Your role is to:
 
 1. Help users with onboarding and intake questions
-2. Provide support and guidance about making friends
+2. Provide support and guidance about making friends and café connections
 3. Be warm, supportive, and platonic in tone
-4. Keep responses concise and helpful
-5. Focus on friendship and community building
+4. Keep responses BRIEF and concise - aim for 1-2 sentences unless more detail is requested
+5. Focus on friendship and community building at local cafés
 6. Always maintain a safe, consent-driven approach
+7. Use the user's connection context to provide personalized, relevant advice
+8. Reference specific connections when relevant (e.g., "I noticed you have a match with [Name]...")
+9. Help users understand their match statuses and next steps
+10. When explaining matches, be direct and factual - just state the shared interests, no extra fluff
 
-You should be encouraging but not pushy, and always respect boundaries.`
+You should be encouraging but not pushy, and always respect boundaries. Keep it short and to the point.${contextText}`
           },
           {
             role: "user",
             content: userMessage
           }
         ],
-        max_tokens: 300,
+        max_tokens: 150,
         temperature: 0.7,
       });
 
-      return completion.choices[0]?.message?.content || "I'm here to help! What would you like to know about making new friends?";
+      return completion.choices[0]?.message?.content || "I'm here to help! What would you like to know about making new café connections?";
     } catch (error) {
       console.error('Error generating chat response:', error);
       throw new Error('Failed to generate chat response');
+    }
+  },
+
+  // Generate embeddings for questionnaire responses
+  async generateEmbedding(text: string): Promise<number[]> {
+    try {
+      const response = await openai.embeddings.create({
+        model: 'text-embedding-3-small',
+        input: text,
+      });
+
+      return response.data[0].embedding;
+    } catch (error) {
+      console.error('Error generating embedding:', error);
+      throw new Error('Failed to generate embedding');
     }
   }
 };

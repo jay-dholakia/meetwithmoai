@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import {
   View,
   Text,
@@ -8,13 +9,21 @@ import {
   Switch,
   Alert,
   Image,
+  TextInput,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import * as Location from 'expo-location';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/mcp-supabase';
+import EditProfileScreen from './EditProfileScreen';
+import EditQuestionnaireScreen from './EditQuestionnaireScreen';
+import BlockedUsersScreen from './BlockedUsersScreen';
+import NotificationPreferencesScreen from './NotificationPreferencesScreen';
+import MatchStatisticsScreen from './MatchStatisticsScreen';
 
 interface Profile {
   id: string;
@@ -37,18 +46,28 @@ interface Preferences {
   reminder_opt_in: boolean;
 }
 
-export default function ProfileScreen() {
+export default function ProfileScreen({ navigation }: any) {
   const theme = useTheme();
   const { user, signOut } = useAuth();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [preferences, setPreferences] = useState<Preferences | null>(null);
   const [loading, setLoading] = useState(true);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
 
   useEffect(() => {
     if (user) {
       loadProfile();
     }
   }, [user]);
+
+  // Reload profile when screen comes into focus (e.g., after editing)
+  useFocusEffect(
+    React.useCallback(() => {
+      if (user) {
+        loadProfile();
+      }
+    }, [user])
+  );
 
   const loadProfile = async () => {
     try {
@@ -122,21 +141,66 @@ export default function ProfileScreen() {
 
   const pickImage = async () => {
     try {
+      setUploadingAvatar(true);
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: 'images' as any,
         allowsEditing: true,
         aspect: [1, 1],
         quality: 0.8,
       });
 
-      if (!result.canceled && result.assets[0]) {
-        // In a real app, you'd upload to Supabase Storage
-        // For now, we'll just update the profile with a placeholder
-        updateProfile({ avatar_url: result.assets[0].uri });
+      if (!result.canceled && result.assets[0] && user) {
+        const imageUri = result.assets[0].uri;
+        
+        // Get file extension
+        const fileExt = imageUri.split('.').pop()?.toLowerCase() || 'jpg';
+        const filePath = `${user.id}/avatar.${fileExt}`;
+        const contentType = `image/${fileExt === 'png' ? 'png' : fileExt === 'webp' ? 'webp' : 'jpeg'}`;
+
+        // Delete old avatar if it exists
+        const { data: oldFiles } = await supabase.storage
+          .from('avatars')
+          .list(user.id);
+        
+        if (oldFiles && oldFiles.length > 0) {
+          const oldFileNames = oldFiles.map(f => `${user.id}/${f.name}`);
+          await supabase.storage
+            .from('avatars')
+            .remove(oldFileNames);
+        }
+
+        // Read file as blob for React Native
+        const response = await fetch(imageUri);
+        const blob = await response.blob();
+
+        // Upload new avatar
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from('avatars')
+          .upload(filePath, blob, {
+            contentType,
+            upsert: true,
+          });
+
+        if (uploadError) {
+          console.error('Error uploading image:', uploadError);
+          Alert.alert('Error', 'Failed to upload image. Please try again.');
+          return;
+        }
+
+        // Get public URL
+        const { data: urlData } = supabase.storage
+          .from('avatars')
+          .getPublicUrl(filePath);
+
+        // Update profile with new avatar URL
+        await updateProfile({ avatar_url: urlData.publicUrl });
+        Alert.alert('Success', 'Profile picture updated!');
       }
     } catch (error) {
       console.error('Error picking image:', error);
-      Alert.alert('Error', 'Failed to pick image');
+      Alert.alert('Error', 'Failed to pick image. Please try again.');
+    } finally {
+      setUploadingAvatar(false);
     }
   };
 
@@ -151,24 +215,100 @@ export default function ProfileScreen() {
     );
   };
 
+  const handleEditLocation = async () => {
+    Alert.alert(
+      'Update Location',
+      'How would you like to set your location?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Use My Location',
+          onPress: async () => {
+            try {
+              const { status } = await Location.requestForegroundPermissionsAsync();
+              if (status !== 'granted') {
+                Alert.alert('Permission Denied', 'Location access was denied. Please enter your city manually.');
+                return;
+              }
+
+              const location = await Location.getCurrentPositionAsync({
+                accuracy: Location.Accuracy.Balanced,
+              });
+
+              const [address] = await Location.reverseGeocodeAsync({
+                latitude: location.coords.latitude,
+                longitude: location.coords.longitude,
+              });
+
+              const city = address.city && address.region 
+                ? `${address.city}, ${address.region}` 
+                : address.city || address.region || 'Unknown Location';
+
+              await updateProfile({
+                city,
+                lat: location.coords.latitude,
+                lng: location.coords.longitude,
+              });
+            } catch (error) {
+              console.error('Error getting location:', error);
+              Alert.alert('Error', 'Failed to get your location');
+            }
+          },
+        },
+        {
+          text: 'Enter Manually',
+          onPress: () => {
+            Alert.prompt(
+              'Enter City',
+              'Please enter your city:',
+              [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                  text: 'Save',
+                  onPress: async (city) => {
+                    if (city && city.trim()) {
+                      await updateProfile({ city: city.trim() });
+                    }
+                  },
+                },
+              ],
+              'plain-text',
+              profile?.city || ''
+            );
+          },
+        },
+      ]
+    );
+  };
+
   const renderProfileSection = () => (
     <View style={[styles.section, { backgroundColor: theme.colors.surface }]}>
       <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
         Profile
       </Text>
       
-      <TouchableOpacity style={styles.avatarSection} onPress={pickImage}>
-        {profile?.avatar_url ? (
-          <Image source={{ uri: profile.avatar_url }} style={styles.avatar} />
-        ) : (
-          <View style={[styles.avatarPlaceholder, { backgroundColor: theme.colors.primary }]}>
-            <Text style={styles.avatarText}>{profile?.first_name?.charAt(0).toUpperCase() || '?'}</Text>
+      <View style={styles.avatarSection}>
+        <TouchableOpacity 
+          style={styles.avatarContainer}
+          onPress={pickImage}
+          disabled={uploadingAvatar}
+        >
+          {profile?.avatar_url ? (
+            <Image source={{ uri: profile.avatar_url }} style={styles.avatar} />
+          ) : (
+            <View style={[styles.avatarPlaceholder, { backgroundColor: theme.colors.primary }]}>
+              <Text style={styles.avatarText}>{profile?.first_name?.charAt(0).toUpperCase() || '?'}</Text>
+            </View>
+          )}
+          <View style={[styles.avatarOverlay, { backgroundColor: theme.colors.primary, borderColor: theme.colors.background }]}>
+            {uploadingAvatar ? (
+              <ActivityIndicator size="small" color="#FFFFFF" />
+            ) : (
+              <Ionicons name="camera" size={18} color="#FFFFFF" />
+            )}
           </View>
-        )}
-        <View style={styles.avatarOverlay}>
-          <Ionicons name="camera" size={20} color="#FFFFFF" />
-        </View>
-      </TouchableOpacity>
+        </TouchableOpacity>
+      </View>
 
       <View style={styles.profileInfo}>
         <Text style={[styles.profileName, { color: theme.colors.text }]}>
@@ -192,36 +332,40 @@ export default function ProfileScreen() {
         Settings
       </Text>
 
-      <TouchableOpacity style={styles.settingItem}>
-        <View style={styles.settingLeft}>
-          <Ionicons name="notifications-outline" size={24} color={theme.colors.text} />
-          <Text style={[styles.settingText, { color: theme.colors.text }]}>
-            Weekly reminders
-          </Text>
-        </View>
-        <Switch
-          value={preferences?.reminder_opt_in || false}
-          onValueChange={(value) => updatePreferences({ reminder_opt_in: value })}
-          trackColor={{ false: theme.colors.border, true: theme.colors.primary }}
-          thumbColor="#FFFFFF"
-        />
-      </TouchableOpacity>
-
-      <TouchableOpacity style={styles.settingItem}>
+      <TouchableOpacity 
+        style={styles.settingItem}
+        onPress={() => handleEditLocation()}
+      >
         <View style={styles.settingLeft}>
           <Ionicons name="location-outline" size={24} color={theme.colors.text} />
           <Text style={[styles.settingText, { color: theme.colors.text }]}>
-            Travel radius: {profile?.radius_km || 15}km
+            Location: {profile?.city || 'Not set'}
           </Text>
         </View>
         <Ionicons name="chevron-forward" size={20} color={theme.colors.textSecondary} />
       </TouchableOpacity>
 
-      <TouchableOpacity style={styles.settingItem}>
+      <TouchableOpacity 
+        style={styles.settingItem}
+        onPress={() => navigation.navigate('EditProfile')}
+      >
         <View style={styles.settingLeft}>
-          <Ionicons name="time-outline" size={24} color={theme.colors.text} />
+          <Ionicons name="person-outline" size={24} color={theme.colors.text} />
           <Text style={[styles.settingText, { color: theme.colors.text }]}>
-            Availability
+            Edit Profile
+          </Text>
+        </View>
+        <Ionicons name="chevron-forward" size={20} color={theme.colors.textSecondary} />
+      </TouchableOpacity>
+
+      <TouchableOpacity 
+        style={styles.settingItem}
+        onPress={() => navigation.navigate('EditQuestionnaire')}
+      >
+        <View style={styles.settingLeft}>
+          <Ionicons name="document-text-outline" size={24} color={theme.colors.text} />
+          <Text style={[styles.settingText, { color: theme.colors.text }]}>
+            Edit Questionnaire
           </Text>
         </View>
         <Ionicons name="chevron-forward" size={20} color={theme.colors.textSecondary} />
@@ -237,9 +381,9 @@ export default function ProfileScreen() {
 
       <TouchableOpacity style={styles.settingItem}>
         <View style={styles.settingLeft}>
-          <Ionicons name="cafe-outline" size={24} color={theme.colors.text} />
+          <Ionicons name="people-outline" size={24} color={theme.colors.text} />
           <Text style={[styles.settingText, { color: theme.colors.text }]}>
-            Matcha matching
+            Matching enabled
           </Text>
         </View>
         <Switch
@@ -265,7 +409,10 @@ export default function ProfileScreen() {
         />
       </TouchableOpacity>
 
-      <TouchableOpacity style={styles.settingItem}>
+      <TouchableOpacity 
+        style={styles.settingItem}
+        onPress={() => navigation.navigate('SafetyPrivacy')}
+      >
         <View style={styles.settingLeft}>
           <Ionicons name="shield-outline" size={24} color={theme.colors.text} />
           <Text style={[styles.settingText, { color: theme.colors.text }]}>
@@ -275,7 +422,10 @@ export default function ProfileScreen() {
         <Ionicons name="chevron-forward" size={20} color={theme.colors.textSecondary} />
       </TouchableOpacity>
 
-      <TouchableOpacity style={styles.settingItem}>
+      <TouchableOpacity 
+        style={styles.settingItem}
+        onPress={() => navigation.navigate('HelpSupport')}
+      >
         <View style={styles.settingLeft}>
           <Ionicons name="help-circle-outline" size={24} color={theme.colors.text} />
           <Text style={[styles.settingText, { color: theme.colors.text }]}>
@@ -298,7 +448,7 @@ export default function ProfileScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top', 'left', 'right']}>
         <View style={styles.loadingContainer}>
           <Text style={[styles.loadingText, { color: theme.colors.text }]}>
             Loading profile...
@@ -309,11 +459,11 @@ export default function ProfileScreen() {
   }
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top', 'left', 'right']}>
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
           <Text style={[styles.headerTitle, { color: theme.colors.text }]}>
-            👤 Profile
+            Profile
           </Text>
         </View>
 
@@ -366,6 +516,10 @@ const styles = StyleSheet.create({
   avatarSection: {
     alignItems: 'center',
     marginBottom: 16,
+  },
+  avatarContainer: {
+    width: 80,
+    height: 80,
     position: 'relative',
   },
   avatar: {
@@ -387,16 +541,22 @@ const styles = StyleSheet.create({
   },
   avatarOverlay: {
     position: 'absolute',
-    bottom: 0,
-    right: 0,
-    backgroundColor: '#7C6CFF',
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    top: -4,
+    right: -4,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: '#0A0B0D',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
   },
   profileInfo: {
     alignItems: 'center',
