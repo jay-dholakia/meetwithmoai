@@ -57,16 +57,16 @@ export interface Theme {
 
 const theme: Theme = {
   colors: {
-    background: '#FEFFFE', // Clean white with subtle warmth
-    surface: '#F0F5F0', // Slightly darker matcha-tinted surface for better contrast
-    primary: '#6B8E23', // Rich matcha green
-    secondary: '#8FBC8F', // Soft sage green
-    text: '#2D3D2D', // Dark charcoal for readability
-    textSecondary: '#6B7B6B', // Muted green-gray
-    border: '#DDE8DD', // Slightly darker matcha border for better definition
-    success: '#4CAF50', // Matcha success green
-    error: '#FF5252',
-    warning: '#FFC107',
+    background: '#FAFBFC', // Softer, warmer background
+    surface: '#FFFFFF', // Pure white for cards
+    primary: '#5B9BD5', // Softer, more refined blue
+    secondary: '#FF9F66', // Softer orange accent
+    text: '#0F172A', // Softer near-black
+    textSecondary: '#64748B', // Softer gray
+    border: '#E2E8F0', // Softer, more subtle borders
+    success: '#22C55E', // Softer green
+    error: '#F87171', // Softer red
+    warning: '#FBBF24', // Softer amber
   },
   spacing: {
     xs: 4,
@@ -74,38 +74,47 @@ const theme: Theme = {
     md: 16,
     lg: 24,
     xl: 32,
+    xxl: 48,
   },
   borderRadius: {
-    sm: 4,
-    md: 8,
-    lg: 12,
-    xl: 16,
+    sm: 6,
+    md: 12,
+    lg: 16,
+    xl: 24,
   },
   typography: {
     h1: {
       fontSize: 32,
       fontFamily: 'InterTight-Bold',
       fontWeight: '700',
+      lineHeight: 40,
+      letterSpacing: -0.5,
     },
     h2: {
       fontSize: 24,
       fontFamily: 'InterTight-SemiBold',
       fontWeight: '600',
+      lineHeight: 32,
+      letterSpacing: -0.3,
     },
     h3: {
       fontSize: 20,
       fontFamily: 'InterTight-Medium',
       fontWeight: '500',
+      lineHeight: 28,
+      letterSpacing: -0.2,
     },
     body: {
       fontSize: 16,
       fontFamily: 'Inter-Regular',
       fontWeight: '400',
+      lineHeight: 24,
     },
     caption: {
       fontSize: 14,
       fontFamily: 'Inter-Regular',
       fontWeight: '400',
+      lineHeight: 20,
     },
   },
 };

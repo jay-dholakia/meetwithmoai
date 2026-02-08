@@ -114,7 +114,7 @@ export default function EditProfileScreen({ navigation }: any) {
     options: string[],
     currentValue: string
   ) => (
-    <View style={[styles.fieldContainer, { backgroundColor: theme.colors.surface }]}>
+    <View style={[styles.fieldContainer, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
       <Text style={[styles.label, { color: theme.colors.text }]}>{label}</Text>
       {options.map((option) => (
         <TouchableOpacity
@@ -168,7 +168,7 @@ export default function EditProfileScreen({ navigation }: any) {
       </View>
 
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        <View style={[styles.fieldContainer, { backgroundColor: theme.colors.surface }]}>
+        <View style={[styles.fieldContainer, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
           <Text style={[styles.label, { color: theme.colors.text }]}>Age</Text>
           <TextInput
             style={[styles.textInput, {
@@ -189,7 +189,7 @@ export default function EditProfileScreen({ navigation }: any) {
         {renderSelectField('Relationship Status', 'relationship_status', relationshipStatusOptions, formData.relationship_status)}
         {renderSelectField('Has Kids', 'has_kids', hasKidsOptions, formData.has_kids)}
 
-        <View style={[styles.fieldContainer, { backgroundColor: theme.colors.surface }]}>
+        <View style={[styles.fieldContainer, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
           <Text style={[styles.label, { color: theme.colors.text }]}>Bio</Text>
           <TextInput
             style={[styles.textArea, {
@@ -256,7 +256,6 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#2C2C2E',
   },
   label: {
     fontSize: 16,

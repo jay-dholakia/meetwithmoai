@@ -218,7 +218,7 @@ async function generateAIIntroMessage(
   const sharedInterests = matchReasons?.shared_interests || []
   const conversationHooks = matchReasons?.conversation_hooks || []
 
-  let introText = `🍵 Welcome to your Matcha connection, ${userA.first_name} and ${userB.first_name}!\n\n`
+  let introText = `Welcome to your Flock connection, ${userA.first_name} and ${userB.first_name}!\n\n`
 
   if (sharedInterests.length > 0) {
     introText += `I noticed you both enjoy: ${sharedInterests.slice(0, 2).join(' and ')}\n\n`
@@ -232,7 +232,7 @@ async function generateAIIntroMessage(
     introText += '\n'
   }
 
-  introText += `Feel free to plan a café meetup when you're both ready. I'll step back now and let you two connect! ☕️`
+  introText += `Feel free to plan a meetup when you're both ready. I'll step back now and let you two connect!`
 
   // Insert AI message
   const { error: messageError } = await supabaseClient

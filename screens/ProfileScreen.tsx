@@ -282,7 +282,7 @@ export default function ProfileScreen({ navigation }: any) {
   };
 
   const renderProfileSection = () => (
-    <View style={[styles.section, { backgroundColor: theme.colors.surface }]}>
+    <View style={[styles.section, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
       <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
         Profile
       </Text>
@@ -293,93 +293,76 @@ export default function ProfileScreen({ navigation }: any) {
           onPress={pickImage}
           disabled={uploadingAvatar}
         >
-          {profile?.avatar_url ? (
-            <Image source={{ uri: profile.avatar_url }} style={styles.avatar} />
-          ) : (
-            <View style={[styles.avatarPlaceholder, { backgroundColor: theme.colors.primary }]}>
-              <Text style={styles.avatarText}>{profile?.first_name?.charAt(0).toUpperCase() || '?'}</Text>
-            </View>
-          )}
+        {profile?.avatar_url ? (
+          <Image source={{ uri: profile.avatar_url }} style={styles.avatar} />
+        ) : (
+          <View style={[styles.avatarPlaceholder, { backgroundColor: theme.colors.primary }]}>
+            <Text style={styles.avatarText}>{profile?.first_name?.charAt(0).toUpperCase() || '?'}</Text>
+          </View>
+        )}
           <View style={[styles.avatarOverlay, { backgroundColor: theme.colors.primary, borderColor: theme.colors.background }]}>
             {uploadingAvatar ? (
               <ActivityIndicator size="small" color="#FFFFFF" />
             ) : (
               <Ionicons name="camera" size={18} color="#FFFFFF" />
             )}
-          </View>
-        </TouchableOpacity>
+        </View>
+      </TouchableOpacity>
       </View>
 
       <View style={styles.profileInfo}>
         <Text style={[styles.profileName, { color: theme.colors.text }]}>
           {profile?.first_name || 'Set your name'}
         </Text>
-        <Text style={[styles.profileLocation, { color: theme.colors.textSecondary }]}>
-          📍 {profile?.city || 'Set your location'}
-        </Text>
+        <View style={styles.locationRow}>
+          <Text style={[styles.profileLocation, { color: theme.colors.textSecondary }]}>
+            📍 {profile?.city || 'Set your location'}
+          </Text>
+          <TouchableOpacity 
+            style={styles.editLocationButton}
+            onPress={handleEditLocation}
+          >
+            <Ionicons name="create-outline" size={16} color={theme.colors.primary} />
+          </TouchableOpacity>
+        </View>
         {profile?.bio_text && (
           <Text style={[styles.profileBio, { color: theme.colors.textSecondary }]}>
             {profile.bio_text}
           </Text>
         )}
       </View>
-    </View>
-  );
 
-  const renderSettingsSection = () => (
-    <View style={[styles.section, { backgroundColor: theme.colors.surface }]}>
-      <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
-        Settings
-      </Text>
-
-      <TouchableOpacity 
-        style={styles.settingItem}
-        onPress={() => handleEditLocation()}
-      >
-        <View style={styles.settingLeft}>
-          <Ionicons name="location-outline" size={24} color={theme.colors.text} />
-          <Text style={[styles.settingText, { color: theme.colors.text }]}>
-            Location: {profile?.city || 'Not set'}
-          </Text>
-        </View>
-        <Ionicons name="chevron-forward" size={20} color={theme.colors.textSecondary} />
-      </TouchableOpacity>
-
-      <TouchableOpacity 
-        style={styles.settingItem}
-        onPress={() => navigation.navigate('EditProfile')}
-      >
-        <View style={styles.settingLeft}>
-          <Ionicons name="person-outline" size={24} color={theme.colors.text} />
-          <Text style={[styles.settingText, { color: theme.colors.text }]}>
+      <View style={styles.editButtonsRow}>
+        <TouchableOpacity 
+          style={[styles.editButton, { borderColor: theme.colors.border }]}
+          onPress={() => navigation.navigate('EditProfile')}
+        >
+          <Ionicons name="person-outline" size={18} color={theme.colors.primary} />
+          <Text style={[styles.editButtonText, { color: theme.colors.primary }]}>
             Edit Profile
           </Text>
-        </View>
-        <Ionicons name="chevron-forward" size={20} color={theme.colors.textSecondary} />
-      </TouchableOpacity>
-
-      <TouchableOpacity 
-        style={styles.settingItem}
-        onPress={() => navigation.navigate('EditQuestionnaire')}
-      >
-        <View style={styles.settingLeft}>
-          <Ionicons name="document-text-outline" size={24} color={theme.colors.text} />
-          <Text style={[styles.settingText, { color: theme.colors.text }]}>
+        </TouchableOpacity>
+        <TouchableOpacity 
+          style={[styles.editButton, { borderColor: theme.colors.border }]}
+          onPress={() => navigation.navigate('EditQuestionnaire')}
+        >
+          <Ionicons name="document-text-outline" size={18} color={theme.colors.primary} />
+          <Text style={[styles.editButtonText, { color: theme.colors.primary }]}>
             Edit Questionnaire
           </Text>
-        </View>
-        <Ionicons name="chevron-forward" size={20} color={theme.colors.textSecondary} />
-      </TouchableOpacity>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 
+
   const renderAccountSection = () => (
-    <View style={[styles.section, { backgroundColor: theme.colors.surface }]}>
+    <View style={[styles.section, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
       <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
         Account
       </Text>
 
-      <TouchableOpacity style={styles.settingItem}>
+      <TouchableOpacity style={[styles.settingItem, { borderBottomColor: theme.colors.border }]}>
         <View style={styles.settingLeft}>
           <Ionicons name="people-outline" size={24} color={theme.colors.text} />
           <Text style={[styles.settingText, { color: theme.colors.text }]}>
@@ -394,7 +377,7 @@ export default function ProfileScreen({ navigation }: any) {
         />
       </TouchableOpacity>
 
-      <TouchableOpacity style={styles.settingItem}>
+      <TouchableOpacity style={[styles.settingItem, { borderBottomColor: theme.colors.border }]}>
         <View style={styles.settingLeft}>
           <Ionicons name="pause-outline" size={24} color={theme.colors.text} />
           <Text style={[styles.settingText, { color: theme.colors.text }]}>
@@ -410,7 +393,7 @@ export default function ProfileScreen({ navigation }: any) {
       </TouchableOpacity>
 
       <TouchableOpacity 
-        style={styles.settingItem}
+        style={[styles.settingItem, { borderBottomColor: theme.colors.border }]}
         onPress={() => navigation.navigate('SafetyPrivacy')}
       >
         <View style={styles.settingLeft}>
@@ -423,7 +406,7 @@ export default function ProfileScreen({ navigation }: any) {
       </TouchableOpacity>
 
       <TouchableOpacity 
-        style={styles.settingItem}
+        style={[styles.settingItem, { borderBottomColor: theme.colors.border }]}
         onPress={() => navigation.navigate('HelpSupport')}
       >
         <View style={styles.settingLeft}>
@@ -461,14 +444,13 @@ export default function ProfileScreen({ navigation }: any) {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top', 'left', 'right']}>
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        <View style={styles.header}>
+        <View style={[styles.header, { borderBottomColor: theme.colors.border }]}>
           <Text style={[styles.headerTitle, { color: theme.colors.text }]}>
             Profile
           </Text>
         </View>
 
         {renderProfileSection()}
-        {renderSettingsSection()}
         {renderAccountSection()}
       </ScrollView>
     </SafeAreaView>
@@ -494,7 +476,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#1C1C1E',
   },
   headerTitle: {
     fontSize: 24,
@@ -506,7 +487,6 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#2C2C2E',
   },
   sectionTitle: {
     fontSize: 18,
@@ -566,14 +546,43 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginBottom: 4,
   },
+  locationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
   profileLocation: {
     fontSize: 16,
-    marginBottom: 8,
+    marginRight: 8,
+  },
+  editLocationButton: {
+    padding: 4,
   },
   profileBio: {
     fontSize: 14,
     textAlign: 'center',
     lineHeight: 20,
+  },
+  editButtonsRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 16,
+  },
+  editButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    gap: 8,
+  },
+  editButtonText: {
+    fontSize: 14,
+    fontWeight: '500',
   },
   settingItem: {
     flexDirection: 'row',
@@ -581,7 +590,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#2C2C2E',
   },
   settingLeft: {
     flexDirection: 'row',

@@ -153,7 +153,7 @@ export default function EditQuestionnaireScreen({ navigation }: any) {
 
     if (question.type === 'open_ended') {
       return (
-        <View key={question.id} style={[styles.questionContainer, { backgroundColor: theme.colors.surface }]}>
+        <View key={question.id} style={[styles.questionContainer, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
           <Text style={[styles.questionText, { color: theme.colors.text }]}>
             {index + 1}. {question.text}
           </Text>
@@ -176,7 +176,7 @@ export default function EditQuestionnaireScreen({ navigation }: any) {
 
     if (question.type === 'single_select') {
       return (
-        <View key={question.id} style={[styles.questionContainer, { backgroundColor: theme.colors.surface }]}>
+        <View key={question.id} style={[styles.questionContainer, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
           <Text style={[styles.questionText, { color: theme.colors.text }]}>
             {index + 1}. {question.text}
           </Text>
@@ -211,7 +211,7 @@ export default function EditQuestionnaireScreen({ navigation }: any) {
       const selectedValues = Array.isArray(currentValue) ? currentValue : [];
       
       return (
-        <View key={question.id} style={[styles.questionContainer, { backgroundColor: theme.colors.surface }]}>
+        <View key={question.id} style={[styles.questionContainer, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
           <Text style={[styles.questionText, { color: theme.colors.text }]}>
             {index + 1}. {question.text}
           </Text>
@@ -331,7 +331,6 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#2C2C2E',
   },
   questionText: {
     fontSize: 16,

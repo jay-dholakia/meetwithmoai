@@ -44,7 +44,7 @@ export const intakeQuestions = [
     ],
     validation: (value: string) => value ? null : "Please select a life stage",
     // This maps to life_stage column
-  },
+    },
   {
     id: "q6_industry",
     text: "What industry or field do you work or study in?",
@@ -82,7 +82,7 @@ export const intakeQuestions = [
   },
 
   // Section 3: What you enjoy - 4 open-ended
-  {
+    {
     id: "q10_activities_enjoy",
     text: "What activities or hobbies do you genuinely enjoy?",
     type: "open_ended",
@@ -93,8 +93,8 @@ export const intakeQuestions = [
     text: "What could you talk about or do for hours?",
     type: "open_ended",
     validation: (value: string) => value.trim().length > 0 ? null : "Please share what you could talk about for hours",
-  },
-  {
+    },
+    {
     id: "q12_new_to_try",
     text: "What's something new you've been wanting to try or learn?",
     type: "open_ended",
@@ -112,7 +112,7 @@ export const intakeQuestions = [
     id: "q14_friendship_cadence",
     text: "What's your ideal cadence for new friendships?",
     type: "single_select",
-    options: [
+      options: [
       "A few times a week",
       "Weekly",
       "A few times a month",
@@ -126,7 +126,7 @@ export const intakeQuestions = [
     id: "q15_communication_preference",
     text: "How do you like to communicate with friends?",
     type: "single_select",
-    options: [
+      options: [
       "Texting",
       "Phone calls",
       "In-person",
@@ -154,7 +154,7 @@ export const intakeQuestions = [
     id: "q17_drive_distance",
     text: "How far are you willing to drive to meet up with someone?",
     type: "single_select",
-    options: [
+      options: [
       "5 miles",
       "10 miles",
       "25 miles",
@@ -173,14 +173,14 @@ export const intakeQuestions = [
       "Weekday evening",
       "Weekend daytime",
       "Weekend evening"
-    ],
+      ],
     validation: (values: string[]) => values.length > 0 ? null : "Please select at least one availability time",
     // This maps to availability_times column
-  },
-  {
+    },
+    {
     id: "q19_age_range_preference",
     text: "What age range would you prefer for new friends?",
-    type: "single_select",
+      type: "single_select",
     options: [
       "Similar age (within 3 years)",
       "Slightly younger or older (within 5 years)",
@@ -253,9 +253,9 @@ export const intakeQuestions = [
   },
   {
     id: "q26_matcha_hopes",
-    text: "What are you hoping to get out of using Matcha? What would make this feel successful for you?",
+    text: "What are you hoping to get out of using Flock? What would make this feel successful for you?",
     type: "open_ended",
-    validation: (value: string) => value.trim().length > 0 ? null : "Please share your hopes for Matcha",
+    validation: (value: string) => value.trim().length > 0 ? null : "Please share your hopes for Flock",
   },
 ];
 
@@ -271,93 +271,93 @@ export const questionToColumnMap: Record<string, string> = {
 
 // Legacy profile questions (kept for compatibility)
 export const profileQuestions = [
-  {
-    id: "name",
-    text: "What's your first name?",
-    type: "text",
-    placeholder: "Enter your first name",
-    validation: (value: string) =>
-      value.trim().length > 0 ? null : "Please enter your first name",
-  },
-  {
-    id: "last_name",
-    text: "What's your last name? (or just initial)",
-    type: "text",
-    placeholder: "Enter your last name or initial",
-    validation: (value: string) =>
-      value.trim().length > 0
-        ? null
-        : "Please enter your last name or initial",
-  },
-  {
-    id: "birthdate",
-    text: "When's your birthday? (You must be 18+ to use this app)",
-    type: "date",
-    placeholder: "MM/DD/YYYY",
-    validation: (value: string) => {
-      const birthDate = new Date(value);
-      const today = new Date();
-      let age = today.getFullYear() - birthDate.getFullYear();
-      const monthDiff = today.getMonth() - birthDate.getMonth();
-      if (
-        monthDiff < 0 ||
-        (monthDiff === 0 && today.getDate() < birthDate.getDate())
-      ) {
-        age--;
-      }
-      return age >= 18 ? null : "You must be 18 or older to use this app";
+    {
+      id: "name",
+      text: "What's your first name?",
+      type: "text",
+      placeholder: "Enter your first name",
+      validation: (value: string) =>
+        value.trim().length > 0 ? null : "Please enter your first name",
     },
-  },
-  {
-    id: "gender",
-    text: "What's your gender?",
-    type: "chips",
-    options: ["Male", "Female", "Non-binary", "Other", "Prefer not to say"],
-    validation: (value: string) =>
-      value ? null : "Please select your gender",
-  },
-  {
-    id: "pronouns",
-    text: "What are your pronouns?",
-    type: "chips",
-    options: ["He/Him", "She/Her", "They/Them", "Other", "Prefer not to say"],
-    validation: (value: string) =>
-      value ? null : "Please select your pronouns",
-  },
-  {
-    id: "sexual_orientation",
-    text: "What's your sexual orientation?",
-    type: "chips",
-    options: [
-      "Straight",
-      "Gay",
-      "Lesbian",
-      "Bisexual",
-      "Pansexual",
-      "Asexual",
+    {
+      id: "last_name",
+      text: "What's your last name? (or just initial)",
+      type: "text",
+      placeholder: "Enter your last name or initial",
+      validation: (value: string) =>
+        value.trim().length > 0
+          ? null
+          : "Please enter your last name or initial",
+    },
+    {
+      id: "birthdate",
+      text: "When's your birthday? (You must be 18+ to use this app)",
+      type: "date",
+      placeholder: "MM/DD/YYYY",
+      validation: (value: string) => {
+        const birthDate = new Date(value);
+        const today = new Date();
+        let age = today.getFullYear() - birthDate.getFullYear();
+        const monthDiff = today.getMonth() - birthDate.getMonth();
+        if (
+          monthDiff < 0 ||
+          (monthDiff === 0 && today.getDate() < birthDate.getDate())
+        ) {
+          age--;
+        }
+        return age >= 18 ? null : "You must be 18 or older to use this app";
+      },
+    },
+    {
+      id: "gender",
+      text: "What's your gender?",
+      type: "chips",
+      options: ["Male", "Female", "Non-binary", "Other", "Prefer not to say"],
+      validation: (value: string) =>
+        value ? null : "Please select your gender",
+    },
+    {
+      id: "pronouns",
+      text: "What are your pronouns?",
+      type: "chips",
+      options: ["He/Him", "She/Her", "They/Them", "Other", "Prefer not to say"],
+      validation: (value: string) =>
+        value ? null : "Please select your pronouns",
+    },
+    {
+      id: "sexual_orientation",
+      text: "What's your sexual orientation?",
+      type: "chips",
+      options: [
+        "Straight",
+        "Gay",
+        "Lesbian",
+        "Bisexual",
+        "Pansexual",
+        "Asexual",
       "Queer",
-      "Other",
-      "Prefer not to say",
-    ],
-    validation: (value: string) =>
-      value ? null : "Please select your sexual orientation",
-  },
-  {
+        "Other",
+        "Prefer not to say",
+      ],
+      validation: (value: string) =>
+        value ? null : "Please select your sexual orientation",
+    },
+    {
     id: "relationship_status",
-    text: "What's your relationship status?",
-    type: "chips",
-    options: [
-      "Single",
-      "In a relationship",
-      "Married",
-      "Divorced",
-      "Widowed",
+      text: "What's your relationship status?",
+      type: "chips",
+      options: [
+        "Single",
+        "In a relationship",
+        "Married",
+        "Divorced",
+        "Widowed",
       "It's complicated",
-      "Prefer not to say",
-    ],
-    validation: (value: string) =>
-      value ? null : "Please select your relationship status",
-  },
+        "Prefer not to say",
+      ],
+      validation: (value: string) =>
+        value ? null : "Please select your relationship status",
+    },
   {
     id: "has_kids",
     text: "Do you have kids?",
@@ -366,15 +366,15 @@ export const profileQuestions = [
     validation: (value: string) =>
       value ? null : "Please select an option",
   },
-  {
-    id: "location",
-    text: "We'd like to find friends near you. How would you like to set your location?",
-    type: "location_permission",
-    options: [
-      "Use My Location",
-      "Enter Manually"
-    ],
-    validation: (value: string) =>
-      value ? null : "Please choose a location option",
-  },
-];
+    {
+      id: "location",
+      text: "We'd like to find friends near you. How would you like to set your location?",
+      type: "location_permission",
+      options: [
+        "Use My Location",
+        "Enter Manually"
+      ],
+      validation: (value: string) =>
+        value ? null : "Please choose a location option",
+    },
+  ];  

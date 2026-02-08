@@ -313,12 +313,12 @@ export default function ConversationScreen({ route, navigation }: ConversationSc
           isCurrentUser 
             ? { backgroundColor: theme.colors.primary }
             : isAI
-            ? { backgroundColor: theme.colors.secondary }
-            : { backgroundColor: theme.colors.surface }
+            ? { backgroundColor: '#A78BFA' } // Soft purple for Cora
+            : { backgroundColor: '#F3F4F6' } // Light gray for other users
         ]}>
           {isAI && (
             <Text style={[styles.senderName, { color: theme.colors.text }]}>
-              ✨ Mili
+              ✨ Cora
             </Text>
           )}
           <Text style={[

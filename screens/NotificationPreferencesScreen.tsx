@@ -98,12 +98,12 @@ export default function NotificationPreferencesScreen({ navigation }: any) {
       </View>
 
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        <View style={[styles.section, { backgroundColor: theme.colors.surface }]}>
+        <View style={[styles.section, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
           <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
             Push Notifications
           </Text>
 
-          <View style={styles.settingItem}>
+          <View style={[styles.settingItem, { borderBottomColor: theme.colors.border }]}>
             <View style={styles.settingLeft}>
               <Ionicons name="people-outline" size={24} color={theme.colors.text} />
               <View style={styles.settingTextContainer}>
@@ -123,7 +123,7 @@ export default function NotificationPreferencesScreen({ navigation }: any) {
             />
           </View>
 
-          <View style={styles.settingItem}>
+          <View style={[styles.settingItem, { borderBottomColor: theme.colors.border }]}>
             <View style={styles.settingLeft}>
               <Ionicons name="chatbubble-outline" size={24} color={theme.colors.text} />
               <View style={styles.settingTextContainer}>
@@ -144,7 +144,7 @@ export default function NotificationPreferencesScreen({ navigation }: any) {
           </View>
         </View>
 
-        <View style={[styles.section, { backgroundColor: theme.colors.surface }]}>
+        <View style={[styles.section, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
           <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
             Email Notifications
           </Text>
@@ -208,7 +208,6 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#2C2C2E',
   },
   sectionTitle: {
     fontSize: 18,
@@ -221,7 +220,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#2C2C2E',
   },
   settingLeft: {
     flexDirection: 'row',

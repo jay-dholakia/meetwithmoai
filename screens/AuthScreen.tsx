@@ -90,10 +90,10 @@ export default function AuthScreen() {
         <ScrollView contentContainerStyle={styles.scrollContent}>
           <View style={styles.header}>
             <View style={[styles.logoContainer, { backgroundColor: theme.colors.primary }]}>
-              <Text style={styles.logoText}>🍵</Text>
+              <Ionicons name="people" size={40} color="#FFFFFF" />
             </View>
             <Text style={[styles.title, { color: theme.colors.text }]}>
-              Matcha
+              Flock
             </Text>
             <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>
               Real people, real conversation.

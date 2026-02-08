@@ -56,10 +56,10 @@ export default function TabNavigator() {
         tabBarIcon: ({ focused, color, size }) => {
           let iconName: keyof typeof Ionicons.glyphMap;
 
-          if (route.name === 'Mili') {
+          if (route.name === 'Cora') {
             iconName = focused ? 'sparkles' : 'sparkles-outline';
           } else if (route.name === 'People') {
-            iconName = focused ? 'cafe' : 'cafe-outline';
+            iconName = focused ? 'people' : 'people-outline';
           } else if (route.name === 'Profile') {
             iconName = focused ? 'person' : 'person-outline';
           } else {
@@ -68,22 +68,22 @@ export default function TabNavigator() {
 
           return <Ionicons name={iconName} size={size} color={color} />;
         },
-        tabBarActiveTintColor: '#6B8E23',
-        tabBarInactiveTintColor: '#6B7B6B',
+        tabBarActiveTintColor: '#4A90E2',
+        tabBarInactiveTintColor: '#9CA3AF',
         tabBarStyle: {
-          backgroundColor: '#FEFFFE',
-          borderTopColor: '#DDE8DD',
+          backgroundColor: '#FFFFFF',
+          borderTopColor: '#E5E7EB',
           borderTopWidth: 1,
           paddingBottom: Math.max(insets.bottom, 5),
           paddingTop: 5,
           height: 60 + Math.max(insets.bottom - 5, 0),
         },
         headerStyle: {
-          backgroundColor: '#FEFFFE',
-          borderBottomColor: '#DDE8DD',
+          backgroundColor: '#FFFFFF',
+          borderBottomColor: '#E5E7EB',
           borderBottomWidth: 1,
         },
-        headerTintColor: '#2D3D2D',
+        headerTintColor: '#1A1A1A',
         headerTitleStyle: {
           fontFamily: 'InterTight-Bold',
           fontSize: 18,
@@ -91,7 +91,7 @@ export default function TabNavigator() {
       })}
     >
       <Tab.Screen 
-        name="Mili" 
+        name="Cora" 
         component={AIAgentScreen}
         options={{ headerShown: false }}
       />

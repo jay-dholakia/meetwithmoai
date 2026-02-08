@@ -105,7 +105,7 @@ export default function MoaiMatchesScreen({ navigation }: any) {
         .or(`user_a.eq.${user?.id},user_b.eq.${user?.id}`)
         .in('status', ['active', 'opted_in_a', 'opted_in_b'])
         .gt('expires_at', new Date().toISOString())
-        .order('created_at', { ascending: false });
+        .order('score', { ascending: false }); // Order by score (highest first)
 
       if (error) throw error;
 
@@ -184,7 +184,7 @@ export default function MoaiMatchesScreen({ navigation }: any) {
         };
       }) || [];
 
-      // Sort matches: active matches first, waiting matches last
+      // Sort matches: active matches first, waiting matches last, then by score (highest first)
       const sortedMatches = processedMatches.sort((a, b) => {
         const isUserA_a = a.user_a === user?.id;
         const isUserA_b = b.user_a === user?.id;
@@ -197,8 +197,10 @@ export default function MoaiMatchesScreen({ navigation }: any) {
         if (isWaiting_a && !isWaiting_b) return 1;
         if (!isWaiting_a && isWaiting_b) return -1;
         
-        // If both are the same type (both waiting or both active), sort by created_at (newest first)
-        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        // If both are the same type (both waiting or both active), sort by score (highest first)
+        const scoreA = parseFloat(a.score) || 0;
+        const scoreB = parseFloat(b.score) || 0;
+        return scoreB - scoreA;
       });
 
       setMatches(sortedMatches);
@@ -357,7 +359,7 @@ export default function MoaiMatchesScreen({ navigation }: any) {
 
   const renderConversation = ({ item }: { item: Conversation }) => (
     <TouchableOpacity
-      style={[styles.conversationItem, { backgroundColor: theme.colors.surface }]}
+      style={[styles.conversationItem, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
       onPress={() => navigation.navigate('Conversation', { conversationId: item.id })}
     >
       <View style={styles.avatarContainer}>
@@ -390,7 +392,7 @@ export default function MoaiMatchesScreen({ navigation }: any) {
           </Text>
         ) : (
           <Text style={[styles.lastMessage, { color: theme.colors.textSecondary }]}>
-            New Matcha connection started
+            New Flock connection started
           </Text>
         )}
       </View>
@@ -424,7 +426,7 @@ export default function MoaiMatchesScreen({ navigation }: any) {
         color={theme.colors.textSecondary}
       />
       <Text style={[styles.emptyTitle, { color: theme.colors.text }]}>
-        No Matcha connections yet
+        No Flock connections yet
       </Text>
       <Text style={[styles.emptySubtitle, { color: theme.colors.textSecondary }]}>
         Complete your questionnaire to start receiving daily match suggestions for café meetups.
@@ -432,27 +434,45 @@ export default function MoaiMatchesScreen({ navigation }: any) {
     </View>
   );
 
-  const renderTabButton = (tab: 'matches' | 'chats', title: string) => (
-    <TouchableOpacity
-      style={[
-        styles.tabButton,
-        { 
-          backgroundColor: activeTab === tab ? theme.colors.primary : 'transparent',
-          borderColor: theme.colors.border 
-        }
-      ]}
-      onPress={() => setActiveTab(tab)}
-    >
-      <Text style={[
-        styles.tabButtonText,
-        { 
-          color: activeTab === tab ? '#FFFFFF' : theme.colors.text,
-          fontWeight: activeTab === tab ? '600' : '400'
-        }
-      ]}>
-        {title}
-      </Text>
-    </TouchableOpacity>
+  const renderSegmentedControl = () => (
+    <View style={[styles.segmentedControl, { backgroundColor: theme.colors.background, borderColor: theme.colors.border }]}>
+      <TouchableOpacity
+        style={[
+          styles.segment,
+          styles.segmentLeft,
+          activeTab === 'matches' && { backgroundColor: theme.colors.primary }
+        ]}
+        onPress={() => setActiveTab('matches')}
+      >
+        <Text style={[
+          styles.segmentText,
+          { 
+            color: activeTab === 'matches' ? '#FFFFFF' : theme.colors.text,
+            fontWeight: activeTab === 'matches' ? '600' : '400'
+          }
+        ]}>
+          Match Suggestions
+        </Text>
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={[
+          styles.segment,
+          styles.segmentRight,
+          activeTab === 'chats' && { backgroundColor: theme.colors.primary }
+        ]}
+        onPress={() => setActiveTab('chats')}
+      >
+        <Text style={[
+          styles.segmentText,
+          { 
+            color: activeTab === 'chats' ? '#FFFFFF' : theme.colors.text,
+            fontWeight: activeTab === 'chats' ? '600' : '400'
+          }
+        ]}>
+          Active Chats
+        </Text>
+      </TouchableOpacity>
+    </View>
   );
 
   const renderTabContent = () => {
@@ -502,7 +522,7 @@ export default function MoaiMatchesScreen({ navigation }: any) {
         subtitle: "We're working on finding great café connections for you! New matches appear daily, so check back soon."
       } : {
         title: "No matches yet",
-        subtitle: "Complete your questionnaire in Mili to start receiving personalized match suggestions!"
+        subtitle: "Complete your questionnaire in Cora to start receiving personalized match suggestions!"
       };
 
       return (
@@ -550,8 +570,7 @@ export default function MoaiMatchesScreen({ navigation }: any) {
       </View>
 
       <View style={styles.tabContainer}>
-        {renderTabButton('matches', 'Match Suggestions')}
-        {renderTabButton('chats', 'Active Chats')}
+        {renderSegmentedControl()}
       </View>
 
       {renderTabContent()}
@@ -694,21 +713,31 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   tabContainer: {
-    flexDirection: 'row',
     paddingHorizontal: 16,
     paddingVertical: 8,
-    gap: 8,
   },
-  tabButton: {
-    flex: 1,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 8,
+  segmentedControl: {
+    flexDirection: 'row',
+    borderRadius: 10,
     borderWidth: 1,
-    alignItems: 'center',
+    padding: 4,
   },
-  tabButtonText: {
+  segment: {
+    flex: 1,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  segmentLeft: {
+    borderTopLeftRadius: 8,
+    borderBottomLeftRadius: 8,
+  },
+  segmentRight: {
+    borderTopRightRadius: 8,
+    borderBottomRightRadius: 8,
+  },
+  segmentText: {
     fontSize: 14,
-    fontWeight: '500',
   },
 });

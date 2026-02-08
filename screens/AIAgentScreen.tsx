@@ -57,7 +57,9 @@ export default function AIAgentScreen() {
   const [waitingForLocationInput, setWaitingForLocationInput] = useState(false);
   const flatListRef = useRef<FlatList>(null);
   const isInitializedRef = useRef(false);
+  const initializedUserIdRef = useRef<string | null>(null);
   const isAskingQuestionRef = useRef(false);
+  const profileCompletedRef = useRef(false);
 
   const saveMessageToHistory = async (message: Message) => {
     if (!user) return;
@@ -92,16 +94,31 @@ export default function AIAgentScreen() {
       }
       
       if (data && data.length > 0) {
-        const historyMessages = data.map((item) => {
+        const historyMessages = data.map((item, index) => {
           const message = item.message_data as Message;
           // Convert timestamp string back to Date object
           if (message.timestamp && typeof message.timestamp === "string") {
             message.timestamp = new Date(message.timestamp);
           }
+          // Fix old message IDs that might cause duplicates - use index to ensure uniqueness
+          if (message.id === "profile-completion" || message.id === "ready-options" || 
+              message.id === "completion" || message.id === "welcome-back" || 
+              message.id === "no-more-matches") {
+            message.id = `${message.id}-${Date.now()}-${index}-${Math.random()}`;
+          }
           return message;
         });
-        setMessages(historyMessages);
-        console.log("Loaded chat history:", historyMessages.length, "messages");
+        // Deduplicate messages by ID (keep the last occurrence of each ID)
+        const seenIds = new Set<string>();
+        const uniqueMessages = historyMessages.reverse().filter(m => {
+          if (seenIds.has(m.id)) {
+            return false;
+          }
+          seenIds.add(m.id);
+          return true;
+        }).reverse(); // Reverse back to original order
+        setMessages(uniqueMessages);
+        console.log("Loaded chat history:", uniqueMessages.length, "messages (deduplicated from", historyMessages.length, ")");
       }
     } catch (error) {
       console.error("Error loading chat history:", error);
@@ -136,7 +153,7 @@ export default function AIAgentScreen() {
   };
 
   const intakeOutro = {
-    text: "🎉 All set! Thanks for sharing. I'll use this to curate your weekly café connections. They'll show up here every Sunday. Want a Friday reminder?",
+    text: "🎉 All set! Thanks for sharing. I'll use this to curate your weekly connections. They'll show up here every Sunday. Want a Friday reminder?",
     type: "outro",
     options: ["Yes", "No"],
   };
@@ -148,15 +165,33 @@ export default function AIAgentScreen() {
   }, [user]);
 
   const initializeChat = async () => {
+    if (!user) return;
+    
+    // Reset initialization if user changed
+    if (initializedUserIdRef.current !== user.id) {
+      console.log("User changed, resetting initialization state");
+      isInitializedRef.current = false;
+      initializedUserIdRef.current = null;
+      profileCompletedRef.current = false; // Reset profile completion ref
+      // Reset state
+      setMessages([]);
+      setCurrentQuestion(0);
+      setCurrentProfileStep(0);
+      setIntakeAnswers({});
+      setProfileData({});
+      setIsProfileComplete(false);
+      setSelectedLanguages([]);
+      setSelectedMultiSelectOptions({});
+    }
+    
     if (isInitializedRef.current) {
-      console.log("Chat already initialized, skipping");
+      console.log("Chat already initialized for this user, skipping");
       return;
     }
     
     console.log("Initializing chat...");
     isInitializedRef.current = true;
-    
-    if (!user) return;
+    initializedUserIdRef.current = user.id;
     
     const { data: historyData, error: historyError } = await supabase
       .from("ai_chat_history")
@@ -203,10 +238,10 @@ export default function AIAgentScreen() {
     let intakeError = intakeErrorV4;
     if (intakeErrorV4 && intakeErrorV4.code === 'PGRST116') {
       const { data: intakeDataV3, error: intakeErrorV3 } = await supabase
-        .from("intake_responses_v3")
-        .select("*")
-        .eq("user_id", user?.id)
-        .single();
+      .from("intake_responses_v3")
+      .select("*")
+      .eq("user_id", user?.id)
+      .single();
       intakeData = intakeDataV3;
       intakeError = intakeErrorV3;
     }
@@ -216,6 +251,8 @@ export default function AIAgentScreen() {
     console.log("Intake data from database:", intakeData);
     console.log("Intake error:", intakeError);
 
+    // Profile is complete if we have the essential fields
+    // relationship_status and languages are optional for continuing with intake
     const isProfileComplete = !!(
       profileData &&
       profileData.first_name && 
@@ -223,10 +260,6 @@ export default function AIAgentScreen() {
       profileData.birthdate && 
       profileData.gender && 
       profileData.pronouns && 
-      profileData.relationship_status && 
-      profileData.languages &&
-      Array.isArray(profileData.languages) &&
-      profileData.languages.length > 0 &&
       profileData.radius_km &&
       profileData.city
     );
@@ -242,21 +275,21 @@ export default function AIAgentScreen() {
       } else {
         // v3 format: backward compatibility
         hasStartedIntake = Object.keys(intakeData).some(
-          (key) =>
-            key !== "user_id" &&
-            key !== "created_at" &&
-            key !== "updated_at" &&
+        (key) =>
+          key !== "user_id" &&
+          key !== "created_at" &&
+          key !== "updated_at" &&
             key !== "completed_at" &&
             key !== "embed_vector" &&
-            intakeData[key] !== null
-        );
+          intakeData[key] !== null
+      );
       }
     }
 
     if (existingMessages.length === 0) {
       const welcomeMessage: Message = {
         id: `welcome-${Date.now()}-${Math.random()}`,
-        text: "☕ Hi! I'm Mili, your AI café connection assistant. I'll help you meet like-minded people at local cafés through thoughtful matching.\n\nFirst, let me get to know you a bit better with some basic information, then we'll explore what you're looking for in café connections.\n\nReady to begin?",
+        text: "Hi! I'm Cora, your AI connection assistant. I'll help you meet like-minded people through thoughtful matching.\n\nFirst, let me get to know you a bit better with some basic information, then we'll explore what you're looking for in new connections.\n\nReady to begin?",
         sender: "ai",
         timestamp: new Date(),
         type: "text",
@@ -277,9 +310,11 @@ export default function AIAgentScreen() {
         console.log("Profile complete, checking intake questions...");
       setIsProfileComplete(true);
         const firstUnansweredIntake = findFirstUnansweredIntakeQuestion(intakeData);
+        console.log("First unanswered intake question index:", firstUnansweredIntake);
         setCurrentQuestion(firstUnansweredIntake);
       setTimeout(() => {
-        askNextQuestion();
+        // Use checkAndAskQuestion directly with the calculated index to avoid state timing issues
+        checkAndAskQuestion(firstUnansweredIntake);
       }, 1000);
     } else {
         console.log(
@@ -300,7 +335,19 @@ export default function AIAgentScreen() {
         }, 1000);
       }
       } else {
-      if (!isProfileComplete) {
+      // If intake has started, prioritize continuing intake over completing profile
+      // This prevents restarting profile questions when user is in the middle of intake
+      if (hasStartedIntake && !isIntakeComplete(intakeData)) {
+        console.log("Intake already started, continuing intake questions...");
+        setIsProfileComplete(true); // Mark profile as complete to skip profile questions
+        const firstUnansweredIntake = findFirstUnansweredIntakeQuestion(intakeData);
+        console.log("First unanswered intake question index:", firstUnansweredIntake);
+        setCurrentQuestion(firstUnansweredIntake);
+        // Use checkAndAskQuestion directly with the calculated index to avoid state timing issues
+        setTimeout(() => {
+          checkAndAskQuestion(firstUnansweredIntake);
+        }, 1000);
+      } else if (!isProfileComplete) {
         console.log("Profile not complete, continuing profile collection...");
         const firstUnansweredStep = findFirstUnansweredProfileStep(profileData);
         setCurrentProfileStep(firstUnansweredStep);
@@ -311,9 +358,11 @@ export default function AIAgentScreen() {
         console.log("Profile complete, continuing intake questions...");
         setIsProfileComplete(true);
         const firstUnansweredIntake = findFirstUnansweredIntakeQuestion(intakeData);
+        console.log("First unanswered intake question index:", firstUnansweredIntake);
         setCurrentQuestion(firstUnansweredIntake);
+        // Use checkAndAskQuestion directly with the calculated index to avoid state timing issues
         setTimeout(() => {
-          askNextQuestion();
+          checkAndAskQuestion(firstUnansweredIntake);
         }, 1000);
       } else {
         console.log("Both profile and intake complete, ready for matches...");
@@ -400,6 +449,13 @@ export default function AIAgentScreen() {
 
     console.log("findFirstUnansweredIntakeQuestion: checking", 
       isV4Format ? `${intakeData.responses.length} responses (v4)` : `${Object.keys(intakeData).length} fields (v3)`);
+    
+    // Log all question IDs in responses for debugging
+    if (isV4Format && intakeData.responses.length > 0) {
+      const responseQuestionIds = intakeData.responses.map((r: any) => r.question_id);
+      console.log("Response question IDs in database:", responseQuestionIds);
+      console.log("Expected question IDs:", intakeQuestions.map(q => q.id));
+    }
 
     // Check each intake question in order
     for (let i = 0; i < intakeQuestions.length; i++) {
@@ -425,11 +481,15 @@ export default function AIAgentScreen() {
       let isAnswered = false;
       if (question.type === "multi_select") {
         isAnswered = !!(fieldValue && Array.isArray(fieldValue) && fieldValue.length > 0);
+      } else if (question.type === "open_ended") {
+        // For open-ended questions, check if answer exists and has non-whitespace content
+        isAnswered = !!(fieldValue && typeof fieldValue === "string" && fieldValue.trim().length > 0);
       } else {
-        isAnswered = !!(fieldValue && fieldValue !== null && fieldValue !== "");
+        // For structured questions (single_select, etc.), check if answer exists and is not empty
+        isAnswered = !!(fieldValue && fieldValue !== null && fieldValue !== "" && String(fieldValue).trim().length > 0);
       }
 
-      console.log(`Question ${i} (${question.id}): value="${fieldValue}", isAnswered=${isAnswered}`);
+      console.log(`Question ${i} (${question.id}): type=${question.type}, value="${fieldValue}", isAnswered=${isAnswered}, valueType=${typeof fieldValue}`);
 
       if (!isAnswered) {
         console.log(`First unanswered intake question: ${question.id} at step ${i}`);
@@ -876,9 +936,9 @@ export default function AIAgentScreen() {
             profileToUpdate.radius_km = Math.round(radiusMiles * 1.60934);
           }
           break;
-        case "relationshipStatus":
+        case "relationship_status":
           if (typeof answer === "string") {
-            // Store relationship status (you may need to add this to your schema)
+            // Store relationship status
             profileToUpdate.relationship_status = answer;
           }
           break;
@@ -953,15 +1013,38 @@ export default function AIAgentScreen() {
       }
     }
     
-    const completionMessage: Message = {
-      id: "profile-completion",
-      text: "Great! Now let's dive into what you're looking for in friendships. I'll ask you about 50 questions to understand your preferences, communication style, and what makes a great friend for you.\n\nThis will take about 15-20 minutes. Ready to continue?",
-      sender: "ai" as const,
-      timestamp: new Date(),
-      type: "text",
-    };
-
+    // Check if completion message already exists to avoid duplicates
+    const completionText = "Great! To help me find people you'd connect with, I'd like to get to know you better. I'll ask you some questions about yourself.\n\nReady to continue?";
+    
     setMessages((prev) => {
+      const hasCompletionMessage = prev.some(m => 
+        m.sender === "ai" && 
+        m.text === completionText
+      );
+
+      if (hasCompletionMessage) {
+        console.log("Completion message already exists, skipping");
+        return prev;
+      }
+
+      // Also check for any message with profile-completion in the ID
+      const hasCompletionById = prev.some(m => 
+        m.id && (m.id.includes("profile-completion") || m.id === "profile-completion")
+      );
+
+      if (hasCompletionById) {
+        console.log("Completion message with profile-completion ID already exists, skipping");
+        return prev;
+      }
+
+      const completionMessage: Message = {
+        id: `profile-completion-${Date.now()}-${Math.random()}-${user?.id}`,
+        text: completionText,
+        sender: "ai" as const,
+        timestamp: new Date(),
+        type: "text",
+      };
+
       const newMessages = [...prev, completionMessage];
       saveMessageToHistory(completionMessage);
       return newMessages;
@@ -970,21 +1053,43 @@ export default function AIAgentScreen() {
     setIsProfileComplete(true);
 
     // Add a ready button or wait for user response
-    const readyOptions: Message = {
-      id: "ready-options",
-      text: "Choose an option:",
-      sender: "ai" as const,
-      timestamp: new Date(),
-      type: "profile-question",
-      data: {
-        id: "ready_to_start",
-        type: "chips",
-        options: ["Yes, let's start!", "Maybe later"],
-      },
-    };
-
     setTimeout(() => {
       setMessages((prev) => {
+        // Check if ready options message already exists to avoid duplicates
+        const hasReadyOptions = prev.some(m => 
+          m.sender === "ai" && 
+          m.type === "profile-question" &&
+          m.data?.id === "ready_to_start"
+        );
+
+        if (hasReadyOptions) {
+          console.log("Ready options message already exists, skipping");
+          return prev;
+        }
+
+        // Also check for any message with ready-options in the ID
+        const hasReadyById = prev.some(m => 
+          m.id && (m.id.includes("ready-options") || m.id === "ready-options")
+        );
+
+        if (hasReadyById) {
+          console.log("Ready options message with ready-options ID already exists, skipping");
+          return prev;
+        }
+
+        const readyOptions: Message = {
+          id: `ready-options-${Date.now()}-${Math.random()}-${user?.id}`,
+          text: "Choose an option:",
+          sender: "ai" as const,
+          timestamp: new Date(),
+          type: "profile-question",
+          data: {
+            id: "ready_to_start",
+            type: "chips",
+            options: ["Yes, let's start!", "Maybe later"],
+          },
+        };
+        
         const newMessages = [...prev, readyOptions];
         saveMessageToHistory(readyOptions);
         return newMessages;
@@ -994,7 +1099,7 @@ export default function AIAgentScreen() {
 
   const completeIntake = async () => {
     const completionMessage: Message = {
-      id: "completion",
+      id: `completion-${Date.now()}-${Math.random()}`,
       text: "🎉 All done! I'll use this information to curate your café connections. You'll see match suggestions in the Connections tab!\n\nWant to chat about anything else?",
       sender: "ai" as const,
       timestamp: new Date(),
@@ -1034,11 +1139,11 @@ export default function AIAgentScreen() {
         const { error: updateError } = await supabase
           .from("intake_responses_v4")
           .upsert({
-            user_id: user.id,
+        user_id: user.id,
             responses: existingIntake.responses,
             embed_vector: embedding,
             completed_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
             // Preserve filtered columns
             life_stage: existingIntake.life_stage,
             drive_distance: existingIntake.drive_distance,
@@ -1091,8 +1196,8 @@ export default function AIAgentScreen() {
       } else {
         // Show welcome back message if no matches
         const welcomeBackMessage: Message = {
-          id: "welcome-back",
-          text: "Welcome back! Your weekly café connections will appear here every Sunday. For now, feel free to chat with me about anything!",
+          id: `welcome-back-${Date.now()}-${Math.random()}`,
+          text: "Welcome back! Your weekly Flock connections will appear here every Sunday. For now, feel free to chat with me about anything!",
           sender: "ai",
           timestamp: new Date(),
           type: "text",
@@ -1108,7 +1213,7 @@ export default function AIAgentScreen() {
     if (currentMatchIndex >= weeklyMatches.length) {
       // All matches shown
       const noMoreMatchesMessage: Message = {
-        id: "no-more-matches",
+        id: `no-more-matches-${Date.now()}-${Math.random()}`,
         text: "That's all your café connections for this week! Check back next Sunday for new local suggestions. Feel free to chat with me about anything!",
         sender: "ai",
         timestamp: new Date(),
@@ -1758,7 +1863,7 @@ export default function AIAgentScreen() {
               {item.data.options.map((option: string, index: number) => (
                 <TouchableOpacity
                   key={index}
-                  style={styles.optionChip}
+                  style={[styles.optionChip, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
                           onPress={async () => {
                     const userSelectionMessage: Message = {
                       id: `selection-${Date.now()}`,
@@ -1788,7 +1893,7 @@ export default function AIAgentScreen() {
                     }, 500);
                   }}
                 >
-                  <Text style={styles.optionText}>{option}</Text>
+                  <Text style={[styles.optionText, { color: theme.colors.text }]}>{option}</Text>
                 </TouchableOpacity>
               ))}
             </View>
@@ -1804,7 +1909,7 @@ export default function AIAgentScreen() {
                 item.data.options.map((option: string, index: number) => (
                   <TouchableOpacity
                     key={index}
-                    style={styles.optionChip}
+                    style={[styles.optionChip, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
                                          onPress={async () => {
                        // Add user's selection as a message
                        const userSelectionMessage: Message = {
@@ -1846,7 +1951,7 @@ export default function AIAgentScreen() {
                       moveToNextQuestion();
                     }}
                   >
-                    <Text style={styles.optionText}>{option}</Text>
+                    <Text style={[styles.optionText, { color: theme.colors.text }]}>{option}</Text>
                   </TouchableOpacity>
                 ))}
 
@@ -1866,10 +1971,15 @@ export default function AIAgentScreen() {
                       <TouchableOpacity
                         key={index}
                         style={[
-                              styles.multiSelectChipInline, // Use new style for inline chips
-                              selectedMultiSelectOptions[
-                                item.data.id
-                              ]?.includes(option) && styles.selectedChip,
+                              styles.multiSelectChipInline,
+                              {
+                                backgroundColor: selectedMultiSelectOptions[item.data.id]?.includes(option)
+                                  ? theme.colors.primary
+                                  : theme.colors.surface,
+                                borderColor: selectedMultiSelectOptions[item.data.id]?.includes(option)
+                                  ? theme.colors.primary
+                                  : theme.colors.border,
+                              },
                         ]}
                         onPress={() => {
                           const questionId = item.data.id;
@@ -1911,10 +2021,14 @@ export default function AIAgentScreen() {
                             <Text
                               style={[
                           styles.optionText,
-                                selectedMultiSelectOptions[
-                                  item.data.id
-                                ]?.includes(option) &&
-                                  styles.selectedOptionText,
+                                {
+                                  color: selectedMultiSelectOptions[item.data.id]?.includes(option)
+                                    ? '#FFFFFF'
+                                    : theme.colors.text,
+                                  fontWeight: selectedMultiSelectOptions[item.data.id]?.includes(option)
+                                    ? '600'
+                                    : '400',
+                                },
                               ]}
                             >
                           {option}
@@ -1988,7 +2102,7 @@ export default function AIAgentScreen() {
                 item.data.options.map((option: string, index: number) => (
                   <TouchableOpacity
                     key={index}
-                    style={styles.optionChip}
+                    style={[styles.optionChip, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
                     onPress={async () => {
                       // Add user's selection as a message
                       const userSelectionMessage: Message = {
@@ -2009,7 +2123,7 @@ export default function AIAgentScreen() {
                       moveToNextQuestion();
                     }}
                   >
-                    <Text style={styles.optionText}>{option}</Text>
+                    <Text style={[styles.optionText, { color: theme.colors.text }]}>{option}</Text>
                   </TouchableOpacity>
                 ))}
 
@@ -2019,7 +2133,7 @@ export default function AIAgentScreen() {
                 item.data.options.map((option: string, index: number) => (
                   <TouchableOpacity
                     key={index}
-                    style={styles.optionChip}
+                    style={[styles.optionChip, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
                                          onPress={async () => {
                        // Add user's selection as a message
                        const userSelectionMessage: Message = {
@@ -2053,7 +2167,7 @@ export default function AIAgentScreen() {
                       }
                     }}
                   >
-                    <Text style={styles.optionText}>{option}</Text>
+                    <Text style={[styles.optionText, { color: theme.colors.text }]}>{option}</Text>
                   </TouchableOpacity>
                 ))}
 
@@ -2216,7 +2330,7 @@ export default function AIAgentScreen() {
             />
           )}
         </View>
-        <Text style={styles.timestamp}>
+        <Text style={[styles.timestamp, { color: theme.colors.textSecondary }]}>
           {item.timestamp
             ? item.timestamp.toLocaleTimeString([], {
             hour: "2-digit",
@@ -2263,9 +2377,9 @@ export default function AIAgentScreen() {
       style={[styles.container, { backgroundColor: theme.colors.background }]}
       edges={['top', 'left', 'right']}
     >
-      <View style={styles.header}>
+      <View style={[styles.header, { borderBottomColor: theme.colors.border }]}>
         <Text style={[styles.headerTitle, { color: theme.colors.text }]}>
-          ✨ Mili
+          Cora
         </Text>
       </View>
 
@@ -2284,7 +2398,7 @@ export default function AIAgentScreen() {
           <Text
             style={[styles.typingText, { color: theme.colors.textSecondary }]}
           >
-            Mili is typing...
+            Cora is typing...
           </Text>
           <ActivityIndicator size="small" color={theme.colors.primary} />
         </View>
@@ -2292,16 +2406,15 @@ export default function AIAgentScreen() {
 
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
-        style={[styles.inputContainer, { borderTopColor: theme.colors.border, backgroundColor: theme.colors.surface }]}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
       >
-        <View
-          style={[
-            styles.inputWrapper,
-            { backgroundColor: theme.colors.surface },
-          ]}
-        >
+        <View style={[styles.inputContainer, { borderTopColor: theme.colors.border, backgroundColor: theme.colors.surface }]}>
           <TextInput
-            style={[styles.textInput, { color: theme.colors.text }]}
+            style={[styles.textInput, { 
+              borderColor: theme.colors.border,
+              backgroundColor: theme.colors.background,
+              color: theme.colors.text 
+            }]}
             value={inputText}
             onChangeText={setInputText}
             editable={!hasOptionsAvailable()}
@@ -2323,6 +2436,7 @@ export default function AIAgentScreen() {
                   ? theme.colors.primary
                   : theme.colors.border,
               },
+              !inputText.trim() && styles.sendButtonDisabled,
             ]}
             onPress={handleSendMessage}
             disabled={!inputText.trim()}
@@ -2347,7 +2461,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: "#1A2B1A",
   },
   headerTitle: {
     fontSize: 20,
@@ -2380,14 +2493,14 @@ const styles = StyleSheet.create({
     borderRadius: 20,
   },
   userBubble: {
-    backgroundColor: "#7CB342",
+    backgroundColor: "#007AFF", // iOS iMessage blue
     borderBottomRightRadius: 4,
-    alignSelf: "flex-end", // Add this
+    alignSelf: "flex-end",
   },
   aiBubble: {
-    backgroundColor: "#1A2B1A",
+    backgroundColor: "#E5E5EA", // iOS Messages gray
     borderBottomLeftRadius: 4,
-    alignSelf: "flex-start", // Add this
+    alignSelf: "flex-start",
   },
   messageText: {
     fontSize: 16,
@@ -2397,13 +2510,12 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
   },
   aiText: {
-    color: "#FFFFFF",
+    color: "#000000", // Black text for iOS Messages gray bubbles
   },
   timestamp: {
     position: "absolute",
     bottom: -18,
     fontSize: 12,
-    color: "#A5B5A5",
     marginTop: 4,
     marginHorizontal: 8,
   },
@@ -2414,15 +2526,12 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   optionChip: {
-    backgroundColor: "#2D3D2D",
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: "#3D4D3D",
   },
   optionText: {
-    color: "#FFFFFF",
     fontSize: 14,
   },
   locationContainer: {
@@ -2459,19 +2568,17 @@ const styles = StyleSheet.create({
   },
 
   multiSelectOptionsWrapper: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-    maxWidth: "100%",
+    flexDirection: "column",
+    width: "100%",
   },
 
   multiSelectChipInline: {
-    backgroundColor: "#2C2C2E",
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: "#3C3C3E",
+    marginBottom: 8,
+    width: '100%',
   },
   multiSelectChip: {
     backgroundColor: "#2C2C2E",
@@ -2493,39 +2600,36 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   inputContainer: {
+    flexDirection: "row",
+    alignItems: "center",
     paddingHorizontal: 16,
     paddingTop: 12,
     paddingBottom: 4,
     borderTopWidth: 1,
   },
-  inputWrapper: {
-    flexDirection: "row",
-    alignItems: "flex-end",
-    borderRadius: 24,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-  },
   textInput: {
     flex: 1,
-    fontSize: 16,
-    maxHeight: 38,
+    borderWidth: 1,
+    borderRadius: 20,
+    paddingHorizontal: 16,
     paddingVertical: 8,
+    marginRight: 12,
+    fontSize: 16,
+    minHeight: 40,
+    maxHeight: 100,
   },
   sendButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    justifyContent: "center",
-    alignItems: "center",
-    marginLeft: 8,
+    borderRadius: 20,
+    padding: 10,
+  },
+  sendButtonDisabled: {
+    opacity: 0.5,
   },
   selectedChip: {
-    backgroundColor: "#7C6CFF",
-    borderColor: "#7C6CFF",
+    // This style is now handled inline with theme colors
   },
   selectedOptionText: {
-    color: "#FFFFFF",
-    fontWeight: "600",
+    // This style is now handled inline with theme colors
   },
   languageInputContainer: {
     marginTop: 12,

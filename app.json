@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "Matcha",
-    "slug": "matcha-cafe-connections",
+    "name": "Flock",
+    "slug": "flock-connections",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -10,23 +10,23 @@
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#FEFFFE"
+      "backgroundColor": "#F8F9FA"
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.matcha.connections",
+      "bundleIdentifier": "com.flock.connections",
       "infoPlist": {
-        "NSLocationWhenInUseUsageDescription": "Matcha uses your location to find local café connections nearby.",
-        "NSLocationAlwaysAndWhenInUseUsageDescription": "Matcha uses your location to find local café connections nearby."
+        "NSLocationWhenInUseUsageDescription": "Flock uses your location to find local connections nearby.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Flock uses your location to find local connections nearby."
       }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#FEFFFE"
+        "backgroundColor": "#F8F9FA"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.matcha.connections",
+      "package": "com.flock.connections",
       "permissions": [
         "android.permission.ACCESS_FINE_LOCATION",
         "android.permission.ACCESS_COARSE_LOCATION",
@@ -42,13 +42,13 @@
       [
         "expo-location",
         {
-          "locationAlwaysAndWhenInUsePermission": "Allow Matcha to use your location to find local café connections nearby."
+          "locationAlwaysAndWhenInUsePermission": "Allow Flock to use your location to find local connections nearby."
         }
       ],
       [
         "expo-image-picker",
         {
-          "photosPermission": "Allow Matcha to access your photos to set your profile picture."
+          "photosPermission": "Allow Flock to access your photos to set your profile picture."
         }
       ]
     ],

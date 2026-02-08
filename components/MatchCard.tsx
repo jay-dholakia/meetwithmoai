@@ -75,11 +75,17 @@ export default function MatchCard({ match, otherUser, otherUserIntake, onMatchUp
 const styles = StyleSheet.create({
   container: {
       backgroundColor: theme.colors.surface,
-      borderRadius: 12,
-      padding: 12,
-      marginBottom: 8,
-    borderWidth: 1,
-    borderColor: '#2C2C2E',
+      borderRadius: 16,
+      padding: 16,
+      marginBottom: 12,
+      shadowColor: '#000',
+      shadowOffset: {
+        width: 0,
+        height: 1,
+      },
+      shadowOpacity: 0.05,
+      shadowRadius: 3,
+      elevation: 2,
   },
     errorText: {
       fontSize: 16,
@@ -88,16 +94,22 @@ const styles = StyleSheet.create({
     },
     card: {
       backgroundColor: theme.colors.surface,
-      borderRadius: 12,
-      padding: 12,
-      marginBottom: 8,
-    borderWidth: 1,
-    borderColor: '#2C2C2E',
+      borderRadius: 16,
+      padding: 16,
+      marginBottom: 12,
+      shadowColor: '#000',
+      shadowOffset: {
+        width: 0,
+        height: 1,
+      },
+      shadowOpacity: 0.05,
+      shadowRadius: 3,
+      elevation: 2,
   },
     cardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-      marginBottom: 8,
+      marginBottom: 12,
   },
   avatar: {
       width: 50,
@@ -122,14 +134,16 @@ const styles = StyleSheet.create({
     flex: 1,
   },
     userName: {
-      fontSize: 16,
+      fontSize: 17,
     fontWeight: '600',
       color: theme.colors.text,
-    marginBottom: 2,
+    marginBottom: 4,
+      letterSpacing: -0.2,
   },
     userAge: {
-      fontSize: 13,
+      fontSize: 14,
       color: theme.colors.textSecondary,
+      lineHeight: 20,
     },
     statusContainer: {
       alignItems: 'flex-end',
@@ -331,19 +345,21 @@ const styles = StyleSheet.create({
       marginTop: -2,
     },
     previewSection: {
-      marginBottom: 8,
-      paddingTop: 4,
+      marginBottom: 12,
+      paddingTop: 8,
     },
     previewLabel: {
-      fontSize: 11,
+      fontSize: 12,
       color: theme.colors.textSecondary,
-      marginBottom: 2,
+      marginBottom: 6,
       fontWeight: '500',
+      letterSpacing: 0.2,
+      textTransform: 'uppercase',
     },
     previewText: {
-      fontSize: 12,
+      fontSize: 14,
       color: theme.colors.text,
-      fontStyle: 'italic',
+      lineHeight: 20,
     },
     pageSheetContainer: {
     flex: 1,
@@ -883,7 +899,7 @@ const styles = StyleSheet.create({
     if (activeChatCount >= 3) {
       Alert.alert(
         'Chat Limit Reached',
-        'You can only have 3 active Matcha chats at a time. Please wrap up an existing conversation before starting a new one.'
+        'You can only have 3 active Flock chats at a time. Please wrap up an existing conversation before starting a new one.'
       );
       return;
     }
@@ -944,7 +960,7 @@ const styles = StyleSheet.create({
           scaleAnim.setValue(0);
           Alert.alert(
             'Chat Created! 🎉',
-            'Both of you opted in! Your Matcha chat is ready in the Connections tab.',
+            'Both of you opted in! Your Flock chat is ready in the Connections tab.',
             [{ text: 'Great!' }]
           );
           onMatchUpdate();
@@ -987,8 +1003,49 @@ const styles = StyleSheet.create({
     ? (match.reasons?.user_a_interests || match.reasons?.candidateInterests || [])
     : (match.reasons?.user_b_interests || match.reasons?.candidateInterests || []);
   
-  // Get the actual response text for "Likes Talking About" and summarize it
-  const getTalkAboutSummary = () => {
+  // Get conversation preview - prioritize shared interests/hooks, fallback to their talk-about response
+  const getConversationPreview = () => {
+    // Strategy 1: If we have conversation hooks, use the first one (these are about what they have in common)
+    if (match.reasons?.conversationHooks && Array.isArray(match.reasons.conversationHooks) && match.reasons.conversationHooks.length > 0) {
+      const firstHook = match.reasons.conversationHooks[0];
+      // Format the hook to be more natural
+      let formattedHook = firstHook;
+      if (firstHook.startsWith('Both ')) {
+        formattedHook = 'You both ' + firstHook.substring(5).toLowerCase();
+      } else if (firstHook.startsWith('You both')) {
+        formattedHook = firstHook;
+      } else {
+        formattedHook = 'You both ' + firstHook.toLowerCase();
+      }
+      
+      // Limit length
+      if (formattedHook.length > 150) {
+        formattedHook = formattedHook.substring(0, 147).trim();
+        const lastSpace = formattedHook.lastIndexOf(' ');
+        if (lastSpace > 100) {
+          formattedHook = formattedHook.substring(0, lastSpace) + '...';
+        } else {
+          formattedHook += '...';
+        }
+      }
+      
+      return { text: formattedHook, label: 'You might discuss' };
+    }
+    
+    // Strategy 2: If we have shared interests, create a natural sentence
+    if (match.reasons?.shared_interests && match.reasons.shared_interests.length > 0) {
+      const interests = match.reasons.shared_interests.slice(0, 2);
+      let previewText = '';
+      if (interests.length === 1) {
+        previewText = `You both enjoy ${interests[0].toLowerCase()}`;
+      } else {
+        previewText = `You both enjoy ${interests[0].toLowerCase()} and ${interests[1].toLowerCase()}`;
+      }
+      
+      return { text: previewText, label: 'You have in common' };
+    }
+    
+    // Strategy 3: Fallback to their "likes talking about" response
     if (!otherUserIntake?.responses || !Array.isArray(otherUserIntake.responses)) return null;
     
     const talkResponse = otherUserIntake.responses.find((r: any) => r.question_id === 'q11_talk_about_hours');
@@ -1018,10 +1075,10 @@ const styles = StyleSheet.create({
       summary += '.';
     }
     
-    return summary;
+    return { text: summary, label: 'They enjoy discussing' };
   };
   
-  const talkAboutSummary = getTalkAboutSummary();
+  const conversationPreview = getConversationPreview();
 
   return (
     <>
@@ -1053,32 +1110,12 @@ const styles = StyleSheet.create({
           <CircularTimer timeData={timeData} />
         </View>
 
-        {/* Show shared interests or other user's hobbies */}
-        {(match.reasons?.shared_interests && match.reasons.shared_interests.length > 0) || 
-         (otherUserHobbies && otherUserHobbies.length > 0) ? (
-          <View style={styles.sharedInterests}>
-            {match.reasons?.shared_interests && match.reasons.shared_interests.length > 0 ? (
-              match.reasons.shared_interests.slice(0, 2).map((interest, index) => (
-                <View key={index} style={styles.interestChip}>
-                  <Text style={styles.interestText}>{interest}</Text>
-                </View>
-              ))
-            ) : (
-              otherUserHobbies.slice(0, 2).map((hobby, index) => (
-                <View key={index} style={styles.interestChip}>
-                  <Text style={styles.interestText}>{hobby}</Text>
-                </View>
-              ))
-            )}
-          </View>
-        ) : null}
-
-        {/* Show a preview of what they like talking about */}
-        {talkAboutSummary && (
+        {/* Show conversation preview - prioritized by what they have in common */}
+        {conversationPreview && (
           <View style={styles.previewSection}>
-            <Text style={styles.previewLabel}>Likes talking about:</Text>
+            <Text style={styles.previewLabel}>{conversationPreview.label}</Text>
             <Text style={styles.previewText}>
-              {talkAboutSummary}
+              {conversationPreview.text}
             </Text>
           </View>
         )}
@@ -1213,16 +1250,67 @@ const styles = StyleSheet.create({
               </View>
             )}
 
-            {/* Likes Talking About */}
-            {talkAboutSummary && (
-              <View style={styles.pageSheetSection}>
-                <View style={styles.pageSheetSectionHeader}>
-                  <Ionicons name="chatbubbles" size={18} color={theme.colors.primary} />
-                  <Text style={styles.pageSheetSectionTitle}>Likes Talking About</Text>
-                </View>
-                <Text style={styles.pageSheetTalkText}>{talkAboutSummary}</Text>
-              </View>
-            )}
+            {/* You Might Discuss - Full Conversation Hooks */}
+            {(() => {
+              // Show all conversation hooks in full (not truncated like on the card)
+              if (match.reasons?.conversationHooks && Array.isArray(match.reasons.conversationHooks) && match.reasons.conversationHooks.length > 0) {
+                return (
+                  <View style={styles.pageSheetSection}>
+                    <View style={styles.pageSheetSectionHeader}>
+                      <Ionicons name="chatbubbles" size={18} color={theme.colors.primary} />
+                      <Text style={styles.pageSheetSectionTitle}>You might discuss</Text>
+                    </View>
+                    <View style={styles.pageSheetHooksList}>
+                      {match.reasons.conversationHooks
+                        .filter((hook: string) => hook && !hook.toLowerCase().includes('available'))
+                        .map((hook: string, index: number) => {
+                          // Format the hook to be more natural
+                          let formattedHook = hook;
+                          if (hook.startsWith('Both ')) {
+                            formattedHook = 'You both ' + hook.substring(5).toLowerCase();
+                          } else if (hook.startsWith('You both')) {
+                            formattedHook = hook;
+                          } else {
+                            formattedHook = 'You both ' + hook.toLowerCase();
+                          }
+                          
+                          return (
+                            <View key={index} style={styles.pageSheetHookItemContainer}>
+                              <Ionicons name="checkmark-circle" size={16} color={theme.colors.primary} style={styles.pageSheetHookIcon} />
+                              <Text style={styles.pageSheetHookItem}>{formattedHook}</Text>
+                            </View>
+                          );
+                        })}
+                    </View>
+                  </View>
+                );
+              }
+              
+              // Fallback: If no conversation hooks, show shared interests
+              if (match.reasons?.shared_interests && match.reasons.shared_interests.length > 0) {
+                const interests = match.reasons.shared_interests;
+                let previewText = '';
+                if (interests.length === 1) {
+                  previewText = `You both enjoy ${interests[0].toLowerCase()}.`;
+                } else if (interests.length === 2) {
+                  previewText = `You both enjoy ${interests[0].toLowerCase()} and ${interests[1].toLowerCase()}.`;
+                } else {
+                  previewText = `You both enjoy ${interests.slice(0, -1).map(i => i.toLowerCase()).join(', ')}, and ${interests[interests.length - 1].toLowerCase()}.`;
+                }
+                
+                return (
+                  <View style={styles.pageSheetSection}>
+                    <View style={styles.pageSheetSectionHeader}>
+                      <Ionicons name="chatbubbles" size={18} color={theme.colors.primary} />
+                      <Text style={styles.pageSheetSectionTitle}>You have in common</Text>
+                    </View>
+                    <Text style={styles.pageSheetTalkText}>{previewText}</Text>
+                  </View>
+                );
+              }
+              
+              return null;
+            })()}
 
             {/* Passionate About */}
             {(() => {
@@ -1298,51 +1386,6 @@ const styles = StyleSheet.create({
               );
             })()}
 
-            {/* Things in Common - Prominent Section */}
-            {((match.reasons?.shared_interests && match.reasons.shared_interests.length > 0) || 
-              (match.reasons?.conversationHooks && Array.isArray(match.reasons.conversationHooks) && match.reasons.conversationHooks.length > 0)) && (
-              <View style={styles.pageSheetCommonSection}>
-                <View style={styles.pageSheetCommonHeader}>
-                  <Ionicons name="heart" size={20} color={theme.colors.primary} />
-                  <Text style={styles.pageSheetCommonTitle}>Things you have in common</Text>
-                </View>
-                
-                {match.reasons?.shared_interests && match.reasons.shared_interests.length > 0 && (
-                  <View style={styles.pageSheetCommonInterests}>
-                    <Text style={styles.pageSheetCommonSubtitle}>Shared interests:</Text>
-                    <View style={styles.pageSheetInterests}>
-                      {match.reasons.shared_interests.map((interest: string, index: number) => (
-                        <View key={index} style={styles.pageSheetCommonChip}>
-                          <Text style={styles.pageSheetCommonChipText}>{interest}</Text>
-                        </View>
-                      ))}
-                    </View>
-                  </View>
-                )}
-                
-                {match.reasons?.conversationHooks && Array.isArray(match.reasons.conversationHooks) && match.reasons.conversationHooks.length > 0 && (
-                  <View style={styles.pageSheetCommonHooks}>
-                    <View style={styles.pageSheetHooksList}>
-                      {match.reasons.conversationHooks
-                        .filter((hook: string) => hook && !hook.toLowerCase().includes('available'))
-                        .map((hook: string, index: number) => {
-                          const formattedHook = hook.startsWith('Both ') 
-                            ? 'You ' + hook.toLowerCase()
-                            : hook.startsWith('You both')
-                            ? hook
-                            : 'You both ' + hook.toLowerCase();
-                          return (
-                            <View key={index} style={styles.pageSheetHookItemContainer}>
-                              <Ionicons name="checkmark-circle" size={16} color={theme.colors.primary} style={styles.pageSheetHookIcon} />
-                              <Text style={styles.pageSheetHookItem}>{formattedHook}</Text>
-                            </View>
-                          );
-                        })}
-                    </View>
-                  </View>
-                )}
-              </View>
-            )}
 
             {/* Waiting State Message */}
             {isWaitingState && (

@@ -173,7 +173,7 @@ export const openAIService = {
     }
   },
 
-  // Generate chat responses for Mili AI
+  // Generate chat responses for Cora AI
   async generateChatResponse(
     userMessage: string, 
     context?: {
@@ -256,13 +256,13 @@ export const openAIService = {
         messages: [
           {
             role: "system",
-            content: `You are Mili, a friendly and intelligent AI assistant for Matcha, a café connection app. Your role is to:
+            content: `You are Cora, a friendly and intelligent AI assistant for Flock, a connection app that helps people make meaningful local friendships. Your role is to:
 
 1. Help users with onboarding and intake questions
-2. Provide support and guidance about making friends and café connections
+2. Provide support and guidance about making friends and connections
 3. Be warm, supportive, and platonic in tone
 4. Keep responses BRIEF and concise - aim for 1-2 sentences unless more detail is requested
-5. Focus on friendship and community building at local cafés
+5. Focus on friendship and community building
 6. Always maintain a safe, consent-driven approach
 7. Use the user's connection context to provide personalized, relevant advice
 8. Reference specific connections when relevant (e.g., "I noticed you have a match with [Name]...")
@@ -280,7 +280,7 @@ You should be encouraging but not pushy, and always respect boundaries. Keep it 
         temperature: 0.7,
       });
 
-      return completion.choices[0]?.message?.content || "I'm here to help! What would you like to know about making new café connections?";
+      return completion.choices[0]?.message?.content || "I'm here to help! What would you like to know about making new connections?";
     } catch (error) {
       console.error('Error generating chat response:', error);
       throw new Error('Failed to generate chat response');
