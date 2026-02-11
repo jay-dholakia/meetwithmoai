@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -61,22 +61,68 @@ interface MatchCardProps {
   } | null;
   onMatchUpdate: () => void;
   activeChatCount: number;
+  navigation?: any;
+  externalModalVisible?: boolean;
+  onModalClose?: () => void;
+  hideActions?: boolean; // If true, hide Pass/Continue buttons (for informational view from active conversations)
 }
 
-export default function MatchCard({ match, otherUser, otherUserIntake, onMatchUpdate, activeChatCount }: MatchCardProps) {
+export default function MatchCard({ match, otherUser, otherUserIntake, onMatchUpdate, activeChatCount, navigation, externalModalVisible, onModalClose, hideActions = false }: MatchCardProps) {
   const theme = useTheme();
   const { user } = useAuth();
   const [optInModalVisible, setOptInModalVisible] = useState(false);
   const [modalView, setModalView] = useState<'profile' | 'confirm' | 'success'>('profile');
   const [loading, setLoading] = useState(false);
+  const [chatCreatedModalVisible, setChatCreatedModalVisible] = useState(false);
+  const [createdConversationId, setCreatedConversationId] = useState<string | null>(null);
   const scaleAnim = useRef(new Animated.Value(0)).current;
+  const chatCreatedRef = useRef(false); // Use ref to persist across re-renders
+  
+  // Use provided intake data (should always be provided from parent)
+  const intakeData = otherUserIntake;
+  
+  // Handle modal close callback
+  const handleModalClose = () => {
+    setOptInModalVisible(false);
+    setModalView('profile');
+    if (onModalClose) {
+      onModalClose();
+    }
+  };
+  
+  // Sync external modal visibility
+  useEffect(() => {
+    if (externalModalVisible !== undefined) {
+      setOptInModalVisible(externalModalVisible);
+      if (externalModalVisible) {
+        setModalView('profile');
+      }
+    }
+  }, [externalModalVisible]);
+  
+  // Restore modal visibility if component re-renders but we still need to show it
+  useEffect(() => {
+    console.log('useEffect - chatCreatedModalVisible:', chatCreatedModalVisible, 'chatCreatedRef.current:', chatCreatedRef.current);
+    if (chatCreatedRef.current && !chatCreatedModalVisible) {
+      console.log('Restoring chat created modal visibility after re-render');
+      // Use setTimeout to ensure state update happens after render
+      setTimeout(() => {
+        setChatCreatedModalVisible(true);
+      }, 0);
+    }
+  }, [chatCreatedModalVisible]);
+  
+  // Debug: Log whenever modal visibility changes
+  useEffect(() => {
+    console.log('Modal visibility changed to:', chatCreatedModalVisible);
+  }, [chatCreatedModalVisible]);
 
   // Create styles object with theme
 const styles = StyleSheet.create({
   container: {
       backgroundColor: theme.colors.surface,
-      borderRadius: 16,
-      padding: 16,
+    borderRadius: 16,
+    padding: 16,
       marginBottom: 12,
       shadowColor: '#000',
       shadowOffset: {
@@ -109,7 +155,7 @@ const styles = StyleSheet.create({
     cardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-      marginBottom: 12,
+    marginBottom: 12,
   },
   avatar: {
       width: 50,
@@ -141,18 +187,19 @@ const styles = StyleSheet.create({
       letterSpacing: -0.2,
   },
     userAge: {
-      fontSize: 14,
+    fontSize: 14,
       color: theme.colors.textSecondary,
-      lineHeight: 20,
+    lineHeight: 20,
     },
     statusContainer: {
       alignItems: 'flex-end',
     },
     statusPill: {
-      paddingHorizontal: 8,
-      paddingVertical: 4,
+      paddingHorizontal: 10,
+      paddingVertical: 5,
       borderRadius: 12,
-      marginBottom: 4,
+      marginTop: 6,
+      alignSelf: 'flex-start',
     },
     statusText: {
       fontSize: 12,
@@ -290,7 +337,7 @@ const styles = StyleSheet.create({
     modalActionButton: {
     flex: 1,
       paddingVertical: 16,
-      borderRadius: 12,
+    borderRadius: 12,
     alignItems: 'center',
     },
     modalActionText: {
@@ -319,6 +366,21 @@ const styles = StyleSheet.create({
       fontStyle: 'italic',
     marginBottom: 8,
   },
+    waitingBar: {
+      backgroundColor: theme.colors.primary,
+      paddingVertical: 10,
+      paddingHorizontal: 16,
+      marginHorizontal: -16,
+      marginBottom: -16,
+      borderBottomLeftRadius: 16,
+      borderBottomRightRadius: 16,
+    },
+    waitingBarText: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: '#FFFFFF',
+      textAlign: 'center',
+    },
     timerContainer: {
       position: 'relative',
       width: 50,
@@ -349,10 +411,10 @@ const styles = StyleSheet.create({
       paddingTop: 8,
     },
     previewLabel: {
-      fontSize: 12,
+    fontSize: 12,
       color: theme.colors.textSecondary,
       marginBottom: 6,
-      fontWeight: '500',
+    fontWeight: '500',
       letterSpacing: 0.2,
       textTransform: 'uppercase',
     },
@@ -402,15 +464,15 @@ const styles = StyleSheet.create({
     pageSheetProfileHeader: {
       flexDirection: 'row',
       alignItems: 'center',
-      marginBottom: 16,
-    },
+    marginBottom: 16,
+  },
     pageSheetBasicInfoRow: {
       flexDirection: 'row',
       alignItems: 'center',
       marginTop: 4,
     },
     pageSheetBasicInfo: {
-      fontSize: 14,
+    fontSize: 14,
       color: theme.colors.textSecondary,
     },
     pageSheetBasicInfoSeparator: {
@@ -475,7 +537,7 @@ const styles = StyleSheet.create({
     pageSheetAvatarText: {
       color: '#FFFFFF',
       fontSize: 32,
-      fontWeight: '600',
+    fontWeight: '600',
     },
     pageSheetProfileInfo: {
       flex: 1,
@@ -484,8 +546,8 @@ const styles = StyleSheet.create({
       fontSize: 24,
       fontWeight: '700',
       color: theme.colors.text,
-      marginBottom: 4,
-    },
+    marginBottom: 4,
+  },
     pageSheetProfileAge: {
       fontSize: 17,
       color: theme.colors.textSecondary,
@@ -544,12 +606,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
       fontWeight: '600',
       color: theme.colors.primary,
-    },
+  },
     pageSheetCommonHooks: {
       marginTop: 4,
     },
     pageSheetHookItemContainer: {
-      flexDirection: 'row',
+    flexDirection: 'row',
       alignItems: 'flex-start',
       marginBottom: 10,
     },
@@ -579,8 +641,8 @@ const styles = StyleSheet.create({
       paddingVertical: 6,
       borderRadius: 16,
       marginRight: 8,
-      marginBottom: 8,
-    },
+    marginBottom: 8,
+  },
     pageSheetInterestText: {
       fontSize: 14,
       color: theme.colors.primary,
@@ -598,7 +660,7 @@ const styles = StyleSheet.create({
       fontSize: 14,
       color: theme.colors.text,
       lineHeight: 20,
-      flex: 1,
+    flex: 1,
     },
     pageSheetActions: {
     flexDirection: 'row',
@@ -644,8 +706,8 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
     successContainer: {
-      alignItems: 'center',
-      justifyContent: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
       paddingVertical: 40,
     },
     successCheckmark: {
@@ -674,7 +736,7 @@ const styles = StyleSheet.create({
       borderWidth: 1,
       borderColor: theme.colors.border,
       paddingVertical: 16,
-      borderRadius: 12,
+    borderRadius: 12,
       alignItems: 'center',
       width: '100%',
       opacity: 0.6,
@@ -689,7 +751,7 @@ const styles = StyleSheet.create({
       borderRadius: 12,
       padding: 16,
       marginBottom: 24,
-      borderWidth: 1,
+    borderWidth: 1,
       borderColor: theme.colors.border,
     },
     confirmProfileHeader: {
@@ -726,7 +788,7 @@ const styles = StyleSheet.create({
       marginBottom: 4,
     },
     confirmProfileDetail: {
-      fontSize: 14,
+    fontSize: 14,
       color: theme.colors.textSecondary,
       marginBottom: 2,
     },
@@ -743,7 +805,7 @@ const styles = StyleSheet.create({
       marginBottom: 8,
     },
     confirmInterestsChips: {
-      flexDirection: 'row',
+    flexDirection: 'row',
       flexWrap: 'wrap',
     },
     confirmInterestChip: {
@@ -758,6 +820,96 @@ const styles = StyleSheet.create({
       fontSize: 13,
       color: theme.colors.primary,
       fontWeight: '500',
+  },
+  chatCreatedOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.55)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  chatCreatedModal: {
+    borderRadius: 24,
+    padding: 32,
+    width: '100%',
+    maxWidth: 400,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 8,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 12,
+  },
+  chatCreatedHeader: {
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  chatCreatedIconContainer: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  chatCreatedTitle: {
+    fontSize: 26,
+    fontWeight: '700',
+    textAlign: 'center',
+    letterSpacing: -0.3,
+  },
+  chatCreatedContent: {
+    marginBottom: 28,
+  },
+  chatCreatedMessage: {
+    fontSize: 18,
+    lineHeight: 26,
+    textAlign: 'center',
+    marginBottom: 20,
+    fontWeight: '500',
+  },
+  chatCreatedName: {
+    fontWeight: '700',
+    color: theme.colors.primary,
+  },
+  chatCreatedDivider: {
+    height: 1,
+    backgroundColor: theme.colors.border,
+    marginVertical: 20,
+    marginHorizontal: 8,
+  },
+  chatCreatedNextSteps: {
+    fontSize: 16,
+    lineHeight: 24,
+    textAlign: 'center',
+    color: theme.colors.textSecondary,
+  },
+  chatCreatedHelp: {
+    fontSize: 14,
+    lineHeight: 20,
+    textAlign: 'center',
+    fontStyle: 'italic',
+  },
+  chatCreatedButton: {
+    paddingVertical: 18,
+    borderRadius: 14,
+    alignItems: 'center',
+    shadowColor: theme.colors.primary,
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  chatCreatedButtonText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    letterSpacing: 0.2,
   },
 });
 
@@ -845,12 +997,12 @@ const styles = StyleSheet.create({
         return { text: 'New', color: theme.colors.primary };
       case 'opted_in_a':
         return isUserA 
-          ? { text: 'Waiting on them', color: theme.colors.warning }
+          ? { text: `Waiting for ${otherUser?.first_name}`, color: theme.colors.warning }
           : { text: 'They opted in!', color: theme.colors.success };
       case 'opted_in_b':
         return isUserA 
           ? { text: 'They opted in!', color: theme.colors.success }
-          : { text: 'Waiting on them', color: theme.colors.warning };
+          : { text: `Waiting for ${otherUser?.first_name}`, color: theme.colors.warning };
       case 'mutual_opt_in':
         return { text: 'Processing...', color: theme.colors.primary };
       case 'converted':
@@ -865,6 +1017,25 @@ const styles = StyleSheet.create({
   const handlePass = async () => {
     setLoading(true);
     try {
+      if (!match?.id) {
+        console.error('Cannot pass: match.id is missing', match);
+        console.error('Full match object:', JSON.stringify(match, null, 2));
+        Alert.alert('Error', 'Match information is missing. Please refresh and try again.');
+        setLoading(false);
+        return;
+      }
+
+      console.log('Attempting to pass match:', match.id);
+      console.log('Match ID type:', typeof match.id);
+      console.log('Match ID length:', match.id?.length);
+      console.log('Full match object:', JSON.stringify({
+        id: match.id,
+        user_a: match.user_a,
+        user_b: match.user_b,
+        status: match.status,
+        expires_at: match.expires_at
+      }, null, 2));
+
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error('Not authenticated');
 
@@ -899,7 +1070,7 @@ const styles = StyleSheet.create({
     if (activeChatCount >= 3) {
       Alert.alert(
         'Chat Limit Reached',
-        'You can only have 3 active Flock chats at a time. Please wrap up an existing conversation before starting a new one.'
+        'You can only have 3 active Convi chats at a time. Please wrap up an existing conversation before starting a new one.'
       );
       return;
     }
@@ -911,6 +1082,25 @@ const styles = StyleSheet.create({
   const confirmOptIn = async () => {
     setLoading(true);
     try {
+      if (!match?.id) {
+        console.error('Cannot opt in: match.id is missing', match);
+        console.error('Full match object:', JSON.stringify(match, null, 2));
+        Alert.alert('Error', 'Match information is missing. Please refresh and try again.');
+        setLoading(false);
+        return;
+      }
+
+      console.log('Attempting to opt in to match:', match.id);
+      console.log('Match ID type:', typeof match.id);
+      console.log('Match ID length:', match.id?.length);
+      console.log('Full match object:', JSON.stringify({
+        id: match.id,
+        user_a: match.user_a,
+        user_b: match.user_b,
+        status: match.status,
+        expires_at: match.expires_at
+      }, null, 2));
+
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error('Not authenticated');
 
@@ -936,42 +1126,76 @@ const styles = StyleSheet.create({
         throw new Error(result.error);
       }
 
-      // Immediately refresh match data to get updated status
-      onMatchUpdate();
-      
-      // Show success state with animation
-      setModalView('success');
-      setLoading(false);
-      
-      // Animate checkmark
-      scaleAnim.setValue(0);
-      Animated.spring(scaleAnim, {
-        toValue: 1,
-        friction: 3,
-        tension: 40,
-        useNativeDriver: true,
-      }).start();
+      console.log('Opt-in result:', result);
+      console.log('Chat created:', result.chat_created);
+      console.log('Chat created type:', typeof result.chat_created);
+      console.log('Chat created is true?', result.chat_created === true);
+      console.log('Chat created is truthy?', !!result.chat_created);
 
-      if (result.chat_created) {
-        // If chat was created, close modal and show alert
-        setTimeout(() => {
-          setOptInModalVisible(false);
-          setModalView('profile');
-          scaleAnim.setValue(0);
-          Alert.alert(
-            'Chat Created! 🎉',
-            'Both of you opted in! Your Flock chat is ready in the Connections tab.',
-            [{ text: 'Great!' }]
-          );
-          onMatchUpdate();
-        }, 2000);
+      // Check if chat was created FIRST, before any state updates or re-renders
+      const wasChatCreated = result.chat_created === true || result.chat_created === 'true' || result.chat_created === 1;
+      
+      if (wasChatCreated) {
+        console.log('Chat was created - setting modal visible immediately');
+        // Set ref to persist across re-renders
+        chatCreatedRef.current = true;
+        // Set modal visible IMMEDIATELY before any other state changes
+        setChatCreatedModalVisible(true);
+        console.log('Modal visibility set to true, current state:', chatCreatedModalVisible);
+        
+        // Close the opt-in modal immediately
+        setOptInModalVisible(false);
+        setModalView('profile');
+        setLoading(false);
+        
+        // Fetch the conversation ID that was just created
+        // We need to get it from the match's match_id
+        const fetchConversationId = async () => {
+          try {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) return;
+            
+            const { data: conversation, error } = await supabase
+              .from('conversations')
+              .select('id')
+              .eq('match_id', match.id)
+              .single();
+            
+            if (conversation && !error) {
+              console.log('Found conversation ID:', conversation.id);
+              setCreatedConversationId(conversation.id);
+            }
+          } catch (error) {
+            console.error('Error fetching conversation ID:', error);
+          }
+        };
+        
+        fetchConversationId();
+        
+        // Don't call onMatchUpdate() here - it causes re-render that resets state
+        // Only call it after user dismisses the modal
       } else {
+        // If waiting, show success state and update match data
+        // Immediately refresh match data to get updated status
+        onMatchUpdate();
+        
+        // Show success state with animation
+        setModalView('success');
+        setLoading(false);
+        
+        // Animate checkmark
+        scaleAnim.setValue(0);
+        Animated.spring(scaleAnim, {
+          toValue: 1,
+          friction: 3,
+          tension: 40,
+          useNativeDriver: true,
+        }).start();
         // If waiting, close after showing success message
         setTimeout(() => {
           setOptInModalVisible(false);
           setModalView('profile');
           scaleAnim.setValue(0);
-          onMatchUpdate();
         }, 2000);
       }
     } catch (error) {
@@ -989,9 +1213,18 @@ const styles = StyleSheet.create({
   // Check if user has already opted in by checking match status
   const hasUserOptedIn = (isUserA && match.status === 'opted_in_a') || 
                          (!isUserA && match.status === 'opted_in_b');
-  const canOptIn = match.status === 'active' && activeChatCount < 3 && !hasUserOptedIn;
   const isWaitingState = match.status === 'opted_in_a' || match.status === 'opted_in_b';
   const isUserWaiting = (match.status === 'opted_in_a' && isUserA) || (match.status === 'opted_in_b' && !isUserA);
+  
+  // Allow opt-in if activeChatCount is undefined/null (not loaded yet) or less than 3
+  // Convert to number to handle any type issues
+  const chatCount = typeof activeChatCount === 'number' ? activeChatCount : 0;
+  
+  // User can opt in if:
+  // 1. They haven't already opted in
+  // 2. Chat count is less than 3
+  // 3. Match is either 'active' (neither opted in) OR in waiting state where other user opted in (user can still opt in)
+  const canOptIn = !hasUserOptedIn && chatCount < 3 && (match.status === 'active' || (isWaitingState && !isUserWaiting));
 
   // Get the correct user's info based on who is viewing
   // user_a is the alphabetically first ID, user_b is the second
@@ -1010,12 +1243,26 @@ const styles = StyleSheet.create({
       const firstHook = match.reasons.conversationHooks[0];
       // Format the hook to be more natural
       let formattedHook = firstHook;
-      if (firstHook.startsWith('Both ')) {
-        formattedHook = 'You both ' + firstHook.substring(5).toLowerCase();
-      } else if (firstHook.startsWith('You both')) {
-        formattedHook = firstHook;
-      } else {
-        formattedHook = 'You both ' + firstHook.toLowerCase();
+      
+      // Replace any "Person A" or "Person B" references
+      formattedHook = formattedHook
+        .replace(/Person A/gi, 'you')
+        .replace(/Person B/gi, otherUser?.first_name || 'they')
+        .replace(/person a/gi, 'you')
+        .replace(/person b/gi, otherUser?.first_name || 'they');
+      
+      // Replace "they" with the other person's name if it exists
+      if (otherUser?.first_name) {
+        formattedHook = formattedHook.replace(/\bthey\b/gi, otherUser.first_name);
+        formattedHook = formattedHook.replace(/\btheir\b/gi, `${otherUser.first_name}'s`);
+      }
+      
+      if (formattedHook.startsWith('Both ')) {
+        formattedHook = 'You both ' + formattedHook.substring(5).toLowerCase();
+      } else if (formattedHook.startsWith('You both')) {
+        formattedHook = formattedHook;
+      } else if (!formattedHook.toLowerCase().startsWith('you')) {
+        formattedHook = 'You both ' + formattedHook.toLowerCase();
       }
       
       // Limit length
@@ -1107,7 +1354,7 @@ const styles = StyleSheet.create({
               <Text style={styles.userAge}>{otherUser.age} years old</Text>
             )}
           </View>
-          <CircularTimer timeData={timeData} />
+          {!hideActions && <CircularTimer timeData={timeData} />}
         </View>
 
         {/* Show conversation preview - prioritized by what they have in common */}
@@ -1120,20 +1367,15 @@ const styles = StyleSheet.create({
           </View>
         )}
 
+        {/* Waiting status bar - only show when user is waiting */}
         {isUserWaiting && (
-          <View style={styles.waitingContainer}>
-            <Text style={styles.waitingText}>
-              Waiting for {otherUser?.first_name} to respond
+          <View style={styles.waitingBar}>
+            <Text style={styles.waitingBarText}>
+              Waiting for {otherUser?.first_name}
             </Text>
           </View>
         )}
-        {isWaitingState && !isUserWaiting && (
-          <View style={styles.waitingContainer}>
-            <Text style={styles.waitingText}>
-              {otherUser?.first_name} is interested! Respond to start chatting.
-            </Text>
-          </View>
-        )}
+
       </TouchableOpacity>
 
 
@@ -1143,7 +1385,7 @@ const styles = StyleSheet.create({
         transparent={false}
         animationType="slide"
         presentationStyle="pageSheet"
-        onRequestClose={() => setOptInModalVisible(false)}
+        onRequestClose={handleModalClose}
       >
         <View style={styles.pageSheetContainer}>
           <View style={styles.pageSheetHeader}>
@@ -1157,10 +1399,7 @@ const styles = StyleSheet.create({
               </TouchableOpacity>
             ) : (
               <TouchableOpacity
-                onPress={() => {
-                  setOptInModalVisible(false);
-                  setModalView('profile');
-                }}
+                onPress={handleModalClose}
                 disabled={loading || modalView === 'success'}
                 style={styles.pageSheetCloseButton}
               >
@@ -1266,12 +1505,26 @@ const styles = StyleSheet.create({
                         .map((hook: string, index: number) => {
                           // Format the hook to be more natural
                           let formattedHook = hook;
-                          if (hook.startsWith('Both ')) {
-                            formattedHook = 'You both ' + hook.substring(5).toLowerCase();
-                          } else if (hook.startsWith('You both')) {
-                            formattedHook = hook;
-                          } else {
-                            formattedHook = 'You both ' + hook.toLowerCase();
+                          
+                          // Replace any "Person A" or "Person B" references
+                          formattedHook = formattedHook
+                            .replace(/Person A/gi, 'you')
+                            .replace(/Person B/gi, otherUser?.first_name || 'they')
+                            .replace(/person a/gi, 'you')
+                            .replace(/person b/gi, otherUser?.first_name || 'they');
+                          
+                          // Replace "they" with the other person's name if it exists
+                          if (otherUser?.first_name) {
+                            formattedHook = formattedHook.replace(/\bthey\b/gi, otherUser.first_name);
+                            formattedHook = formattedHook.replace(/\btheir\b/gi, `${otherUser.first_name}'s`);
+                          }
+                          
+                          if (formattedHook.startsWith('Both ')) {
+                            formattedHook = 'You both ' + formattedHook.substring(5).toLowerCase();
+                          } else if (formattedHook.startsWith('You both')) {
+                            formattedHook = formattedHook;
+                          } else if (!formattedHook.toLowerCase().startsWith('you')) {
+                            formattedHook = 'You both ' + formattedHook.toLowerCase();
                           }
                           
                           return (
@@ -1312,10 +1565,14 @@ const styles = StyleSheet.create({
               return null;
             })()}
 
-            {/* Passionate About */}
+            {/* Enjoy Doing */}
             {(() => {
-              if (!otherUserIntake?.responses || !Array.isArray(otherUserIntake.responses)) return null;
-              const response = otherUserIntake.responses.find((r: any) => r.question_id === 'q1_passionate_about');
+              if (!otherUserIntake?.responses || !Array.isArray(otherUserIntake.responses)) {
+                console.log('No intake responses for other user:', otherUserIntake);
+                return null;
+              }
+              const response = otherUserIntake.responses.find((r: any) => r.question_id === 'q4_enjoy_doing');
+              console.log('Looking for q4_enjoy_doing, found:', response, 'in responses:', otherUserIntake.responses.length);
               if (!response?.answer) return null;
               const text = response.answer.trim();
               if (text.length === 0) return null;
@@ -1341,18 +1598,22 @@ const styles = StyleSheet.create({
               return (
                 <View style={styles.pageSheetSection}>
                   <View style={styles.pageSheetSectionHeader}>
-                    <Ionicons name="flame" size={18} color={theme.colors.primary} />
-                    <Text style={styles.pageSheetSectionTitle}>Passionate About</Text>
+                    <Ionicons name="heart" size={18} color={theme.colors.primary} />
+                    <Text style={styles.pageSheetSectionTitle}>Enjoys Doing</Text>
                   </View>
                   <Text style={styles.pageSheetTalkText}>{summary}</Text>
                 </View>
               );
             })()}
 
-            {/* Something New to Try */}
+            {/* Excited to Try */}
             {(() => {
-              if (!otherUserIntake?.responses || !Array.isArray(otherUserIntake.responses)) return null;
-              const response = otherUserIntake.responses.find((r: any) => r.question_id === 'q12_new_to_try');
+              if (!otherUserIntake?.responses || !Array.isArray(otherUserIntake.responses)) {
+                console.log('No intake responses for other user (q6):', otherUserIntake);
+                return null;
+              }
+              const response = otherUserIntake.responses.find((r: any) => r.question_id === 'q6_excited_to_try');
+              console.log('Looking for q6_excited_to_try, found:', response);
               if (!response?.answer) return null;
               const text = response.answer.trim();
               if (text.length === 0) return null;
@@ -1379,7 +1640,7 @@ const styles = StyleSheet.create({
                 <View style={styles.pageSheetSection}>
                   <View style={styles.pageSheetSectionHeader}>
                     <Ionicons name="bulb" size={18} color={theme.colors.primary} />
-                    <Text style={styles.pageSheetSectionTitle}>Wanting to Try</Text>
+                    <Text style={styles.pageSheetSectionTitle}>Excited to Try</Text>
                   </View>
                   <Text style={styles.pageSheetTalkText}>{summary}</Text>
                 </View>
@@ -1387,18 +1648,7 @@ const styles = StyleSheet.create({
             })()}
 
 
-            {/* Waiting State Message */}
-            {isWaitingState && (
-              <View style={styles.pageSheetWaitingSection}>
-                <Text style={styles.pageSheetWaitingText}>
-                  {isUserWaiting 
-                    ? `Waiting for ${otherUser?.first_name} to respond...` 
-                    : `${otherUser?.first_name} is interested! Respond to start chatting.`
-                  }
-                </Text>
-              </View>
-            )}
-
+            {/* Waiting State Message - only show if user is waiting */}
             {/* Chat Limit Warning */}
             {!canOptIn && activeChatCount >= 3 && (
               <View style={styles.pageSheetWarningSection}>
@@ -1408,8 +1658,8 @@ const styles = StyleSheet.create({
               </View>
             )}
 
-            {/* Action Buttons - Show Pass/Continue if user hasn't opted in */}
-            {!isUserWaiting && (
+            {/* Action Buttons - Show Pass/Continue if user hasn't opted in and not in informational mode */}
+            {!hideActions && !isUserWaiting && (
               <View style={styles.pageSheetActions}>
                 <TouchableOpacity
                   style={[styles.pageSheetPassButton, loading && styles.pageSheetButtonDisabled]}
@@ -1434,8 +1684,8 @@ const styles = StyleSheet.create({
               </View>
             )}
 
-            {/* Time Remaining - Below buttons */}
-            {!isWaitingState && (
+            {/* Time Remaining - Below buttons (hide in informational mode since both users already opted in) */}
+            {!hideActions && !isWaitingState && (
               <Text style={styles.pageSheetTimeText}>
                 You both need to opt in within {timeData.text.toLowerCase()} to start chatting.
               </Text>
@@ -1523,14 +1773,71 @@ const styles = StyleSheet.create({
                   >
                     <Ionicons name="checkmark-circle" size={80} color={theme.colors.success} />
                   </Animated.View>
-                  <Text style={styles.successTitle}>You're in! ✅</Text>
+                  <Text style={styles.successTitle}>You've Opted In</Text>
                   <Text style={styles.successMessage}>
-                    We'll let you know as soon as {otherUser?.first_name} responds to the match.
+                    We'll let you know as soon as {otherUser?.first_name} responds to your match.
                   </Text>
                 </View>
               </>
             )}
           </ScrollView>
+        </View>
+      </Modal>
+
+      {/* Chat Created Success Modal */}
+      <Modal
+        visible={chatCreatedModalVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => {
+          console.log('Modal onRequestClose called');
+          setChatCreatedModalVisible(false);
+          chatCreatedRef.current = false;
+        }}
+      >
+        <View style={styles.chatCreatedOverlay}>
+          <View style={[styles.chatCreatedModal, { backgroundColor: theme.colors.surface }]}>
+            <View style={styles.chatCreatedHeader}>
+              <View style={[styles.chatCreatedIconContainer, { backgroundColor: theme.colors.success + '15' }]}>
+                <Ionicons name="checkmark-circle" size={56} color={theme.colors.success} />
+              </View>
+              <Text style={[styles.chatCreatedTitle, { color: theme.colors.text }]}>
+                You're Connected!
+              </Text>
+            </View>
+            
+            <View style={styles.chatCreatedContent}>
+              <Text style={[styles.chatCreatedMessage, { color: theme.colors.text }]}>
+                You and <Text style={[styles.chatCreatedName, { color: theme.colors.primary }]}>{otherUser?.first_name}</Text> both opted in to connect.
+              </Text>
+              
+              <View style={styles.chatCreatedDivider} />
+              
+              <Text style={[styles.chatCreatedNextSteps, { color: theme.colors.textSecondary }]}>
+                Start chatting and plan a time to meet in person. Coffee shops are great for first meetups!
+              </Text>
+            </View>
+            
+            <TouchableOpacity
+              style={[styles.chatCreatedButton, { backgroundColor: theme.colors.primary }]}
+              activeOpacity={0.8}
+              onPress={() => {
+                setChatCreatedModalVisible(false);
+                chatCreatedRef.current = false;
+                // Update match data after closing modal
+                onMatchUpdate();
+                
+                // Navigate to chat if conversation ID is available
+                if (createdConversationId && navigation) {
+                  navigation.navigate('Conversation', { conversationId: createdConversationId });
+                }
+              }}
+            >
+              <Text style={styles.chatCreatedButtonText}>
+                {createdConversationId ? 'Go to Chat' : 'Got it!'}
+              </Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </Modal>
 

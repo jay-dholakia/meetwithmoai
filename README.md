@@ -1,4 +1,4 @@
-# Flock
+# Convi
 
 A sleek, modern connection app where AI guides meaningful local connections through thoughtful onboarding, intake, and weekly introductions.
 
@@ -22,7 +22,7 @@ A sleek, modern connection app where AI guides meaningful local connections thro
 
 ## 🎨 Design & UX
 
-- **Flock theme**: `#F8F9FA` background, `#4A90E2` sky blue primary, `#FF8C42` warm orange accent
+- **Convi theme**: `#F8F9FA` background, `#4A90E2` sky blue primary, `#FF8C42` warm orange accent
 - **Typography**: Inter Tight for headers, Inter for body
 - **Controls**: chip buttons, Likert sliders, short text, availability grid
 - **Animations**: subtle typing indicator, 400–600ms micro-delays

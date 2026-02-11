@@ -33,20 +33,59 @@ serve(async (req) => {
       throw new Error('Invalid token')
     }
 
-    const { match_id } = await req.json()
+    const requestBody = await req.json()
+    const { match_id } = requestBody
+
+    console.log('Pass-match request - user:', user.id.substring(0, 8))
+    console.log('Request body:', JSON.stringify(requestBody, null, 2))
+    console.log('Extracted match_id:', match_id)
+    console.log('Match_id type:', typeof match_id)
+    console.log('Match_id length:', match_id?.length)
 
     if (!match_id) {
+      console.error('Pass-match error: match_id is required')
       throw new Error('match_id is required')
     }
 
     // Get the match candidate
+    console.log('Querying match_candidates table for id:', match_id)
     const { data: match, error: matchError } = await supabaseClient
-      .from('matcha_match_candidates')
+      .from('match_candidates')
       .select('*')
-      .eq('id', match_id)
+      .eq('id', String(match_id)) // Ensure it's a string
       .single()
+    
+    console.log('Query result - match found:', !!match)
+    console.log('Query result - error:', matchError ? JSON.stringify(matchError, null, 2) : 'none')
+    if (match) {
+      console.log('Match found - id:', match.id, 'user_a:', match.user_a, 'user_b:', match.user_b)
+    }
 
-    if (matchError || !match) {
+    if (matchError) {
+      console.error('Error fetching match:', matchError)
+      console.error('Match ID searched:', match_id)
+      console.error('Error code:', matchError.code)
+      console.error('Error message:', matchError.message)
+      throw new Error(`Match not found: ${matchError.message}`)
+    }
+
+    if (!match) {
+      console.error('Match not found - match_id:', match_id, 'user:', user.id.substring(0, 8))
+      // Check if match exists but user is not part of it
+      const { data: anyMatch } = await supabaseClient
+        .from('match_candidates')
+        .select('id, user_a, user_b, status')
+        .eq('id', match_id)
+        .single()
+      
+      if (anyMatch) {
+        console.error('Match exists but user verification failed:', {
+          match_user_a: anyMatch.user_a,
+          match_user_b: anyMatch.user_b,
+          requesting_user: user.id
+        })
+        throw new Error('Unauthorized: You are not part of this match')
+      }
       throw new Error('Match not found')
     }
 
@@ -57,7 +96,7 @@ serve(async (req) => {
 
     // Record the pass decision
     const { error: optInError } = await supabaseClient
-      .from('matcha_opt_ins')
+      .from('opt_ins')
       .upsert({
         match_id: match_id,
         user_id: user.id,
@@ -70,7 +109,7 @@ serve(async (req) => {
     const newStatus = match.user_a === user.id ? 'passed_by_a' : 'passed_by_b'
     
     const { error: updateError } = await supabaseClient
-      .from('matcha_match_candidates')
+      .from('match_candidates')
       .update({ status: newStatus })
       .eq('id', match_id)
 
@@ -81,7 +120,7 @@ serve(async (req) => {
     const orderedUserB = match.user_a < match.user_b ? match.user_b : match.user_a
     
     const { error: cooldownError } = await supabaseClient
-      .from('matcha_cooldowns')
+      .from('cooldowns')
       .upsert({
         user_a: orderedUserA,
         user_b: orderedUserB,
@@ -91,15 +130,7 @@ serve(async (req) => {
 
     if (cooldownError) throw cooldownError
 
-    // Trigger replenishment for this user (async)
-    fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/replenish-matches`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ user_id: user.id })
-    }).catch(console.error) // Fire and forget
+    // Note: Replenishment removed - matches are now created weekly in batches
 
     return new Response(
       JSON.stringify({ success: true }),

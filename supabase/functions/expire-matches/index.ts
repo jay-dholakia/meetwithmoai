@@ -26,7 +26,7 @@ serve(async (req) => {
 
     // Find all expired matches that haven't been converted
     const { data: expiredMatches, error: matchesError } = await supabaseClient
-      .from('matcha_match_candidates')
+      .from('match_candidates')
       .select('*')
       .lt('expires_at', new Date().toISOString())
       .not('status', 'eq', 'converted')
@@ -40,7 +40,7 @@ serve(async (req) => {
       try {
         // Get any pending payment intents for this match
         const { data: optIns, error: optInsError } = await supabaseClient
-          .from('matcha_opt_ins')
+          .from('opt_ins')
           .select('*')
           .eq('match_id', match.id)
           .eq('decision', 'opt_in')
@@ -66,7 +66,7 @@ serve(async (req) => {
         // Update payment statuses to canceled
         if (optIns.length > 0) {
           await supabaseClient
-            .from('matcha_opt_ins')
+            .from('opt_ins')
             .update({ payment_status: 'canceled' })
             .eq('match_id', match.id)
             .eq('decision', 'opt_in')
@@ -74,7 +74,7 @@ serve(async (req) => {
 
         // Update match status to expired
         const { error: updateError } = await supabaseClient
-          .from('matcha_match_candidates')
+          .from('match_candidates')
           .update({ status: 'expired' })
           .eq('id', match.id)
 
@@ -84,11 +84,15 @@ serve(async (req) => {
         }
 
         // Add to cooldown to prevent immediate re-matching
+        // Ensure consistent ordering (user_a < user_b per constraint)
+        const orderedUserA = match.user_a < match.user_b ? match.user_a : match.user_b
+        const orderedUserB = match.user_a < match.user_b ? match.user_b : match.user_a
+        
         const { error: cooldownError } = await supabaseClient
-          .from('matcha_cooldowns')
+          .from('cooldowns')
           .upsert({
-            user_a: Math.min(match.user_a, match.user_b),
-            user_b: Math.max(match.user_a, match.user_b),
+            user_a: orderedUserA,
+            user_b: orderedUserB,
             last_matched_at: match.created_at,
             cooldown_until: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() // 7 days cooldown for expired matches
           })
@@ -104,23 +108,7 @@ serve(async (req) => {
       }
     }
 
-    // Trigger replenishment for affected users (async)
-    const affectedUsers = new Set()
-    expiredMatches.forEach(match => {
-      affectedUsers.add(match.user_a)
-      affectedUsers.add(match.user_b)
-    })
-
-    for (const userId of affectedUsers) {
-      fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/replenish-matches`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ user_id: userId })
-      }).catch(console.error) // Fire and forget
-    }
+    // Note: Replenishment removed - matches are now created weekly in batches
 
     return new Response(
       JSON.stringify({ 

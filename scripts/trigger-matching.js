@@ -19,7 +19,7 @@ async function triggerMatching() {
     const { data: profiles, error: profilesError } = await supabase
       .from('profiles')
       .select('id')
-      .eq('in_matcha_bowl', true)
+      .eq('in_match_bowl', true)
       .eq('is_active', true);
 
     if (profilesError) throw profilesError;
@@ -45,7 +45,7 @@ async function triggerMatching() {
     
     // Show summary
     const { data: matches, error: matchError } = await supabase
-      .from('matcha_match_candidates')
+      .from('match_candidates')
       .select('score, status')
       .eq('status', 'active');
 

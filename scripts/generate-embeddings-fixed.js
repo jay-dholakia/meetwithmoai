@@ -129,8 +129,8 @@ async function main() {
     .from('matcha_match_candidates')
     .select(`
       *,
-      user_a_profile:profiles!matcha_match_candidates_user_a_fkey(first_name, last_name, age, city),
-      user_b_profile:profiles!matcha_match_candidates_user_b_fkey(first_name, last_name, age, city)
+      user_a_profile:profiles!match_candidates_user_a_fkey(first_name, last_name, age, city),
+      user_b_profile:profiles!match_candidates_user_b_fkey(first_name, last_name, age, city)
     `)
     .or(`user_a.eq.${sarahUserId},user_b.eq.${sarahUserId}`)
     .order('score', { ascending: false })

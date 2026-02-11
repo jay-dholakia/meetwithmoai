@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "Flock",
-    "slug": "flock-connections",
+    "name": "Convi",
+    "slug": "convi-connections",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -14,10 +14,10 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.flock.connections",
+      "bundleIdentifier": "com.convi.connections",
       "infoPlist": {
-        "NSLocationWhenInUseUsageDescription": "Flock uses your location to find local connections nearby.",
-        "NSLocationAlwaysAndWhenInUseUsageDescription": "Flock uses your location to find local connections nearby."
+        "NSLocationWhenInUseUsageDescription": "Convi uses your location to find local connections nearby.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Convi uses your location to find local connections nearby."
       }
     },
     "android": {
@@ -26,7 +26,7 @@
         "backgroundColor": "#F8F9FA"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.flock.connections",
+      "package": "com.convi.connections",
       "permissions": [
         "android.permission.ACCESS_FINE_LOCATION",
         "android.permission.ACCESS_COARSE_LOCATION",
@@ -42,13 +42,13 @@
       [
         "expo-location",
         {
-          "locationAlwaysAndWhenInUsePermission": "Allow Flock to use your location to find local connections nearby."
+          "locationAlwaysAndWhenInUsePermission": "Allow Convi to use your location to find local connections nearby."
         }
       ],
       [
         "expo-image-picker",
         {
-          "photosPermission": "Allow Flock to access your photos to set your profile picture."
+          "photosPermission": "Allow Convi to access your photos to set your profile picture."
         }
       ]
     ],

@@ -2,8 +2,8 @@ import 'react-native-url-polyfill/auto'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { createClient } from '@supabase/supabase-js'
 
-const supabaseUrl = 'https://hgllvhohhyamsbljekrd.supabase.co'
-const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhnbGx2aG9oaHlhbXNibGpla3JkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU4MTM5NTgsImV4cCI6MjA3MTM4OTk1OH0.VOsDwCxyqCkxuYPuFXCUpw4u2NCC-aX0BhwGJVIMPPY'
+const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || 'https://hgllvhohhyamsbljekrd.supabase.co'
+const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || ''
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
@@ -28,7 +28,7 @@ CREATE TABLE IF NOT EXISTS profiles (
   city VARCHAR(100) NOT NULL,
   lat DECIMAL(10, 8),
   lng DECIMAL(11, 8),
-  radius_km INTEGER DEFAULT 15,
+  radius_km INTEGER,
   avatar_url TEXT,
   bio_text TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),

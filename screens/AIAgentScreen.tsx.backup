@@ -20,13 +20,7 @@ import { supabase } from "../lib/mcp-supabase";
 import { openAIService } from "../lib/openai";
 import { MatchingService } from "../lib/matching-service";
 import MatchCard from "../components/MatchCard";
-import ErrorBoundary from "../components/ErrorBoundary";
-import QuestionnaireProgress from "../components/QuestionnaireProgress";
 import { intakeQuestions, profileQuestions, questionToColumnMap } from "../data/AIAgentScreen";
-import { useChatMessages, Message } from "../hooks/useChatMessages";
-import { useCoraContext } from "../hooks/useCoraContext";
-import { useQuestionnaire } from "../hooks/useQuestionnaire";
-import { findFirstUnansweredIntakeQuestion, isIntakeComplete } from "../utils/questionnaireUtils";
 
 // Slider Component - must be outside main component to use hooks
 interface SliderComponentProps {
@@ -144,7 +138,14 @@ const SliderComponent: React.FC<SliderComponentProps> = ({
   );
 };
 
-// Message interface is now imported from useChatMessages hook
+interface Message {
+  id: string;
+  text: string;
+  sender: "user" | "ai";
+  timestamp: Date;
+  type?: "text" | "match-card" | "question" | "profile-question";
+  data?: any;
+}
 
 interface MatchData {
   match: any;
@@ -154,36 +155,111 @@ interface MatchData {
 export default function AIAgentScreen() {
   const theme = useTheme();
   const { user } = useAuth();
-  
-  // Use optimized hooks
-  const {
-    messages,
-    loading: messagesLoading,
-    addMessage,
-    addMessages,
-    scrollToBottom,
-    flatListRef,
-    keyExtractor,
-  } = useChatMessages(user?.id || null);
-  
-  const { context, refreshContext } = useCoraContext(user?.id || null);
-  
-  const questionnaire = useQuestionnaire(user?.id || null);
-  
-  // Local UI state
+  const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState("");
   const [isTyping, setIsTyping] = useState(false);
+  const [currentQuestion, setCurrentQuestion] = useState(0);
   const [intakeAnswers, setIntakeAnswers] = useState<Record<string, any>>({});
   const [weeklyMatches, setWeeklyMatches] = useState<any[]>([]);
   const [currentMatchIndex, setCurrentMatchIndex] = useState(0);
-  
-  // Refs for preventing duplicate operations
+  const [profileData, setProfileData] = useState<Record<string, any>>({});
+  const [currentProfileStep, setCurrentProfileStep] = useState(0);
+  const [isProfileComplete, setIsProfileComplete] = useState(false);
+  const [selectedLanguages, setSelectedLanguages] = useState<string[]>([]);
+  const [selectedMultiSelectOptions, setSelectedMultiSelectOptions] = useState<
+    Record<string, string[]>
+  >({});
+  const [waitingForCityInput, setWaitingForCityInput] = useState(false);
+  const [waitingForLocationInput, setWaitingForLocationInput] = useState(false);
+  const flatListRef = useRef<FlatList>(null);
+  const isInitializedRef = useRef(false);
+  const initializedUserIdRef = useRef<string | null>(null);
   const isAskingQuestionRef = useRef(false);
   const profileCompletedRef = useRef(false);
-  const initializedRef = useRef(false);
-  const intakeInitializedRef = useRef(false);
-  const hasScrolledToBottomRef = useRef(false);
-  const isUserScrollingRef = useRef(false);
+
+  const saveMessageToHistory = async (message: Message) => {
+    if (!user) return;
+    
+    try {
+      const { error } = await supabase.from("ai_chat_history").insert({
+          user_id: user.id,
+          message_data: message,
+        });
+      
+      if (error) {
+        console.error("Error saving message to history:", error);
+      }
+    } catch (error) {
+      console.error("Error saving message to history:", error);
+    }
+  };
+
+  const loadChatHistory = async () => {
+    if (!user) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from("ai_chat_history")
+        .select("message_data")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: true });
+      
+      if (error) {
+        console.error("Error loading chat history:", error);
+        return;
+      }
+      
+      if (data && data.length > 0) {
+        const historyMessages = data.map((item, index) => {
+          const message = item.message_data as Message;
+          // Convert timestamp string back to Date object
+          if (message.timestamp && typeof message.timestamp === "string") {
+            message.timestamp = new Date(message.timestamp);
+          }
+          // Fix old message IDs that might cause duplicates - use index to ensure uniqueness
+          if (message.id === "profile-completion" || message.id === "ready-options" || 
+              message.id === "completion" || message.id === "welcome-back" || 
+              message.id === "no-more-matches") {
+            message.id = `${message.id}-${Date.now()}-${index}-${Math.random()}`;
+          }
+          return message;
+        });
+        // Deduplicate messages by ID (keep the last occurrence of each ID)
+        const seenIds = new Set<string>();
+        const uniqueMessages = historyMessages.reverse().filter(m => {
+          if (seenIds.has(m.id)) {
+            return false;
+          }
+          seenIds.add(m.id);
+          return true;
+        }).reverse(); // Reverse back to original order
+        setMessages(uniqueMessages);
+        console.log("Loaded chat history:", uniqueMessages.length, "messages (deduplicated from", historyMessages.length, ")");
+      }
+    } catch (error) {
+      console.error("Error loading chat history:", error);
+    }
+  };
+
+  const clearChatHistory = async () => {
+    if (!user) return;
+    
+    try {
+      const { error } = await supabase
+        .from("ai_chat_history")
+        .delete()
+        .eq("user_id", user.id);
+      
+      if (error) {
+        console.error("Error clearing chat history:", error);
+      } else {
+        setMessages([]);
+        console.log("Chat history cleared");
+      }
+    } catch (error) {
+      console.error("Error clearing chat history:", error);
+    }
+  };
 
   // Intro and outro messages for the new questionnaire
   const intakeIntro = {
@@ -198,136 +274,166 @@ export default function AIAgentScreen() {
     options: ["Yes", "No"],
   };
 
-  // Initialize questionnaire when user loads. Only runs when this screen is mounted;
-  // AuthScreen gates so we only mount after profile is complete (onboarding done).
   useEffect(() => {
-    if (user && !initializedRef.current) {
-      initializedRef.current = true;
-      console.log("Cora: Profile gate passed, initializing questionnaire (intake) for user:", user.id);
-      questionnaire.initialize();
+    if (user) {
+      initializeChat();
     }
-  }, [user, questionnaire]);
-
-  // Initialize chat flow after questionnaire and messages load. Run when we're in intake mode
-  // and either chat is empty or the last message isn't the current intake question (so we ask it).
-  // Never run when the last message is from the user (they just answered) — handleSendMessage
-  // will ask the next question; running here would use stale intake data and re-ask the same question.
-  useEffect(() => {
-    if (
-      !user ||
-      !questionnaire.initialLoadComplete ||
-      !questionnaire.isProfileComplete ||
-      messagesLoading ||
-      questionnaire.isIntakeComplete ||
-      intakeInitializedRef.current
-    ) {
-      return;
-    }
-    const lastMsg = messages[messages.length - 1];
-    if (lastMsg?.sender === "user") return;
-
-    const currentQ = questionnaire.currentIntakeQuestion;
-    const lastIsCurrentQuestion =
-      lastMsg?.type === "question" && lastMsg?.data?.id === intakeQuestions[currentQ]?.id;
-    const needToAsk = messages.length === 0 || !lastIsCurrentQuestion;
-    if (!needToAsk) return;
-
-    intakeInitializedRef.current = true;
-    initializeChat();
-  }, [user, questionnaire.initialLoadComplete, questionnaire.isProfileComplete, questionnaire.isIntakeComplete, questionnaire.currentIntakeQuestion, messagesLoading, messages.length, messages]);
-
-  // Scroll to bottom when messages first load (only once)
-  useEffect(() => {
-    if (messages.length > 0 && flatListRef.current && !hasScrolledToBottomRef.current) {
-      // Delay to ensure FlatList is fully rendered
-      setTimeout(() => {
-        flatListRef.current?.scrollToEnd({ animated: false });
-        hasScrolledToBottomRef.current = true;
-      }, 300);
-    }
-  }, [messages.length === 0 ? null : messages[0]?.id]); // Only trigger on initial load
+  }, [user]);
 
   const initializeChat = async () => {
-    if (!user) {
-      console.log("initializeChat: No user, returning");
+    if (!user) return;
+    
+    // Reset initialization if user changed
+    if (initializedUserIdRef.current !== user.id) {
+      console.log("User changed, resetting initialization state");
+      isInitializedRef.current = false;
+      initializedUserIdRef.current = null;
+      profileCompletedRef.current = false; // Reset profile completion ref
+      // Reset state
+      setMessages([]);
+      setCurrentQuestion(0);
+      setCurrentProfileStep(0);
+      setIntakeAnswers({});
+      setProfileData({});
+      setIsProfileComplete(false);
+      setSelectedLanguages([]);
+      setSelectedMultiSelectOptions({});
+    }
+    
+    if (isInitializedRef.current) {
+      console.log("Chat already initialized for this user, skipping");
       return;
     }
     
-    console.log("initializeChat: Starting initialization", {
-      messagesLength: messages.length,
-      profileData: questionnaire.profileData,
-      intakeData: questionnaire.intakeData,
-    });
+    console.log("Initializing chat...");
+    isInitializedRef.current = true;
+    initializedUserIdRef.current = user.id;
     
-    const profileData = questionnaire.profileData;
-    const intakeData = questionnaire.intakeData;
-    const isProfileComplete = questionnaire.isProfileComplete;
-    const isIntakeCompleteValue = isIntakeComplete(intakeData);
+    const { data: historyData, error: historyError } = await supabase
+      .from("ai_chat_history")
+      .select("message_data")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: true });
+
+    if (historyError) {
+      console.error("Error loading chat history:", historyError);
+    }
+
+    let existingMessages: Message[] = [];
+    if (historyData && historyData.length > 0) {
+      existingMessages = historyData.map((item) => {
+        const message = item.message_data as Message;
+        if (message.timestamp && typeof message.timestamp === "string") {
+          message.timestamp = new Date(message.timestamp);
+        }
+        return message;
+      });
+      setMessages(existingMessages);
+      console.log("Loaded chat history:", existingMessages.length, "messages");
+    }
+
+    console.log("Querying database for user ID:", user?.id);
     
-    console.log("initializeChat: Status check", {
-      isProfileComplete,
-      isIntakeCompleteValue,
-    });
-    
-    // Check if intake has started
+    const { data: profileData, error: profileError } = await supabase
+      .from("profiles")
+      .select(
+        "id, first_name, last_name, birthdate, gender, pronouns, relationship_status, languages, city, lat, lng, radius_km, sexual_orientation, age_range_preference"
+      )
+      .eq("id", user?.id)
+      .single();
+
+    // Set profileData to state so it's available for questionnaire checks
+    if (profileData) {
+      setProfileData(profileData);
+    }
+
+    // Check for v4 intake first, fall back to v3 for existing users
+    const { data: intakeDataV5, error: intakeErrorV5 } = await supabase
+      .from("intake_responses_v5")
+      .select("*")
+      .eq("user_id", user?.id)
+      .single();
+
+    // Use v5 data (all users must complete new questionnaire)
+    let intakeData = intakeDataV5;
+    let intakeError = intakeErrorV5;
+
+    console.log("Profile data from database:", profileData);
+    console.log("Profile error:", profileError);
+    console.log("Intake data from database:", intakeData);
+    console.log("Intake error:", intakeError);
+
+    // Profile is complete if we have the essential fields
+    // relationship_status and languages are optional for continuing with intake
+    const isProfileComplete = !!(
+      profileData &&
+      profileData.first_name && 
+      profileData.first_name !== "Cooking/Dining out, Concerts/Live music" &&
+      profileData.birthdate && 
+      profileData.gender && 
+      profileData.pronouns && 
+      profileData.radius_km &&
+      profileData.city
+    );
+
+    console.log("Is profile complete:", isProfileComplete);
+
+    // Check if intake is started (v4 or v3 format)
     let hasStartedIntake = false;
     if (intakeData) {
       if (intakeData.responses && Array.isArray(intakeData.responses)) {
+        // v4 format: check if any responses exist
         hasStartedIntake = intakeData.responses.length > 0;
+      } else {
+        // v3 format: backward compatibility
+        hasStartedIntake = Object.keys(intakeData).some(
+        (key) =>
+          key !== "user_id" &&
+          key !== "created_at" &&
+          key !== "updated_at" &&
+            key !== "completed_at" &&
+            key !== "embed_vector" &&
+          intakeData[key] !== null
+      );
       }
     }
 
-    // Check if questionnaire is already complete
-    const questionnaireComplete = isProfileComplete && isIntakeCompleteValue;
-    
-    console.log("initializeChat: Questionnaire complete?", questionnaireComplete);
-    
-    // Check if completion message already exists
-    const hasCompletionMessage = messages.some(m => 
-      m.sender === "ai" && 
-      m.text && 
-      m.text.includes("You're all set") && 
-      m.text.includes("great matches")
-    );
-
-    // Profile is collected via multipage onboarding; here we only run intake + completion.
-    // Always check database state to determine what question to ask next.
-    if (!questionnaireComplete) {
-      // Show welcome only when starting fresh (no messages) and intake not complete
-      if (messages.length === 0 && !isIntakeCompleteValue) {
-        console.log("initializeChat: Showing welcome message");
-        const welcomeMessage: Message = {
-          id: `welcome-${Date.now()}-${Math.random()}`,
-          text: "Hi! I'm Cora, your AI connection assistant. I'll help you meet like-minded people through thoughtful matching.\n\nLet me ask you a few questions about what you're looking for in new connections. Ready?",
-          sender: "ai",
-          timestamp: new Date(),
-          type: "text",
-        };
-        await addMessage(welcomeMessage);
-      }
-
-      if (!isIntakeCompleteValue) {
-        const firstUnansweredIntake = findFirstUnansweredIntakeQuestion(intakeData, profileData);
-        console.log("initializeChat: Next intake question based on database:", firstUnansweredIntake);
-        questionnaire.dispatch({ type: "SET_CURRENT_INTAKE_QUESTION", payload: firstUnansweredIntake });
-
-        const lastMessage = messages[messages.length - 1];
-        const isAlreadyAsking = lastMessage?.type === "question" &&
-          lastMessage?.data?.id === intakeQuestions[firstUnansweredIntake]?.id;
-
-        if (!isAlreadyAsking) {
-          setTimeout(() => {
-            checkAndAskQuestion(firstUnansweredIntake);
-          }, messages.length === 0 ? 1000 : 500);
-        }
-      }
-    } else {
-      // Questionnaire complete
-      console.log("initializeChat: Questionnaire complete based on database");
-      questionnaire.dispatch({ type: "SET_CURRENT_INTAKE_QUESTION", payload: intakeQuestions.length });
+    if (existingMessages.length === 0) {
+      const welcomeMessage: Message = {
+        id: `welcome-${Date.now()}-${Math.random()}`,
+        text: "Hi! I'm Cora, your AI connection assistant. I'll help you meet like-minded people through thoughtful matching.\n\nFirst, let me get to know you a bit better with some basic information, then we'll explore what you're looking for in new connections.\n\nReady to begin?",
+        sender: "ai",
+        timestamp: new Date(),
+        type: "text",
+      };
       
-      // Only show completion message if it doesn't already exist
-      if (!hasCompletionMessage) {
+      setMessages([welcomeMessage]);
+      await saveMessageToHistory(welcomeMessage);
+
+      if (!isProfileComplete) {
+        console.log("Starting profile collection...");
+        const firstUnansweredStep = findFirstUnansweredProfileStep(profileData);
+        console.log("First unanswered profile step:", firstUnansweredStep);
+        setCurrentProfileStep(firstUnansweredStep);
+      setTimeout(() => {
+        askNextProfileQuestion();
+      }, 1000);
+      } else if (!isIntakeComplete(intakeData)) {
+        console.log("Profile complete, checking intake questions...");
+      setIsProfileComplete(true);
+        const firstUnansweredIntake = findFirstUnansweredIntakeQuestion(intakeData, profileData);
+        console.log("First unanswered intake question index:", firstUnansweredIntake);
+        setCurrentQuestion(firstUnansweredIntake);
+      setTimeout(() => {
+        // Use checkAndAskQuestion directly with the calculated index to avoid state timing issues
+        checkAndAskQuestion(firstUnansweredIntake);
+      }, 1000);
+    } else {
+        console.log(
+          "Both profile and intake complete, showing completion message..."
+        );
+        setIsProfileComplete(true);
+        setCurrentQuestion(intakeQuestions.length); // Set to completion state
         setTimeout(() => {
           const completionMessage: Message = {
             id: `completion-${Date.now()}-${Math.random()}`,
@@ -336,15 +442,112 @@ export default function AIAgentScreen() {
             timestamp: new Date(),
             type: "text",
           };
-          addMessage(completionMessage);
+          setMessages((prev) => [...prev, completionMessage]);
+          saveMessageToHistory(completionMessage);
         }, 1000);
+      }
+      } else {
+      // If intake has started, prioritize continuing intake over completing profile
+      // This prevents restarting profile questions when user is in the middle of intake
+      if (hasStartedIntake && !isIntakeComplete(intakeData)) {
+        console.log("Intake already started, continuing intake questions...");
+        setIsProfileComplete(true); // Mark profile as complete to skip profile questions
+        const firstUnansweredIntake = findFirstUnansweredIntakeQuestion(intakeData, profileData);
+        console.log("First unanswered intake question index:", firstUnansweredIntake);
+        setCurrentQuestion(firstUnansweredIntake);
+        // Use checkAndAskQuestion directly with the calculated index to avoid state timing issues
+        setTimeout(() => {
+          checkAndAskQuestion(firstUnansweredIntake);
+        }, 1000);
+      } else if (!isProfileComplete) {
+        console.log("Profile not complete, continuing profile collection...");
+        const firstUnansweredStep = findFirstUnansweredProfileStep(profileData);
+        setCurrentProfileStep(firstUnansweredStep);
+        setTimeout(() => {
+          askNextProfileQuestion();
+        }, 1000);
+      } else if (!isIntakeComplete(intakeData)) {
+        console.log("Profile complete, continuing intake questions...");
+        setIsProfileComplete(true);
+        const firstUnansweredIntake = findFirstUnansweredIntakeQuestion(intakeData, profileData);
+        console.log("First unanswered intake question index:", firstUnansweredIntake);
+        setCurrentQuestion(firstUnansweredIntake);
+        // Use checkAndAskQuestion directly with the calculated index to avoid state timing issues
+        setTimeout(() => {
+          checkAndAskQuestion(firstUnansweredIntake);
+        }, 1000);
+      } else {
+        console.log("Both profile and intake complete, ready for matches...");
+        setIsProfileComplete(true);
+        setCurrentQuestion(intakeQuestions.length); // Set to completion state
+        // Don't add completion message again if messages already exist
       }
     }
   };
 
-  // Note: findFirstUnansweredIntakeQuestion is now imported from utils/questionnaireUtils
-  // Keeping this for backward compatibility but it should use the imported version
-  const findFirstUnansweredIntakeQuestionLocal = (intakeData: any, profileDataParam?: any) => {
+  const findFirstUnansweredProfileStep = (profileData: any) => {
+    if (!profileData) return 0;
+    
+    // Check each profile question in order
+    for (let i = 0; i < profileQuestions.length; i++) {
+      const question = profileQuestions[i];
+      
+      // Skip conditional questions that shouldn't be shown
+      if (question.conditionalOn && question.showIf) {
+        const conditionalValue = profileData[question.conditionalOn];
+        if (!conditionalValue || !question.showIf.includes(conditionalValue)) {
+          continue; // Skip this question as it's conditional and conditions aren't met
+        }
+      }
+      
+      let isAnswered = false;
+      
+      switch (question.id) {
+        case "name":
+          isAnswered = !!profileData.first_name;
+          break;
+        case "last_name":
+          isAnswered = !!profileData.last_name;
+          break;
+        case "birthdate":
+          isAnswered = !!profileData.birthdate;
+          break;
+        case "gender":
+          isAnswered = !!profileData.gender;
+          break;
+        case "pronouns":
+          isAnswered = !!profileData.pronouns;
+          break;
+        case "sexual_orientation":
+          isAnswered = !!profileData.sexual_orientation;
+          break;
+        case "location":
+          isAnswered = !!profileData.city;
+          break;
+        case "meet_radius":
+          isAnswered = !!profileData.radius_km;
+          break;
+        case "relationship_status":
+          isAnswered = !!profileData.relationship_status;
+          break;
+        case "languages":
+          isAnswered = !!(
+            profileData.languages && profileData.languages.length > 0
+          );
+          break;
+      }
+      
+      if (!isAnswered) {
+        console.log(`First unanswered question: ${question.id} at step ${i}`);
+        return i;
+      }
+    }
+    
+    // All questions answered
+    return profileQuestions.length;
+  };
+
+  const findFirstUnansweredIntakeQuestion = (intakeData: any, profileDataParam?: any) => {
     if (!intakeData) {
       console.log("findFirstUnansweredIntakeQuestion: no intakeData");
       return 0;
@@ -376,13 +579,11 @@ export default function AIAgentScreen() {
         : null;
       
       // Skip conditional questions that shouldn't be shown
-      if ('conditionalOn' in question && question.conditionalOn && 'showIf' in question && question.showIf) {
-        const conditionalOn = question.conditionalOn as string;
-        const showIf = question.showIf as string[];
+      if (question.conditionalOn && question.showIf) {
         const conditionalValue = isV5Format 
-          ? responsesMap?.get(conditionalOn)
-          : (intakeData as any)[conditionalOn];
-        if (!conditionalValue || !showIf.includes(conditionalValue)) {
+          ? responsesMap?.get(question.conditionalOn)
+          : intakeData[question.conditionalOn];
+        if (!conditionalValue || !question.showIf.includes(conditionalValue)) {
           console.log(`Skipping conditional question ${question.id} - condition not met`);
           continue; // Skip this question as it's conditional and conditions aren't met
         }
@@ -406,7 +607,7 @@ export default function AIAgentScreen() {
             const numericValue = parseInt(fieldValue);
             if (!isNaN(numericValue)) {
               isAnswered = true;
-      } else {
+            } else {
               // Check if it's a formatted string like "± 5 years" or "±5 years"
               const match = fieldValue.match(/±\s*(\d+)/);
               if (match && match[1]) {
@@ -442,8 +643,17 @@ export default function AIAgentScreen() {
     return intakeQuestions.length;
   };
 
-  // Note: isIntakeComplete is now imported from utils/questionnaireUtils
-  // Using the imported version for consistency
+  const isIntakeComplete = (intakeData: any) => {
+    const firstUnanswered = findFirstUnansweredIntakeQuestion(intakeData, profileData);
+    const isComplete = firstUnanswered >= intakeQuestions.length;
+    console.log("isIntakeComplete check:", {
+      intakeData: intakeData ? Object.keys(intakeData).length : 'null',
+      firstUnanswered,
+      intakeQuestionsLength: intakeQuestions.length,
+      isComplete
+    });
+    return isComplete;
+  };
 
   const requestLocationPermission = async () => {
     try {
@@ -486,10 +696,7 @@ export default function AIAgentScreen() {
     }
   };
 
-  const askNextProfileQuestion = async () => {
-    const currentProfileStep = questionnaire.currentProfileStep;
-    const profileData = questionnaire.profileData;
-    
+  const askNextProfileQuestion = () => {
     console.log(
       "askNextProfileQuestion called, currentProfileStep:",
       currentProfileStep,
@@ -501,20 +708,18 @@ export default function AIAgentScreen() {
       const question = profileQuestions[currentProfileStep];
       
       // Skip conditional questions that shouldn't be shown
-      if ('conditionalOn' in question && question.conditionalOn && 'showIf' in question && question.showIf && profileData) {
-        const conditionalOn = question.conditionalOn as string;
-        const showIf = question.showIf as string[];
-        const conditionalValue = (profileData as any)[conditionalOn];
-        if (!conditionalValue || !showIf.includes(conditionalValue)) {
+      if (question.conditionalOn && question.showIf) {
+        const conditionalValue = profileData[question.conditionalOn];
+        if (!conditionalValue || !question.showIf.includes(conditionalValue)) {
           console.log(`Skipping conditional question ${question.id} - condition not met`);
           // Move to next question
-          questionnaire.dispatch({ type: "SET_CURRENT_PROFILE_STEP", payload: currentProfileStep + 1 });
+          setCurrentProfileStep(currentProfileStep + 1);
           setTimeout(() => askNextProfileQuestion(), 100);
           return;
         }
       }
       
-      console.log("Asking profile question:", question.id, question.text, "at step", currentProfileStep);
+      console.log("Asking profile question:", question.id, question.text);
       
       const questionMessage: Message = {
         id: `profile-${
@@ -526,14 +731,11 @@ export default function AIAgentScreen() {
         type: "profile-question",
         data: question,
       };
-      console.log("Adding question message to chat:", questionMessage.id, questionMessage.text);
-      await addMessage(questionMessage);
-      // Scroll to show the new question after a brief delay
-      setTimeout(() => {
-        if (flatListRef.current) {
-          flatListRef.current.scrollToEnd({ animated: true });
-        }
-      }, 300);
+      setMessages((prev) => {
+        const newMessages = [...prev, questionMessage];
+        saveMessageToHistory(questionMessage);
+        return newMessages;
+      });
     } else {
       console.log("Profile questions complete, calling completeProfile");
       // Profile complete
@@ -542,12 +744,9 @@ export default function AIAgentScreen() {
   };
 
   const moveToNextQuestion = () => {
-    const currentProfileStep = questionnaire.currentProfileStep;
-    const profileData = questionnaire.profileData;
-    const nextStep = currentProfileStep + 1;
-    
+    setCurrentProfileStep((prev) => {
+      const nextStep = prev + 1;
       console.log("Moving to next question, step:", nextStep);
-    questionnaire.dispatch({ type: "SET_CURRENT_PROFILE_STEP", payload: nextStep });
       
       // Ask next profile question after a short delay
       setTimeout(() => {
@@ -556,14 +755,12 @@ export default function AIAgentScreen() {
           const question = profileQuestions[nextStep];
           
           // Skip conditional questions that shouldn't be shown
-        if ('conditionalOn' in question && question.conditionalOn && 'showIf' in question && question.showIf && profileData) {
-          const conditionalOn = question.conditionalOn as string;
-          const showIf = question.showIf as string[];
-          const conditionalValue = (profileData as any)[conditionalOn];
-          if (!conditionalValue || !showIf.includes(conditionalValue)) {
+          if (question.conditionalOn && question.showIf) {
+            const conditionalValue = profileData[question.conditionalOn];
+            if (!conditionalValue || !question.showIf.includes(conditionalValue)) {
               console.log(`Skipping conditional question ${question.id} in moveToNextQuestion - condition not met`);
               // Recursively move to next question
-            questionnaire.dispatch({ type: "SET_CURRENT_PROFILE_STEP", payload: nextStep });
+              setCurrentProfileStep(nextStep);
               setTimeout(() => moveToNextQuestion(), 100);
               return;
             }
@@ -585,11 +782,18 @@ export default function AIAgentScreen() {
             type: "profile-question",
             data: question,
           };
-        addMessage(questionMessage);
+          setMessages((prevMessages) => {
+            const newMessages = [...prevMessages, questionMessage];
+            saveMessageToHistory(questionMessage);
+            return newMessages;
+          });
         } else {
           completeProfile();
         }
       }, 500);
+      
+      return nextStep;
+    });
   };
 
   const checkAndAskQuestion = (questionIndex: number, latestAnswers?: Record<string, any>) => {
@@ -603,13 +807,11 @@ export default function AIAgentScreen() {
     const question = intakeQuestions[questionIndex];
     
     // Skip conditional questions that shouldn't be shown
-      if ('conditionalOn' in question && question.conditionalOn && 'showIf' in question && question.showIf) {
+    if (question.conditionalOn && question.showIf) {
       // Use latest answers if provided, otherwise fall back to state
       const answersToCheck = latestAnswers || intakeAnswers;
-        const conditionalOn = question.conditionalOn as string;
-        const showIf = question.showIf as string[];
-        const conditionalValue = answersToCheck[conditionalOn];
-        if (!conditionalValue || !showIf.includes(conditionalValue)) {
+      const conditionalValue = answersToCheck[question.conditionalOn];
+      if (!conditionalValue || !question.showIf.includes(conditionalValue)) {
         console.log(`Skipping conditional intake question ${question.id} at index ${questionIndex} - condition not met`);
         // Recursively check the next question, passing along latest answers
         checkAndAskQuestion(questionIndex + 1, latestAnswers);
@@ -618,7 +820,7 @@ export default function AIAgentScreen() {
     }
     
     // Update the current question state and ask the question
-    questionnaire.dispatch({ type: "SET_CURRENT_INTAKE_QUESTION", payload: questionIndex });
+    setCurrentQuestion(questionIndex);
     console.log("Asking intake question:", question.id, question.text);
     const questionMessage: Message = {
       id: `question-${question.id}-${Date.now()}-${Math.random()}`,
@@ -628,7 +830,11 @@ export default function AIAgentScreen() {
       type: "question",
       data: question,
     };
-    addMessage(questionMessage);
+    setMessages((prev) => {
+      const newMessages = [...prev, questionMessage];
+      saveMessageToHistory(questionMessage);
+      return newMessages;
+    });
   };
 
   const askNextQuestion = () => {
@@ -637,7 +843,6 @@ export default function AIAgentScreen() {
       return;
     }
     
-    const currentQuestion = questionnaire.currentIntakeQuestion;
     console.log(
       "askNextQuestion called, currentQuestion:",
       currentQuestion,
@@ -658,8 +863,124 @@ export default function AIAgentScreen() {
     questionId: string,
     answer: string | string[] | number
   ) => {
+    if (!user) {
+      console.error("No user found when saving intake answer");
+      return;
+    }
+
     try {
-      await questionnaire.saveIntakeAnswer(questionId, answer);
+      // Get current v5 intake data from database
+      const { data: existingIntake } = await supabase
+        .from("intake_responses_v5")
+        .select("*")
+        .eq("user_id", user.id)
+        .single();
+
+      // Find the question to get its metadata
+      const question = intakeQuestions.find(q => q.id === questionId);
+      if (!question) {
+        console.error("Question not found:", questionId);
+        return;
+      }
+
+      // Get existing responses array or create new one
+      const existingResponses: any[] = existingIntake?.responses || [];
+      
+      // Find if this question already has a response
+      const responseIndex = existingResponses.findIndex(r => r.question_id === questionId);
+      
+      // Create response object
+      // For slider questions, format the answer as a string for display
+      let formattedAnswer: string | string[];
+      if (question.type === "slider" && typeof answer === "number") {
+        const label = question.label || "{value}";
+        const unit = question.unit || "";
+        formattedAnswer = label.replace("{value}", answer.toString()) + (unit ? ` ${unit}` : "");
+      } else {
+        formattedAnswer = Array.isArray(answer) ? answer : String(answer);
+      }
+      
+      const responseObj = {
+        question_id: questionId,
+        question_text: question.text,
+        answer: formattedAnswer,
+        type: question.type === "open_ended" ? "open_ended" : "structured",
+        answered_at: new Date().toISOString()
+      };
+
+      // Update or add response
+      let updatedResponses: any[];
+      if (responseIndex >= 0) {
+        updatedResponses = [...existingResponses];
+        updatedResponses[responseIndex] = responseObj;
+      } else {
+        updatedResponses = [...existingResponses, responseObj];
+      }
+
+      // Build update object
+      const intakeToUpdate: any = {
+        user_id: user.id,
+        responses: updatedResponses,
+        updated_at: new Date().toISOString(),
+      };
+
+      // Extract and update filtered columns if this question maps to one
+      const columnName = questionToColumnMap[questionId];
+      if (columnName) {
+        if (columnName === "life_stage" && Array.isArray(answer)) {
+          // Store as TEXT[] array for life_stage (multi-select)
+          intakeToUpdate[columnName] = answer;
+        } else if (columnName === "availability_times" && Array.isArray(answer)) {
+          // Store as TEXT[] array for availability_times (multi-select)
+          intakeToUpdate[columnName] = answer;
+        } else if (typeof answer === "string") {
+          intakeToUpdate[columnName] = answer;
+        }
+      }
+
+      // Handle age_range_preference separately - sync to profiles table (not a filtered column in intake_responses_v5)
+      if (questionId === "q12_age_range_preference" && (typeof answer === "number" || typeof answer === "string")) {
+        const ageRangeValue = typeof answer === "string" ? parseInt(answer) : answer;
+        
+        if (user?.id) {
+          const { error: profileError } = await supabase
+            .from("profiles")
+            .update({ age_range_preference: ageRangeValue })
+            .eq("id", user.id);
+          
+          if (profileError) {
+            console.error("Error syncing age_range_preference to profiles:", profileError);
+          } else {
+            console.log("Synced age_range_preference to profiles:", ageRangeValue);
+          }
+        }
+      }
+
+      // If intake exists, preserve embed_vector and completed_at
+      if (existingIntake) {
+        if (existingIntake.embed_vector) {
+          intakeToUpdate.embed_vector = existingIntake.embed_vector;
+        }
+        if (existingIntake.completed_at) {
+          intakeToUpdate.completed_at = existingIntake.completed_at;
+        }
+      }
+
+      console.log(
+        "Updating intake v5 in database:",
+        intakeToUpdate,
+        "for question:",
+        questionId
+      );
+
+      const { data, error } = await supabase
+        .from("intake_responses_v5")
+        .upsert(intakeToUpdate);
+
+      if (error) {
+        console.error("Error saving intake answer:", error);
+      } else {
+        console.log("Intake answer saved successfully:", data);
         
         // Update local intakeAnswers state for conditional logic
         const updatedAnswers = {
@@ -667,6 +988,7 @@ export default function AIAgentScreen() {
           [questionId]: answer
         };
         setIntakeAnswers(updatedAnswers);
+      }
     } catch (error) {
       console.error("Error in saveIntakeAnswerToRemote:", error);
     }
@@ -757,6 +1079,16 @@ export default function AIAgentScreen() {
               // Location permission and coordinates will be handled separately
               // This case is handled by the location permission UI flow
               console.log("Location permission flow initiated");
+            } else if (answer === "Enter Manually") {
+              // Manual entry will be handled by a text input
+              console.log("Manual location entry initiated");
+            } else if (answer.startsWith("manual_city:")) {
+              // Handle manual city input
+              const city = answer.replace("manual_city:", "");
+              profileToUpdate.city = city;
+              // Set default coordinates (could be improved with geocoding)
+            profileToUpdate.lat = 37.7749;
+            profileToUpdate.lng = -122.4194;
             } else if (answer.startsWith("location_data:")) {
               // Handle location permission result
               try {
@@ -857,63 +1189,84 @@ export default function AIAgentScreen() {
     // Check if completion message already exists to avoid duplicates
     const completionText = "Great! To help me find people you'd connect with, I'd like to get to know you better. I'll ask you some questions about yourself.\n\nReady to continue?";
     
-    const hasCompletionMessage = messages.some(m => 
-      m.sender === "ai" && 
-      m.text === completionText
-    );
+    setMessages((prev) => {
+      const hasCompletionMessage = prev.some(m => 
+        m.sender === "ai" && 
+        m.text === completionText
+      );
 
-    if (!hasCompletionMessage) {
+      if (hasCompletionMessage) {
+        console.log("Completion message already exists, skipping");
+        return prev;
+      }
+
       // Also check for any message with profile-completion in the ID
-      const hasCompletionById = messages.some(m => 
+      const hasCompletionById = prev.some(m => 
         m.id && (m.id.includes("profile-completion") || m.id === "profile-completion")
       );
 
-      if (!hasCompletionById) {
-    const completionMessage: Message = {
-          id: `profile-completion-${Date.now()}-${Math.random()}-${user?.id}`,
-          text: completionText,
-      sender: "ai" as const,
-      timestamp: new Date(),
-      type: "text",
-    };
-        await addMessage(completionMessage);
+      if (hasCompletionById) {
+        console.log("Completion message with profile-completion ID already exists, skipping");
+        return prev;
       }
-    }
 
-    // Profile is now complete via questionnaire hook
-    // The hook will update isProfileComplete automatically
+      const completionMessage: Message = {
+        id: `profile-completion-${Date.now()}-${Math.random()}-${user?.id}`,
+        text: completionText,
+        sender: "ai" as const,
+        timestamp: new Date(),
+        type: "text",
+      };
+
+      const newMessages = [...prev, completionMessage];
+      saveMessageToHistory(completionMessage);
+      return newMessages;
+    });
+
+    setIsProfileComplete(true);
 
     // Add a ready button or wait for user response
     setTimeout(() => {
-      // Check if ready options message already exists to avoid duplicates
-      const hasReadyOptions = messages.some(m => 
-        m.sender === "ai" && 
-        m.type === "profile-question" &&
-        m.data?.id === "ready_to_start"
-      );
+      setMessages((prev) => {
+        // Check if ready options message already exists to avoid duplicates
+        const hasReadyOptions = prev.some(m => 
+          m.sender === "ai" && 
+          m.type === "profile-question" &&
+          m.data?.id === "ready_to_start"
+        );
 
-      if (!hasReadyOptions) {
+        if (hasReadyOptions) {
+          console.log("Ready options message already exists, skipping");
+          return prev;
+        }
+
         // Also check for any message with ready-options in the ID
-        const hasReadyById = messages.some(m => 
+        const hasReadyById = prev.some(m => 
           m.id && (m.id.includes("ready-options") || m.id === "ready-options")
         );
 
-        if (!hasReadyById) {
-    const readyOptions: Message = {
-            id: `ready-options-${Date.now()}-${Math.random()}-${user?.id}`,
-      text: "Choose an option:",
-      sender: "ai" as const,
-      timestamp: new Date(),
-      type: "profile-question",
-      data: {
-        id: "ready_to_start",
-        type: "chips",
-        options: ["Yes, let's start!", "Maybe later"],
-      },
-    };
-          addMessage(readyOptions);
+        if (hasReadyById) {
+          console.log("Ready options message with ready-options ID already exists, skipping");
+          return prev;
         }
-      }
+
+        const readyOptions: Message = {
+          id: `ready-options-${Date.now()}-${Math.random()}-${user?.id}`,
+          text: "Choose an option:",
+          sender: "ai" as const,
+          timestamp: new Date(),
+          type: "profile-question",
+          data: {
+            id: "ready_to_start",
+            type: "chips",
+            options: ["Yes, let's start!", "Maybe later"],
+          },
+        };
+        
+        const newMessages = [...prev, readyOptions];
+        saveMessageToHistory(readyOptions);
+        return newMessages;
+      });
     }, 1000);
   };
 
@@ -925,7 +1278,7 @@ export default function AIAgentScreen() {
       timestamp: new Date(),
       type: "text",
     };
-    await addMessage(completionMessage);
+    setMessages((prev) => [...prev, completionMessage]);
 
     // Generate embeddings and save final v4 record
     if (user) {
@@ -1019,7 +1372,7 @@ export default function AIAgentScreen() {
           timestamp: new Date(),
           type: "text",
         };
-        await addMessage(welcomeBackMessage);
+        setMessages((prev) => [...prev, welcomeBackMessage]);
       }
     } catch (error) {
       console.error("Error checking for weekly matches:", error);
@@ -1036,7 +1389,7 @@ export default function AIAgentScreen() {
         timestamp: new Date(),
         type: "text",
       };
-      await addMessage(noMoreMatchesMessage);
+      setMessages((prev) => [...prev, noMoreMatchesMessage]);
       return;
     }
 
@@ -1061,7 +1414,7 @@ export default function AIAgentScreen() {
         type: "match-card",
         data: { match, otherUser },
       };
-      await addMessage(matchMessage);
+      setMessages((prev) => [...prev, matchMessage]);
     }
   };
 
@@ -1082,7 +1435,7 @@ export default function AIAgentScreen() {
         timestamp: new Date(),
         type: "text",
       };
-      await addMessage(responseMessage);
+      setMessages((prev) => [...prev, responseMessage]);
 
       // Move to next match
       setCurrentMatchIndex((prev) => prev + 1);
@@ -1094,8 +1447,189 @@ export default function AIAgentScreen() {
     }
   };
 
-  // fetchConnectionContext is now handled by useCoraContext hook
-  // Use context from the hook instead
+  const fetchConnectionContext = async () => {
+    if (!user) return null;
+
+    try {
+      // Fetch all matches (active, opted-in, and passed)
+      const { data: matchesData } = await supabase
+        .from('match_candidates')
+        .select('*')
+        .or(`user_a.eq.${user.id},user_b.eq.${user.id}`)
+        .in('status', ['active', 'opted_in_a', 'opted_in_b', 'mutual_opt_in', 'passed'])
+        .gt('expires_at', new Date().toISOString());
+
+      // Fetch active conversations
+      const { data: conversationsData } = await supabase
+        .from('conversations')
+        .select('*')
+        .or(`user_a.eq.${user.id},user_b.eq.${user.id}`)
+        .eq('conversation_type', 'match')
+        .eq('status', 'active');
+
+      // Fetch opt-ins and passes
+      const { data: optInsData } = await supabase
+        .from('opt_ins')
+        .select('*')
+        .eq('user_id', user.id);
+
+      // Get match IDs from opt_ins to fetch their data
+      const optInMatchIds = optInsData?.map(optIn => optIn.match_id) || [];
+      
+      // Fetch match data for passed/opted-in matches that might not be in active matches
+      let additionalMatchesData: any[] = [];
+      if (optInMatchIds.length > 0) {
+        const { data: additionalMatches } = await supabase
+          .from('match_candidates')
+          .select('*')
+          .in('id', optInMatchIds);
+        additionalMatchesData = additionalMatches || [];
+      }
+
+      // Combine all matches
+      const allMatchesData = [...(matchesData || []), ...additionalMatchesData];
+      const uniqueMatchesMap = new Map();
+      allMatchesData.forEach((match: any) => {
+        if (!uniqueMatchesMap.has(match.id)) {
+          uniqueMatchesMap.set(match.id, match);
+        }
+      });
+      const allMatches = Array.from(uniqueMatchesMap.values());
+
+      // Get all unique user IDs
+      const userIds = new Set<string>();
+      allMatches.forEach((match: any) => {
+        userIds.add(match.user_a);
+        userIds.add(match.user_b);
+      });
+      conversationsData?.forEach((conv: any) => {
+        userIds.add(conv.user_a);
+        userIds.add(conv.user_b);
+      });
+
+      // Fetch all profiles
+      const { data: profilesData } = await supabase
+        .from('profiles')
+        .select('id, first_name, last_name, age, city')
+        .in('id', Array.from(userIds));
+
+      const profilesMap = new Map();
+      profilesData?.forEach((profile: any) => {
+        profilesMap.set(profile.id, profile);
+      });
+
+      // Process matches
+      const activeMatches: Array<{ 
+        name: string; 
+        age?: number; 
+        sharedInterests?: string[]; 
+        conversationHooks?: string[];
+        matchScore?: string;
+        matchReasons?: any;
+      }> = [];
+      const optedInMatches: Array<{ name: string; status: string; matchReasons?: any }> = [];
+      const passedMatches: Array<{ name: string; reason?: string; matchReasons?: any; matchScore?: string }> = [];
+
+      allMatches.forEach((match: any) => {
+        const isUserA = match.user_a === user.id;
+        const otherUserId = isUserA ? match.user_b : match.user_a;
+        const otherUser = profilesMap.get(otherUserId);
+        if (!otherUser) return;
+
+        const name = `${otherUser.first_name || 'Unknown'} ${otherUser.last_name ? otherUser.last_name.charAt(0) + '.' : ''}`;
+        const sharedInterests = match.reasons?.shared_interests || [];
+        const conversationHooks = match.reasons?.conversation_hooks || [];
+        const matchScore = match.score;
+
+        if (match.status === 'active') {
+          activeMatches.push({
+            name: name.trim(),
+            age: otherUser.age,
+            sharedInterests: sharedInterests,
+            conversationHooks: conversationHooks,
+            matchScore: matchScore,
+            matchReasons: match.reasons
+          });
+        } else if (match.status === 'opted_in_a' || match.status === 'opted_in_b') {
+          const userOptedIn = (isUserA && match.status === 'opted_in_a') || (!isUserA && match.status === 'opted_in_b');
+          if (userOptedIn) {
+            optedInMatches.push({
+              name: name.trim(),
+              status: match.status,
+              matchReasons: match.reasons
+            });
+          }
+        } else if (match.status === 'passed') {
+          passedMatches.push({
+            name: name.trim(),
+            matchReasons: match.reasons,
+            matchScore: matchScore
+          });
+        }
+      });
+
+      // Process opt-ins and passes
+      if (optInsData && allMatches.length > 0) {
+        const matchesMap = new Map();
+        allMatches.forEach((match: any) => {
+          matchesMap.set(match.id, match);
+        });
+
+        optInsData.forEach((optIn: any) => {
+          const match = matchesMap.get(optIn.match_id);
+          if (!match) return;
+
+          const isUserA = match.user_a === user.id;
+          const otherUserId = isUserA ? match.user_b : match.user_a;
+          const otherUser = profilesMap.get(otherUserId);
+          if (!otherUser) return;
+
+          const name = `${otherUser.first_name || 'Unknown'} ${otherUser.last_name ? otherUser.last_name.charAt(0) + '.' : ''}`;
+
+          if (optIn.decision === 'opt_in') {
+            if (match.status === 'mutual_opt_in') {
+              optedInMatches.push({
+                name: name.trim(),
+                status: 'mutual_opt_in',
+                matchReasons: match.reasons
+              });
+            }
+          } else if (optIn.decision === 'pass') {
+            passedMatches.push({
+              name: name.trim(),
+              matchReasons: match.reasons,
+              matchScore: match.score
+            });
+          }
+        });
+      }
+
+      // Process conversations
+      const activeConversations: Array<{ name: string; age?: number; city?: string }> = [];
+      conversationsData?.forEach((conv: any) => {
+        const isUserA = conv.user_a === user.id;
+        const otherUserId = isUserA ? conv.user_b : conv.user_a;
+        const otherUser = profilesMap.get(otherUserId);
+        if (!otherUser) return;
+
+        activeConversations.push({
+          name: `${otherUser.first_name || 'Unknown'} ${otherUser.last_name ? otherUser.last_name.charAt(0) + '.' : ''}`.trim(),
+          age: otherUser.age,
+          city: otherUser.city
+        });
+      });
+
+      return {
+        activeMatches,
+        activeConversations,
+        optedInMatches,
+        passedMatches
+      };
+    } catch (error) {
+      console.error('Error fetching connection context:', error);
+      return null;
+    }
+  };
 
   const handleSendMessage = async () => {
     if (!inputText.trim()) return;
@@ -1108,32 +1642,48 @@ export default function AIAgentScreen() {
       type: "text",
     };
 
-    await addMessage(userMessage);
+    setMessages((prev) => {
+      const newMessages = [...prev, userMessage];
+      saveMessageToHistory(userMessage);
+      return newMessages;
+    });
     const currentInput = inputText;
     setInputText("");
     setIsTyping(true);
 
-    // User just sent from the bottom; allow auto-scroll and scroll to reveal the new message
-    isUserScrollingRef.current = false;
-    setTimeout(() => {
-      flatListRef.current?.scrollToEnd({ animated: true });
-    }, 150);
-
-    if (questionnaire.waitingForCityInput) {
+    if (waitingForCityInput) {
       console.log("Saving city input:", currentInput);
       await saveProfileAnswerToRemote("location", `Manual: ${currentInput}`);
-      questionnaire.dispatch({ type: "SET_WAITING_FOR_CITY", payload: false });
+      setWaitingForCityInput(false);
       moveToNextQuestion();
       setIsTyping(false);
       return;
     }
 
-    // Manual location input removed - location is now required via permission
+    if (waitingForLocationInput) {
+      console.log("Saving manual location input:", currentInput);
+      await saveProfileAnswerToRemote("location", `manual_city:${currentInput}`);
+      setWaitingForLocationInput(false);
+      
+      const confirmMessage: Message = {
+        id: `location-manual-confirm-${Date.now()}`,
+        text: `Perfect! I've set your location to ${currentInput}.`,
+        sender: "ai" as const,
+        timestamp: new Date(),
+        type: "text",
+      };
+      setMessages((prev) => [...prev, confirmMessage]);
+      
+      setTimeout(() => {
+        moveToNextQuestion();
+      }, 1500);
+      
+      setIsTyping(false);
+      setCurrentInput("");
+      return;
+    }
 
     // Handle intake questions when profile is complete
-    const isProfileComplete = questionnaire.isProfileComplete;
-    const currentQuestion = questionnaire.currentIntakeQuestion;
-    
     if (
       isProfileComplete &&
       currentQuestion >= 0 &&
@@ -1168,9 +1718,8 @@ export default function AIAgentScreen() {
           [currentIntakeQuestion.id]: currentInput
         };
 
-        // Move to next question and update state so no other logic re-asks the current one
+        // Move to next question
         const nextQuestionIndex = currentQuestion + 1;
-        questionnaire.dispatch({ type: "SET_CURRENT_INTAKE_QUESTION", payload: nextQuestionIndex });
 
         setTimeout(() => {
           if (nextQuestionIndex < intakeQuestions.length) {
@@ -1191,9 +1740,8 @@ export default function AIAgentScreen() {
         currentIntakeQuestion.type === "text"
       ) {
         // Handle open-ended/text questions - save the answer
-        // Handle validation - for text/open_ended questions, validation expects string
         const validationResult = currentIntakeQuestion.validation
-          ? (currentIntakeQuestion.validation as (value: string) => string | null)(currentInput)
+          ? currentIntakeQuestion.validation(currentInput)
           : null;
 
         if (validationResult) {
@@ -1204,7 +1752,7 @@ export default function AIAgentScreen() {
             timestamp: new Date(),
             type: "text",
           };
-          await addMessage(errorMessage);
+          setMessages((prev) => [...prev, errorMessage]);
           setIsTyping(false);
           return;
         }
@@ -1218,7 +1766,7 @@ export default function AIAgentScreen() {
         setIntakeAnswers(updatedAnswers);
 
         const nextQuestionIndex = currentQuestion + 1;
-        questionnaire.dispatch({ type: "SET_CURRENT_INTAKE_QUESTION", payload: nextQuestionIndex });
+        setCurrentQuestion(nextQuestionIndex);
         setInputText("");
 
         setTimeout(() => {
@@ -1246,7 +1794,7 @@ export default function AIAgentScreen() {
               timestamp: new Date(),
               type: "text",
             };
-            await addMessage(errorMessage);
+            setMessages((prev) => [...prev, errorMessage]);
             setIsTyping(false);
             return;
           }
@@ -1254,7 +1802,7 @@ export default function AIAgentScreen() {
       // Handle multi-select questions
       if (currentIntakeQuestion.type === "multi_select") {
         let selectedOptions =
-          questionnaire.selectedMultiSelectOptions[currentIntakeQuestion.id] || [];
+          selectedMultiSelectOptions[currentIntakeQuestion.id] || [];
 
         console.log("DEBUG: Multi-select processing", {
           questionId: currentIntakeQuestion.id,
@@ -1285,9 +1833,10 @@ export default function AIAgentScreen() {
             [currentIntakeQuestion.id]: selectedOptions
           };
 
-          questionnaire.dispatch({ 
-            type: "SET_SELECTED_MULTI_SELECT", 
-            payload: { questionId: currentIntakeQuestion.id, options: [] } 
+          setSelectedMultiSelectOptions((prev) => {
+            const newState = { ...prev };
+            delete newState[currentIntakeQuestion.id];
+            return newState;
           });
 
           const nextQuestionIndex = currentQuestion + 1;
@@ -1322,7 +1871,7 @@ export default function AIAgentScreen() {
             timestamp: new Date(),
             type: "text",
           };
-          await addMessage(errorMessage);
+          setMessages((prev) => [...prev, errorMessage]);
           setIsTyping(false);
           return;
         }
@@ -1332,8 +1881,6 @@ export default function AIAgentScreen() {
     }
 
     // Handle profile questions when profile is not complete
-    const currentProfileStep = questionnaire.currentProfileStep;
-    
     if (!isProfileComplete && currentProfileStep < profileQuestions.length) {
       const currentProfileQuestion = profileQuestions[currentProfileStep];
       console.log(
@@ -1362,18 +1909,18 @@ export default function AIAgentScreen() {
       }
 
       if (currentProfileQuestion.type === "language_select") {
-        if (questionnaire.selectedLanguages.length > 0) {
+        if (selectedLanguages.length > 0) {
           console.log(
             "Saving languages to remote database:",
             currentProfileQuestion.id,
-            questionnaire.selectedLanguages
+            selectedLanguages
           );
 
           await saveProfileAnswerToRemote(
             currentProfileQuestion.id,
-            questionnaire.selectedLanguages
+            selectedLanguages
           );
-          questionnaire.dispatch({ type: "SET_SELECTED_LANGUAGES", payload: [] });
+          setSelectedLanguages([]);
           moveToNextQuestion();
         setIsTyping(false);
         return;
@@ -1385,7 +1932,7 @@ export default function AIAgentScreen() {
             timestamp: new Date(),
             type: "text",
           };
-          await addMessage(errorMessage);
+          setMessages((prev) => [...prev, errorMessage]);
           setIsTyping(false);
           return;
         }
@@ -1401,7 +1948,7 @@ export default function AIAgentScreen() {
         currentInput.includes("Continue"))
     ) {
       console.log("Starting intake questions after user confirmation");
-      questionnaire.dispatch({ type: "SET_CURRENT_INTAKE_QUESTION", payload: 0 });
+      setCurrentQuestion(0);
       setTimeout(() => {
         askNextQuestion();
       }, 1000);
@@ -1431,11 +1978,12 @@ export default function AIAgentScreen() {
         type: "text",
       };
 
-      await addMessage(promptMessage);
+      setMessages((prev) => [...prev, promptMessage]);
+      await saveMessageToHistory(promptMessage);
 
       // Find the first unanswered question and ask it
-      const firstUnansweredIntake = findFirstUnansweredIntakeQuestion(currentIntakeData, questionnaire.profileData);
-      questionnaire.dispatch({ type: "SET_CURRENT_INTAKE_QUESTION", payload: firstUnansweredIntake });
+      const firstUnansweredIntake = findFirstUnansweredIntakeQuestion(currentIntakeData, profileData);
+      setCurrentQuestion(firstUnansweredIntake);
       setTimeout(() => {
         checkAndAskQuestion(firstUnansweredIntake);
       }, 1000);
@@ -1446,9 +1994,8 @@ export default function AIAgentScreen() {
 
     // Handle general chat when both profile and intake are complete
     try {
-      // Refresh context if needed, then use it
-      await refreshContext();
-      const response = await openAIService.generateChatResponse(currentInput, context || undefined);
+      const connectionContext = await fetchConnectionContext();
+      const response = await openAIService.generateChatResponse(currentInput, connectionContext || undefined);
       const aiMessage: Message = {
         id: (Date.now() + 1).toString(),
         text: response,
@@ -1456,7 +2003,7 @@ export default function AIAgentScreen() {
         timestamp: new Date(),
         type: "text",
       };
-      await addMessage(aiMessage);
+      setMessages((prev) => [...prev, aiMessage]);
     } catch (error) {
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
@@ -1465,7 +2012,7 @@ export default function AIAgentScreen() {
         timestamp: new Date(),
         type: "text",
       };
-      addMessage(errorMessage);
+      setMessages((prev) => [...prev, errorMessage]);
     }
     setIsTyping(false);
   };
@@ -1526,7 +2073,7 @@ export default function AIAgentScreen() {
                       timestamp: new Date(),
                               type: "text",
                             };
-                            addMessage(userSelectionMessage);
+                            setMessages((prev) => [...prev, userSelectionMessage]);
 
                             await saveIntakeAnswerToRemote(item.data.id, option);
                     
@@ -1536,7 +2083,7 @@ export default function AIAgentScreen() {
                           [item.data.id]: option
                         };
 
-                        const nextQuestionIndex = questionnaire.currentIntakeQuestion + 1;
+                        const nextQuestionIndex = currentQuestion + 1;
                     
                     setTimeout(() => {
                           if (nextQuestionIndex < intakeQuestions.length) {
@@ -1580,7 +2127,7 @@ export default function AIAgentScreen() {
                     timestamp: new Date(),
                     type: "text",
                   };
-                  addMessage(userSelectionMessage);
+                  setMessages((prev) => [...prev, userSelectionMessage]);
 
                   const updatedAnswers = {
                     ...intakeAnswers,
@@ -1588,7 +2135,7 @@ export default function AIAgentScreen() {
                   };
                   setIntakeAnswers(updatedAnswers);
 
-                  const nextQuestionIndex = questionnaire.currentIntakeQuestion + 1;
+                  const nextQuestionIndex = currentQuestion + 1;
                   
                   setTimeout(() => {
                     if (nextQuestionIndex < intakeQuestions.length) {
@@ -1616,19 +2163,19 @@ export default function AIAgentScreen() {
                        const userSelectionMessage: Message = {
                         id: `profile-selection-${
                           item.data.id
-                        }-${questionnaire.currentProfileStep}-${Date.now()}`,
+                        }-${currentProfileStep}-${Date.now()}`,
                          text: option,
                         sender: "user" as const,
                          timestamp: new Date(),
                         type: "text",
                        };
-                      addMessage(userSelectionMessage);
+                      setMessages((prev) => [...prev, userSelectionMessage]);
                        
                       // Special handling for ready_to_start transition
                       if (item.data.id === "ready_to_start") {
                         if (option === "Yes, let's start!") {
                           // Start intake questions
-                          questionnaire.dispatch({ type: "SET_CURRENT_INTAKE_QUESTION", payload: 0 });
+                          setCurrentQuestion(0);
                           setTimeout(() => {
                             askNextQuestion();
                           }, 1000);
@@ -1640,7 +2187,7 @@ export default function AIAgentScreen() {
                             timestamp: new Date(),
                             type: "text",
                           };
-                          addMessage(laterMessage);
+                          setMessages((prev) => [...prev, laterMessage]);
                         }
                         return;
                       }
@@ -1674,39 +2221,48 @@ export default function AIAgentScreen() {
                         style={[
                               styles.multiSelectChipInline,
                               {
-                                backgroundColor: questionnaire.selectedMultiSelectOptions[item.data.id]?.includes(option)
+                                backgroundColor: selectedMultiSelectOptions[item.data.id]?.includes(option)
                                   ? theme.colors.primary
                                   : theme.colors.surface,
-                                borderColor: questionnaire.selectedMultiSelectOptions[item.data.id]?.includes(option)
+                                borderColor: selectedMultiSelectOptions[item.data.id]?.includes(option)
                                   ? theme.colors.primary
                                   : theme.colors.border,
                               },
                         ]}
                         onPress={() => {
                           const questionId = item.data.id;
-                          const currentSelections = questionnaire.selectedMultiSelectOptions[questionId] || [];
+                              setSelectedMultiSelectOptions((prev) => {
+                                const currentSelections =
+                                  prev[questionId] || [];
                             let newSelections;
                             
                             if (currentSelections.includes(option)) {
                               // Remove if already selected
-                            newSelections = currentSelections.filter((item) => item !== option);
+                                  newSelections = currentSelections.filter(
+                                    (item) => item !== option
+                                  );
                                 } else if (
                                   item.data.maxSelections &&
-                            currentSelections.length >= item.data.maxSelections
+                                  currentSelections.length >=
+                                    item.data.maxSelections
                                 ) {
                               // Don't add if at limit
                               newSelections = currentSelections;
                          } else {
                               // Add if under limit
-                            newSelections = [...currentSelections, option];
+                                  newSelections = [
+                                    ...currentSelections,
+                                    option,
+                                  ];
                             }
                             
                             // Update the input text to show selected options
                                 setInputText(newSelections.join(", "));
                             
-                          questionnaire.dispatch({ 
-                            type: "SET_SELECTED_MULTI_SELECT", 
-                            payload: { questionId, options: newSelections } 
+                            return {
+                              ...prev,
+                                  [questionId]: newSelections,
+                            };
                           });
                         }}
                       >
@@ -1714,10 +2270,10 @@ export default function AIAgentScreen() {
                               style={[
                           styles.optionText,
                                 {
-                                  color: questionnaire.selectedMultiSelectOptions[item.data.id]?.includes(option)
+                                  color: selectedMultiSelectOptions[item.data.id]?.includes(option)
                                     ? '#FFFFFF'
                                     : theme.colors.text,
-                                  fontWeight: questionnaire.selectedMultiSelectOptions[item.data.id]?.includes(option)
+                                  fontWeight: selectedMultiSelectOptions[item.data.id]?.includes(option)
                                     ? '600'
                                     : '400',
                                 },
@@ -1747,32 +2303,35 @@ export default function AIAgentScreen() {
                         key={index}
                         style={[
                           styles.multiSelectChip,
-                              questionnaire.selectedLanguages.includes(option) &&
+                              selectedLanguages.includes(option) &&
                                 styles.selectedChip,
                         ]}
                         onPress={() => {
-                          const currentLanguages = questionnaire.selectedLanguages;
+                              setSelectedLanguages((prev) => {
                             let newSelection;
-                          if (currentLanguages.includes(option)) {
+                            if (prev.includes(option)) {
                               // Remove if already selected
-                            newSelection = currentLanguages.filter((lang) => lang !== option);
-                          } else if (currentLanguages.length < 5) {
+                                  newSelection = prev.filter(
+                                    (lang) => lang !== option
+                                  );
+                            } else if (prev.length < 5) {
                               // Add if under limit
-                            newSelection = [...currentLanguages, option];
+                              newSelection = [...prev, option];
                             } else {
                               // Don't add if at limit
-                            newSelection = currentLanguages;
+                              newSelection = prev;
                             }
                             
                             // Update the input text to show selected languages
                                 setInputText(newSelection.join(", "));
-                          questionnaire.dispatch({ type: "SET_SELECTED_LANGUAGES", payload: newSelection });
+                            return newSelection;
+                          });
                         }}
                       >
                             <Text
                               style={[
                           styles.optionText,
-                                questionnaire.selectedLanguages.includes(option) &&
+                                selectedLanguages.includes(option) &&
                                   styles.selectedOptionText,
                               ]}
                             >
@@ -1797,13 +2356,13 @@ export default function AIAgentScreen() {
                       const userSelectionMessage: Message = {
                         id: `profile-selection-${
                           item.data.id
-                        }-${questionnaire.currentProfileStep}-${Date.now()}`,
+                        }-${currentProfileStep}-${Date.now()}`,
                         text: option,
                         sender: "user",
                         timestamp: new Date(),
                         type: "text",
                       };
-                      addMessage(userSelectionMessage);
+                      setMessages((prev) => [...prev, userSelectionMessage]);
 
                       // Save directly to remote database
                       await saveProfileAnswerToRemote(item.data.id, option);
@@ -1828,13 +2387,13 @@ export default function AIAgentScreen() {
                        const userSelectionMessage: Message = {
                         id: `profile-selection-${
                           item.data.id
-                        }-${questionnaire.currentProfileStep}-${Date.now()}`,
+                        }-${currentProfileStep}-${Date.now()}`,
                          text: option,
                         sender: "user",
                          timestamp: new Date(),
                         type: "text",
                       };
-                      addMessage(userSelectionMessage);
+                      setMessages((prev) => [...prev, userSelectionMessage]);
 
                       if (option === "Yes, use my location") {
                         // Save location data directly
@@ -1850,9 +2409,9 @@ export default function AIAgentScreen() {
                           timestamp: new Date(),
                           type: "text",
                         };
-                        addMessage(cityQuestionMessage);
+                        setMessages((prev) => [...prev, cityQuestionMessage]);
                         // Set a flag to indicate we're waiting for city input
-                        questionnaire.dispatch({ type: "SET_WAITING_FOR_CITY", payload: true });
+                        setWaitingForCityInput(true);
                       }
                     }}
                   >
@@ -1878,7 +2437,7 @@ export default function AIAgentScreen() {
                         timestamp: new Date(),
                         type: "text",
                       };
-                      addMessage(userSelectionMessage);
+                      setMessages((prev) => [...prev, userSelectionMessage]);
                        
                           if (option === "Use My Location") {
                             // Request location permission
@@ -1894,25 +2453,39 @@ export default function AIAgentScreen() {
                                 timestamp: new Date(),
                                 type: "text",
                               };
-                              addMessage(confirmMessage);
+                              setMessages((prev) => [...prev, confirmMessage]);
                               
                               // Move to next question
                               setTimeout(() => {
-                                moveToNextQuestion();
+                      moveToNextQuestion();
                               }, 1500);
                             } else {
-                              // Permission denied - show error and ask to try again
-                              const errorMessage: Message = {
-                                id: `location-error-${Date.now()}`,
-                                text: "I need location access to suggest spots near you. Turn it on in your device settings and try again.",
+                              // Permission denied, offer manual entry
+                              const manualMessage: Message = {
+                                id: `manual-fallback-${Date.now()}`,
+                                text: "No worries! Please enter your city manually:",
                                 sender: "ai" as const,
                                 timestamp: new Date(),
                                 type: "text",
                               };
-                              addMessage(errorMessage);
+                              setMessages((prev) => [...prev, manualMessage]);
                               
-                              // Don't move to next question - user needs to grant permission
+                              // Show manual input (handled by text input logic)
+                              setInputPlaceholder("Enter your city (e.g., Los Angeles, CA)");
+                              setWaitingForLocationInput(true);
                             }
+                          } else if (option === "Enter Manually") {
+                            // Show manual input
+                            const manualMessage: Message = {
+                              id: `manual-entry-${Date.now()}`,
+                              text: "Please enter your city:",
+                              sender: "ai" as const,
+                              timestamp: new Date(),
+                              type: "text",
+                            };
+                            setMessages((prev) => [...prev, manualMessage]);
+                            setInputPlaceholder("Enter your city (e.g., Los Angeles, CA)");
+                            setWaitingForLocationInput(true);
                           }
                         }}
                       >
@@ -1940,7 +2513,7 @@ export default function AIAgentScreen() {
                 </Text>
                 <View style={styles.multiSelectOptionsWrapper}>
                 {item.data.options.map((option: string, index: number) => {
-                  const isSelected = questionnaire.selectedMultiSelectOptions[item.data.id]?.includes(option);
+                  const isSelected = selectedMultiSelectOptions[item.data.id]?.includes(option);
                   return (
                   <TouchableOpacity
                     key={index}
@@ -1953,12 +2526,15 @@ export default function AIAgentScreen() {
                     ]}
                     onPress={() => {
                       const questionId = item.data.id;
-                      const currentSelections = questionnaire.selectedMultiSelectOptions[questionId] || [];
+                        setSelectedMultiSelectOptions((prev) => {
+                        const currentSelections = prev[questionId] || [];
                         let newSelections;
                         
                         if (currentSelections.includes(option)) {
                           // Remove if already selected
-                        newSelections = currentSelections.filter((item) => item !== option);
+                            newSelections = currentSelections.filter(
+                              (item) => item !== option
+                            );
                           } else if (
                             item.data.maxSelections &&
                             currentSelections.length >= item.data.maxSelections
@@ -1973,15 +2549,16 @@ export default function AIAgentScreen() {
                         // Update the input text to show selected options
                           setInputText(newSelections.join(", "));
                         
-                      questionnaire.dispatch({ 
-                        type: "SET_SELECTED_MULTI_SELECT", 
-                        payload: { questionId, options: newSelections } 
+                        return {
+                          ...prev,
+                            [questionId]: newSelections,
+                        };
                       });
                     }}
                   >
                       <Text
                         style={[
-                      styles.optionText,
+                          styles.optionText,
                           {
                             color: isSelected ? '#FFFFFF' : theme.colors.text,
                             fontWeight: isSelected ? '600' : '400',
@@ -2001,8 +2578,8 @@ export default function AIAgentScreen() {
             <MatchCard
               match={item.data.match}
               otherUser={item.data.otherUser}
-              onMatchUpdate={() => {}}
-              activeChatCount={0}
+              onAccept={() => handleMatchResponse(item.data.match.id, true)}
+              onDecline={() => handleMatchResponse(item.data.match.id, false)}
             />
           )}
         </View>
@@ -2028,7 +2605,7 @@ export default function AIAgentScreen() {
       const questionType = lastMessage.data.type;
       // Only disable for questions that should use option chips (NOT text, open_ended, or multi_select)
       // Slider questions also disable input (user selects via slider)
-  return (
+      return (
         questionType === "single_select" ||
         questionType === "likert" ||
         questionType === "scale" ||
@@ -2051,74 +2628,24 @@ export default function AIAgentScreen() {
   };
 
   return (
-    <ErrorBoundary>
     <SafeAreaView
       style={[styles.container, { backgroundColor: theme.colors.background }]}
-        edges={['top', 'left', 'right']}
+      edges={['top', 'left', 'right']}
     >
-        <View style={[styles.header, { borderBottomColor: theme.colors.border }]}>
+      <View style={[styles.header, { borderBottomColor: theme.colors.border }]}>
         <Text style={[styles.headerTitle, { color: theme.colors.text }]}>
-            Cora
+          Cora
         </Text>
       </View>
-        
-        {/* Show progress indicator when questionnaire is in progress */}
-        {!questionnaire.isProfileComplete && (
-          <QuestionnaireProgress
-            current={questionnaire.currentProfileStep}
-            total={profileQuestions.length}
-          />
-        )}
-        {questionnaire.isProfileComplete && !questionnaire.isIntakeComplete && (
-          <QuestionnaireProgress
-            current={questionnaire.currentIntakeQuestion}
-            total={intakeQuestions.length}
-          />
-        )}
 
       <FlatList
         ref={flatListRef}
         data={messages}
         renderItem={renderMessage}
-        keyExtractor={keyExtractor}
+        keyExtractor={(item) => item.id}
         style={styles.messagesList}
-        contentContainerStyle={[
-          styles.messagesContent,
-          (!questionnaire.isProfileComplete || !questionnaire.isIntakeComplete) && styles.messagesContentWithProgress
-        ]}
-        inverted={false}
-        initialScrollIndex={messages.length > 0 ? messages.length - 1 : 0}
-        onScrollToIndexFailed={(info) => {
-          // Fallback: scroll to end if initialScrollIndex fails
-          setTimeout(() => {
-            flatListRef.current?.scrollToEnd({ animated: false });
-          }, 100);
-        }}
-        onLayout={() => {
-          // Start at bottom on initial render (only if not already scrolled)
-          if (messages.length > 0 && !hasScrolledToBottomRef.current) {
-            setTimeout(() => {
-              flatListRef.current?.scrollToEnd({ animated: false });
-              hasScrolledToBottomRef.current = true;
-            }, 100);
-          }
-        }}
-        onContentSizeChange={() => {
-          // Scroll to bottom when new messages are added (only if user hasn't manually scrolled up)
-          if (!isUserScrollingRef.current && messages.length > 0) {
-            flatListRef.current?.scrollToEnd({ animated: true });
-          }
-        }}
-        onScrollBeginDrag={() => {
-          // Track when user starts scrolling manually
-          isUserScrollingRef.current = true;
-        }}
-        onScrollEndDrag={() => {
-          // Reset after a delay to allow auto-scroll for new messages if user is at bottom
-          setTimeout(() => {
-            isUserScrollingRef.current = false;
-          }, 1000);
-        }}
+        contentContainerStyle={styles.messagesContent}
+        onContentSizeChange={() => flatListRef.current?.scrollToEnd()}
       />
 
       {isTyping && (
@@ -2147,8 +2674,8 @@ export default function AIAgentScreen() {
             onChangeText={setInputText}
             editable={!hasOptionsAvailable()}
             placeholder={
-              !questionnaire.isProfileComplete && questionnaire.currentProfileStep < profileQuestions.length
-                ? profileQuestions[questionnaire.currentProfileStep].placeholder ||
+              !isProfileComplete && currentProfileStep < profileQuestions.length
+                ? profileQuestions[currentProfileStep].placeholder ||
                   "Type a message..."
                 : "Type a message..."
             }
@@ -2178,7 +2705,6 @@ export default function AIAgentScreen() {
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
-    </ErrorBoundary>
   );
 }
 
@@ -2204,11 +2730,6 @@ const styles = StyleSheet.create({
   messagesContent: {
     paddingHorizontal: 16,
     paddingVertical: 8,
-    paddingBottom: 40, // Extra padding at bottom to ensure we can scroll all the way
-    flexGrow: 1,
-  },
-  messagesContentWithProgress: {
-    paddingTop: 12, // Extra top padding when progress bar is visible to prevent overlap
   },
   messageContainer: {
     marginVertical: 4,
@@ -2237,7 +2758,6 @@ const styles = StyleSheet.create({
     backgroundColor: "#E5E5EA", // iOS Messages gray
     borderBottomLeftRadius: 4,
     alignSelf: "flex-start",
-    width: "80%", // Fixed width so text wraps inside bubble instead of being cut off
   },
   messageText: {
     fontSize: 16,

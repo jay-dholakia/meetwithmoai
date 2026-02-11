@@ -12,12 +12,14 @@ import {
   Modal,
   ScrollView,
   Image,
+  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/mcp-supabase';
+import MatchCard from '../components/MatchCard';
 
 interface Message {
   id: string;
@@ -82,11 +84,14 @@ export default function ConversationScreen({ route, navigation }: ConversationSc
   const [matchUserA, setMatchUserA] = useState<string | null>(null);
   const [matchUserB, setMatchUserB] = useState<string | null>(null);
   const [profileModalVisible, setProfileModalVisible] = useState(false);
+  const [matchData, setMatchData] = useState<any>(null);
+  const [activeChatCount, setActiveChatCount] = useState(0);
   const flatListRef = useRef<FlatList>(null);
 
   useEffect(() => {
     loadConversation();
     loadMessages();
+    loadActiveChatCount();
     
     // Set up real-time subscription for new messages
     const subscription = supabase
@@ -112,6 +117,21 @@ export default function ConversationScreen({ route, navigation }: ConversationSc
     };
   }, [conversationId]);
 
+  const loadActiveChatCount = async () => {
+    try {
+      if (!user?.id) return;
+      
+      const { data, error } = await supabase
+        .rpc('count_active_match_chats', { user_uuid: user.id });
+      
+      if (!error && data !== null) {
+        setActiveChatCount(data);
+      }
+    } catch (error) {
+      console.error('Error loading active chat count:', error);
+    }
+  };
+
   // Reload conversation data when modal opens to ensure we have latest data
   useEffect(() => {
     if (profileModalVisible && otherUser?.id) {
@@ -126,7 +146,7 @@ export default function ConversationScreen({ route, navigation }: ConversationSc
         .select(`
           user_a,
           user_b,
-          matcha_match_id,
+          match_id,
           user_a_profile:profiles!conversations_user_a_fkey (
             id,
             first_name,
@@ -159,30 +179,29 @@ export default function ConversationScreen({ route, navigation }: ConversationSc
 
       const isUserA = data.user_a === user?.id;
       const otherUserProfile = isUserA ? data.user_b_profile : data.user_a_profile;
-      setOtherUser(otherUserProfile);
+      // Ensure otherUserProfile is a single object, not an array
+      const otherUserObj = Array.isArray(otherUserProfile) ? otherUserProfile[0] : otherUserProfile;
+      setOtherUser(otherUserObj);
 
-      // Load intake responses for the other user
-      if (otherUserProfile?.id) {
+      // Load intake responses for the other user using RPC function
+      if (otherUserObj?.id) {
         const { data: intakeData, error: intakeError } = await supabase
-          .from('intake_responses_v4')
-          .select('user_id, responses, life_stage')
-          .eq('user_id', otherUserProfile.id)
-          .single();
+          .rpc('get_matched_users_intake', { user_ids: [otherUserObj.id] });
 
-        if (!intakeError && intakeData) {
-          console.log('Loaded intake data for user:', otherUserProfile.id);
-          setOtherUserIntake(intakeData);
+        if (!intakeError && intakeData && intakeData.length > 0) {
+          console.log('Loaded intake data for user:', otherUserObj.id);
+          setOtherUserIntake(intakeData[0]);
         } else {
           console.log('Error loading intake data:', intakeError);
         }
       }
 
-      // Load match reasons if match_id exists
-      if (data.matcha_match_id) {
+      // Load full match data if match_id exists
+      if (data.match_id) {
         const { data: matchData, error: matchError } = await supabase
-          .from('matcha_match_candidates')
-          .select('reasons, user_a, user_b')
-          .eq('id', data.matcha_match_id)
+          .from('match_candidates')
+          .select('*')
+          .eq('id', data.match_id)
           .single();
 
         if (!matchError && matchData) {
@@ -190,11 +209,12 @@ export default function ConversationScreen({ route, navigation }: ConversationSc
           setMatchReasons(matchData.reasons);
           setMatchUserA(matchData.user_a);
           setMatchUserB(matchData.user_b);
+          setMatchData(matchData);
         } else {
           console.log('Error loading match data:', matchError);
         }
       } else {
-        console.log('No matcha_match_id found for conversation');
+        console.log('No match_id found for conversation');
       }
     } catch (error) {
       console.error('Error loading conversation:', error);
@@ -229,6 +249,7 @@ export default function ConversationScreen({ route, navigation }: ConversationSc
     setInputText('');
 
     try {
+      // Send the user's message first
       const { error } = await supabase
         .from('messages')
         .insert({
@@ -241,6 +262,94 @@ export default function ConversationScreen({ route, navigation }: ConversationSc
       if (error) throw error;
 
       scrollToBottom();
+
+      // Check if message contains @Cora mention
+      const coraMentionRegex = /@[Cc]ora\s+(.+)/i;
+      const match = messageText.match(coraMentionRegex);
+      
+      if (match) {
+        const question = match[1].trim();
+        
+        if (question) {
+          // Wait a moment for the user's message to be picked up by real-time subscription
+          // and appear in the messages list before showing typing indicator
+          await new Promise(resolve => setTimeout(resolve, 300));
+
+          // Show typing indicator for Cora with a timestamp that's definitely after the user message
+          const typingMessage: Message = {
+            id: `typing-${Date.now()}`,
+            conversation_id: conversationId,
+            sender_type: 'ai',
+            sender_id: null,
+            text: 'Cora is thinking...',
+            created_at: new Date(Date.now() + 2000).toISOString(), // Ensure it's after user message
+            metadata: { type: 'typing_indicator' }
+          };
+          setMessages(prev => [...prev, typingMessage]);
+          scrollToBottom();
+
+          try {
+            // Get session for auth
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) {
+              throw new Error('No session found');
+            }
+
+            // Call ask-cora Edge Function
+            const { data, error: coraError } = await supabase.functions.invoke('ask-cora', {
+              body: {
+                conversationId,
+                question
+              },
+              headers: {
+                Authorization: `Bearer ${session.access_token}`
+              }
+            });
+
+            // Remove typing indicator
+            setMessages(prev => prev.filter(m => m.id !== typingMessage.id));
+
+            if (coraError) {
+              console.error('Error calling ask-cora:', coraError);
+              // Insert error message from Cora
+              const errorMessage: Message = {
+                id: `cora-error-${Date.now()}`,
+                conversation_id: conversationId,
+                sender_type: 'ai',
+                sender_id: null,
+                text: "I'm sorry, I'm having trouble processing that right now. Please try again later.",
+                created_at: new Date().toISOString(),
+                metadata: { type: 'cora_response' }
+              };
+              setMessages(prev => [...prev, errorMessage]);
+            } else if (data && data.response) {
+              // Cora's response will be inserted by the Edge Function
+              // But we can also add it locally for immediate feedback
+              // The Edge Function already inserts it, so we just need to reload messages
+              // or wait for the real-time subscription to pick it up
+              setTimeout(() => {
+                loadMessages();
+              }, 500);
+            }
+          } catch (error) {
+            console.error('Error processing @Cora request:', error);
+            // Remove typing indicator
+            setMessages(prev => prev.filter(m => m.id !== typingMessage.id));
+            
+            // Insert error message from Cora
+            const errorMessage: Message = {
+              id: `cora-error-${Date.now()}`,
+              conversation_id: conversationId,
+              sender_type: 'ai',
+              sender_id: null,
+              text: "I'm sorry, I'm having trouble processing that right now. Please try again later.",
+              created_at: new Date().toISOString(),
+              metadata: { type: 'cora_response' }
+            };
+            setMessages(prev => [...prev, errorMessage]);
+          }
+        }
+      }
     } catch (error) {
       console.error('Error sending message:', error);
       Alert.alert('Error', 'Failed to send message');
@@ -299,6 +408,117 @@ export default function ConversationScreen({ route, navigation }: ConversationSc
   
   const talkAboutSummary = getTalkAboutSummary();
 
+  // Component to render message text with clickable place names
+  const MessageText = ({ text, metadata, textColor }: { text: string; metadata?: any; textColor: string }) => {
+    const places = metadata?.places || [];
+    
+    // If we have places in metadata, make place names clickable
+    if (places.length > 0) {
+      // Create a map of all place occurrences with their positions
+      const placeMatches: Array<{ start: number; end: number; name: string; mapsUrl: string }> = [];
+      
+      places.forEach((place: any) => {
+        const placeName = place.name;
+        let searchIndex = 0;
+        
+        // Find all occurrences of this place name in the text
+        while (true) {
+          const index = text.indexOf(placeName, searchIndex);
+          if (index === -1) break;
+          
+          placeMatches.push({
+            start: index,
+            end: index + placeName.length,
+            name: placeName,
+            mapsUrl: place.mapsUrl
+          });
+          
+          searchIndex = index + 1; // Continue searching after this match
+        }
+      });
+      
+      // Sort matches by position
+      placeMatches.sort((a, b) => a.start - b.start);
+      
+      // Remove overlapping matches (keep the first one)
+      const nonOverlappingMatches: Array<{ start: number; end: number; name: string; mapsUrl: string }> = [];
+      placeMatches.forEach((match) => {
+        const overlaps = nonOverlappingMatches.some(
+          existing => !(match.end <= existing.start || match.start >= existing.end)
+        );
+        if (!overlaps) {
+          nonOverlappingMatches.push(match);
+        }
+      });
+      
+      // Build text parts with clickable place names
+      const textParts: Array<{ text: string; isPlace: boolean; mapsUrl?: string }> = [];
+      let currentIndex = 0;
+      
+      nonOverlappingMatches.forEach((match) => {
+        // Add text before place name
+        if (match.start > currentIndex) {
+          textParts.push({ 
+            text: text.substring(currentIndex, match.start), 
+            isPlace: false 
+          });
+        }
+        
+        // Add clickable place name
+        textParts.push({ 
+          text: match.name, 
+          isPlace: true, 
+          mapsUrl: match.mapsUrl 
+        });
+        
+        currentIndex = match.end;
+      });
+      
+      // Add remaining text
+      if (currentIndex < text.length) {
+        textParts.push({ 
+          text: text.substring(currentIndex), 
+          isPlace: false 
+        });
+      }
+      
+      // If no place names found, just return the text
+      if (textParts.length === 0) {
+        textParts.push({ text, isPlace: false });
+      }
+      
+      return (
+        <Text style={[styles.messageText, { color: textColor }]}>
+          {textParts.map((part, index) => {
+            if (part.isPlace && part.mapsUrl) {
+              return (
+                <Text
+                  key={index}
+                  style={{ 
+                    color: '#3B82F6', // Darker blue for links
+                    textDecorationLine: 'underline',
+                    fontWeight: '600'
+                  }}
+                  onPress={() => Linking.openURL(part.mapsUrl!)}
+                >
+                  {part.text}
+                </Text>
+              );
+            }
+            return <Text key={index}>{part.text}</Text>;
+          })}
+        </Text>
+      );
+    }
+    
+    // No places metadata, just render text normally
+    return (
+      <Text style={[styles.messageText, { color: textColor }]}>
+        {text}
+      </Text>
+    );
+  };
+
   const renderMessage = ({ item }: { item: Message }) => {
     const isCurrentUser = item.sender_type === 'user' && item.sender_id === user?.id;
     const isAI = item.sender_type === 'ai';
@@ -317,19 +537,18 @@ export default function ConversationScreen({ route, navigation }: ConversationSc
             : { backgroundColor: '#F3F4F6' } // Light gray for other users
         ]}>
           {isAI && (
-            <Text style={[styles.senderName, { color: theme.colors.text }]}>
+            <Text style={[styles.senderName, { color: '#FFFFFF' }]}>
               ✨ Cora
             </Text>
           )}
-          <Text style={[
-            styles.messageText,
-            { color: isCurrentUser ? '#FFFFFF' : theme.colors.text }
-          ]}>
-            {item.text}
-          </Text>
+          <MessageText 
+            text={item.text}
+            metadata={item.metadata}
+            textColor={isCurrentUser ? '#FFFFFF' : (isAI ? '#FFFFFF' : theme.colors.text)}
+          />
           <Text style={[
             styles.timestamp,
-            { color: isCurrentUser ? '#FFFFFF80' : theme.colors.textSecondary }
+            { color: isCurrentUser ? '#FFFFFF80' : (isAI ? '#FFFFFF80' : theme.colors.textSecondary) }
           ]}>
             {new Date(item.created_at).toLocaleTimeString([], { 
               hour: '2-digit', 
@@ -349,20 +568,27 @@ export default function ConversationScreen({ route, navigation }: ConversationSc
     header: {
       flexDirection: 'row',
       alignItems: 'center',
-      justifyContent: 'space-between',
+      justifyContent: 'center',
       padding: 16,
-      backgroundColor: theme.colors.surface,
       borderBottomWidth: 1,
       borderBottomColor: theme.colors.border,
+      position: 'relative',
     },
     backButton: {
-      marginRight: 16,
+      position: 'absolute',
+      left: 16,
+      zIndex: 1,
     },
     headerTitle: {
-      fontSize: 18,
+      fontSize: 20,
       fontWeight: '600',
       color: theme.colors.text,
-      flex: 1,
+      textAlign: 'center',
+    },
+    headerAvatarContainer: {
+      position: 'absolute',
+      right: 16,
+      zIndex: 1,
     },
     headerAvatar: {
       width: 36,
@@ -693,7 +919,7 @@ export default function ConversationScreen({ route, navigation }: ConversationSc
           >
             <Ionicons name="arrow-back" size={24} color={theme.colors.text} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Matcha Chat</Text>
+          <Text style={styles.headerTitle}>Convi Chat</Text>
         </View>
         <View style={styles.loadingContainer}>
           <Text style={styles.loadingText}>Loading conversation...</Text>
@@ -711,10 +937,10 @@ export default function ConversationScreen({ route, navigation }: ConversationSc
         >
           <Ionicons name="arrow-back" size={24} color={theme.colors.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Matcha Chat</Text>
+        <Text style={styles.headerTitle}>Convi Chat</Text>
         {otherUser && (
           <TouchableOpacity
-            style={styles.headerAvatar}
+            style={[styles.headerAvatarContainer, styles.headerAvatar]}
             onPress={() => setProfileModalVisible(true)}
           >
             {otherUser.avatar_url ? (
@@ -754,7 +980,7 @@ export default function ConversationScreen({ route, navigation }: ConversationSc
               style={styles.textInput}
               value={inputText}
               onChangeText={setInputText}
-              placeholder="Type a message..."
+              placeholder="Type a message... (Try @Cora for meetup suggestions)"
               placeholderTextColor={theme.colors.textSecondary}
               multiline
               maxLength={1000}
@@ -777,234 +1003,24 @@ export default function ConversationScreen({ route, navigation }: ConversationSc
         </KeyboardAvoidingView>
       </View>
 
-      {/* Profile Modal */}
-      {otherUser && (
-        <Modal
-          visible={profileModalVisible}
-          transparent={true}
-          animationType="fade"
-          onRequestClose={() => setProfileModalVisible(false)}
-        >
-          <TouchableOpacity 
-            style={styles.modalOverlay}
-            activeOpacity={1}
-            onPress={() => setProfileModalVisible(false)}
-          >
-            <TouchableOpacity 
-              activeOpacity={1}
-              onPress={(e) => e.stopPropagation()}
-              style={[styles.modalContent, { backgroundColor: theme.colors.surface }]}
-            >
-              <ScrollView 
-                showsVerticalScrollIndicator={false} 
-                style={styles.modalScrollView}
-                contentContainerStyle={styles.modalScrollContent}
-              >
-                {/* Profile Header */}
-                <View style={styles.modalProfileHeader}>
-                  <View style={styles.modalHeaderTop}>
-                    <View style={styles.modalHeaderLeft}>
-                      {otherUser.avatar_url ? (
-                        <Image 
-                          source={{ uri: otherUser.avatar_url }}
-                          style={styles.modalProfileAvatar}
-                        />
-                      ) : (
-                        <View style={[styles.modalProfileAvatarPlaceholder, { backgroundColor: theme.colors.primary }]}>
-                          <Text style={styles.modalProfileAvatarText}>
-                            {otherUser.first_name?.charAt(0).toUpperCase() || '?'}
-                          </Text>
-                        </View>
-                      )}
-                      <View style={styles.modalProfileInfo}>
-                        <Text style={[styles.modalProfileName, { color: theme.colors.text }]}>
-                          {otherUser.first_name} {otherUser.last_name ? otherUser.last_name.charAt(0) + '.' : ''}
-                        </Text>
-                        {otherUser?.city && (
-                          <Text style={[styles.modalProfileLocation, { color: theme.colors.textSecondary }]}>📍 {otherUser.city}</Text>
-                        )}
-                        {(otherUser?.age || otherUser?.gender) && (
-                          <View style={styles.modalBasicInfoRow}>
-                            {otherUser?.age && (
-                              <Text style={[styles.modalBasicInfo, { color: theme.colors.textSecondary }]}>
-                                {otherUser.age} years old
-                              </Text>
-                            )}
-                            {otherUser?.age && otherUser?.gender && (
-                              <Text style={[styles.modalBasicInfoSeparator, { color: theme.colors.textSecondary }]}> • </Text>
-                            )}
-                            {otherUser?.gender && (
-                              <Text style={[styles.modalBasicInfo, { color: theme.colors.textSecondary }]}>
-                                {otherUser.gender}
-                              </Text>
-                            )}
-                          </View>
-                        )}
-                      </View>
-                    </View>
-                    <TouchableOpacity
-                      style={styles.modalCloseButton}
-                      onPress={() => setProfileModalVisible(false)}
-                    >
-                      <Ionicons name="close" size={24} color={theme.colors.text} />
-                    </TouchableOpacity>
-                  </View>
-                </View>
-
-                {/* About */}
-                {otherUser?.bio_text && (
-                  <View style={styles.modalSection}>
-                    <View style={styles.modalSectionHeader}>
-                      <Ionicons name="person" size={18} color={theme.colors.primary} />
-                      <Text style={styles.modalSectionTitle}>About</Text>
-                    </View>
-                    <Text style={styles.modalBioText}>{otherUser.bio_text}</Text>
-                  </View>
-                )}
-
-                {/* Hobbies & Interests */}
-                {((otherUserHobbies && otherUserHobbies.length > 0) || (otherUserInterests && otherUserInterests.length > 0)) && (
-                  <View style={styles.modalSection}>
-                    <View style={styles.modalSectionHeader}>
-                      <Ionicons name="star" size={18} color={theme.colors.primary} />
-                      <Text style={styles.modalSectionTitle}>Hobbies & Interests</Text>
-                    </View>
-                    <View style={styles.modalInterests}>
-                      {(() => {
-                        const combined = [...(otherUserHobbies || []), ...(otherUserInterests || [])];
-                        const unique = Array.from(new Set(combined.map(item => item.toLowerCase())))
-                          .map(lower => combined.find(item => item.toLowerCase() === lower))
-                          .filter(Boolean) as string[];
-                        
-                        return unique.map((item, index) => (
-                          <View key={`item-${index}`} style={styles.modalInterestChip}>
-                            <Text style={styles.modalInterestText}>{item}</Text>
-                          </View>
-                        ));
-                      })()}
-                    </View>
-                  </View>
-                )}
-
-                {/* Likes Talking About */}
-                {talkAboutSummary && (
-                  <View style={styles.modalSection}>
-                    <View style={styles.modalSectionHeader}>
-                      <Ionicons name="chatbubbles" size={18} color={theme.colors.primary} />
-                      <Text style={styles.modalSectionTitle}>Likes Talking About</Text>
-                    </View>
-                    <Text style={styles.modalTalkText}>{talkAboutSummary}</Text>
-                  </View>
-                )}
-
-                {/* Passionate About */}
-                {(() => {
-                  if (!otherUserIntake?.responses || !Array.isArray(otherUserIntake.responses)) return null;
-                  const response = otherUserIntake.responses.find((r: any) => r.question_id === 'q1_passionate_about');
-                  if (!response?.answer) return null;
-                  const text = response.answer.trim();
-                  if (text.length === 0) return null;
-                  
-                  const sentences = text.split(/[.!?]+/).filter((s: string) => s.trim().length > 0);
-                  let summary = sentences[0].trim();
-                  if (sentences.length > 1 && summary.length < 120) {
-                    summary += '. ' + sentences[1].trim();
-                  }
-                  if (summary.length > 150) {
-                    summary = summary.substring(0, 147).trim();
-                    const lastSpace = summary.lastIndexOf(' ');
-                    if (lastSpace > 100) {
-                      summary = summary.substring(0, lastSpace) + '...';
-                    } else {
-                      summary += '...';
-                    }
-                  } else if (!summary.endsWith('.') && !summary.endsWith('!') && !summary.endsWith('?')) {
-                    summary += '.';
-                  }
-                  
-                  return (
-                    <View style={styles.modalSection}>
-                      <View style={styles.modalSectionHeader}>
-                        <Ionicons name="flame" size={18} color={theme.colors.primary} />
-                        <Text style={styles.modalSectionTitle}>Passionate About</Text>
-                      </View>
-                      <Text style={styles.modalTalkText}>{summary}</Text>
-                    </View>
-                  );
-                })()}
-
-                {/* Something New to Try */}
-                {(() => {
-                  if (!otherUserIntake?.responses || !Array.isArray(otherUserIntake.responses)) return null;
-                  const response = otherUserIntake.responses.find((r: any) => r.question_id === 'q12_new_to_try');
-                  if (!response?.answer) return null;
-                  const text = response.answer.trim();
-                  if (text.length === 0) return null;
-                  
-                  const sentences = text.split(/[.!?]+/).filter((s: string) => s.trim().length > 0);
-                  let summary = sentences[0].trim();
-                  if (sentences.length > 1 && summary.length < 120) {
-                    summary += '. ' + sentences[1].trim();
-                  }
-                  if (summary.length > 150) {
-                    summary = summary.substring(0, 147).trim();
-                    const lastSpace = summary.lastIndexOf(' ');
-                    if (lastSpace > 100) {
-                      summary = summary.substring(0, lastSpace) + '...';
-                    } else {
-                      summary += '...';
-                    }
-                  } else if (!summary.endsWith('.') && !summary.endsWith('!') && !summary.endsWith('?')) {
-                    summary += '.';
-                  }
-                  
-                  return (
-                    <View style={styles.modalSection}>
-                      <View style={styles.modalSectionHeader}>
-                        <Ionicons name="bulb" size={18} color={theme.colors.primary} />
-                        <Text style={styles.modalSectionTitle}>Wanting to Try</Text>
-                      </View>
-                      <Text style={styles.modalTalkText}>{summary}</Text>
-                    </View>
-                  );
-                })()}
-
-                {/* Things in Common - Prominent Section */}
-                {matchReasons && ((matchReasons.shared_interests && matchReasons.shared_interests.length > 0) || 
-                  (matchReasons.conversation_hooks && Array.isArray(matchReasons.conversation_hooks) && matchReasons.conversation_hooks.length > 0)) && (
-                  <View style={styles.modalCommonSection}>
-                    <View style={styles.modalCommonHeader}>
-                      <Ionicons name="heart" size={20} color={theme.colors.primary} />
-                      <Text style={styles.modalCommonTitle}>Things you have in common</Text>
-                    </View>
-                    
-                    {matchReasons.conversation_hooks && Array.isArray(matchReasons.conversation_hooks) && matchReasons.conversation_hooks.length > 0 && (
-                      <View style={styles.modalCommonHooks}>
-                        <View style={styles.modalHooksList}>
-                          {matchReasons.conversation_hooks
-                            .filter((hook: string) => hook && !hook.toLowerCase().includes('available'))
-                            .map((hook: string, index: number) => {
-                              const formattedHook = hook.startsWith('Both ') 
-                                ? 'You ' + hook.toLowerCase()
-                                : hook.startsWith('You both')
-                                ? hook
-                                : 'You both ' + hook.toLowerCase();
-                              return (
-                                <View key={index} style={styles.modalHookItemContainer}>
-                                  <Ionicons name="checkmark-circle" size={16} color={theme.colors.primary} style={styles.modalHookIcon} />
-                                  <Text style={styles.modalHookItem}>{formattedHook}</Text>
-                                </View>
-                              );
-                            })}
-                        </View>
-                      </View>
-                    )}
-                  </View>
-                )}
-              </ScrollView>
-            </TouchableOpacity>
-          </TouchableOpacity>
-        </Modal>
+      {/* Profile Modal - Using MatchCard's modal */}
+      {otherUser && matchData && (
+        <View style={{ position: 'absolute', opacity: 0, pointerEvents: 'none', width: 0, height: 0 }}>
+          <MatchCard
+            match={matchData}
+            otherUser={otherUser}
+            otherUserIntake={otherUserIntake}
+            onMatchUpdate={() => {
+              loadConversation();
+              loadActiveChatCount();
+            }}
+            activeChatCount={activeChatCount}
+            navigation={navigation}
+            externalModalVisible={profileModalVisible}
+            onModalClose={() => setProfileModalVisible(false)}
+            hideActions={true}
+          />
+        </View>
       )}
     </SafeAreaView>
   );

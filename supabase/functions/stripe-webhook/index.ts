@@ -72,7 +72,7 @@ async function handlePaymentSucceeded(supabaseClient: any, paymentIntent: Stripe
 
   // Update payment status
   const { error: updateError } = await supabaseClient
-    .from('matcha_opt_ins')
+    .from('opt_ins')
     .update({ payment_status: 'succeeded' })
     .eq('stripe_payment_intent_id', paymentIntent.id)
 
@@ -83,7 +83,7 @@ async function handlePaymentSucceeded(supabaseClient: any, paymentIntent: Stripe
 
   // Check if both users have successful payments
   const { data: optIns, error: optInsError } = await supabaseClient
-    .from('matcha_opt_ins')
+    .from('opt_ins')
     .select('*')
     .eq('match_id', matchId)
     .eq('decision', 'opt_in')
@@ -104,7 +104,7 @@ async function handlePaymentSucceeded(supabaseClient: any, paymentIntent: Stripe
 async function handlePaymentFailed(supabaseClient: any, paymentIntent: Stripe.PaymentIntent) {
   // Update payment status
   const { error: updateError } = await supabaseClient
-    .from('matcha_opt_ins')
+    .from('opt_ins')
     .update({ payment_status: 'failed' })
     .eq('stripe_payment_intent_id', paymentIntent.id)
 
@@ -116,7 +116,7 @@ async function handlePaymentFailed(supabaseClient: any, paymentIntent: Stripe.Pa
 async function handlePaymentCanceled(supabaseClient: any, paymentIntent: Stripe.PaymentIntent) {
   // Update payment status
   const { error: updateError } = await supabaseClient
-    .from('matcha_opt_ins')
+    .from('opt_ins')
     .update({ payment_status: 'canceled' })
     .eq('stripe_payment_intent_id', paymentIntent.id)
 
@@ -128,7 +128,7 @@ async function handlePaymentCanceled(supabaseClient: any, paymentIntent: Stripe.
 async function handlePaymentRequiresAction(supabaseClient: any, paymentIntent: Stripe.PaymentIntent) {
   // Update payment status
   const { error: updateError } = await supabaseClient
-    .from('matcha_opt_ins')
+    .from('opt_ins')
     .update({ payment_status: 'requires_action' })
     .eq('stripe_payment_intent_id', paymentIntent.id)
 
@@ -140,7 +140,7 @@ async function handlePaymentRequiresAction(supabaseClient: any, paymentIntent: S
 async function createMatchConversation(supabaseClient: any, matchId: string) {
   // Get match details
   const { data: match, error: matchError } = await supabaseClient
-    .from('matcha_match_candidates')
+    .from('match_candidates')
     .select('*')
     .eq('id', matchId)
     .single()
@@ -154,7 +154,7 @@ async function createMatchConversation(supabaseClient: any, matchId: string) {
   const { data: existingConversation } = await supabaseClient
     .from('conversations')
     .select('id')
-    .eq('matcha_match_id', matchId)
+    .eq('match_id', matchId)
     .single()
 
   if (existingConversation) {
@@ -168,8 +168,8 @@ async function createMatchConversation(supabaseClient: any, matchId: string) {
     .insert({
       user_a: Math.min(match.user_a, match.user_b),
       user_b: Math.max(match.user_a, match.user_b),
-      conversation_type: 'matcha',
-      matcha_match_id: matchId,
+      conversation_type: 'match',
+      match_id: matchId,
       ai_present: true,
       status: 'active'
     })
@@ -183,7 +183,7 @@ async function createMatchConversation(supabaseClient: any, matchId: string) {
 
   // Update match status to converted
   await supabaseClient
-    .from('matcha_match_candidates')
+    .from('match_candidates')
     .update({ status: 'converted' })
     .eq('id', matchId)
 
@@ -216,23 +216,25 @@ async function generateAIIntroMessage(
 
   // Generate intro message based on match reasons
   const sharedInterests = matchReasons?.shared_interests || []
-  const conversationHooks = matchReasons?.conversation_hooks || []
 
-  let introText = `Welcome to your Flock connection, ${userA.first_name} and ${userB.first_name}!\n\n`
+  let introText = `${userA.first_name} and ${userB.first_name}, welcome to your Convi connection!\n\n`
 
+  // Acknowledge mutual opt-in
+  introText += `You both opted in to connect, which is great.\n\n`
+
+  // Reference shared interests if available
   if (sharedInterests.length > 0) {
-    introText += `I noticed you both enjoy: ${sharedInterests.slice(0, 2).join(' and ')}\n\n`
+    if (sharedInterests.length === 1) {
+      introText += `You both share an interest in ${sharedInterests[0]}, which could be a great starting point for your conversation.\n\n`
+    } else if (sharedInterests.length === 2) {
+      introText += `You both enjoy ${sharedInterests[0]} and ${sharedInterests[1]}, which could be great starting points for your conversation.\n\n`
+    } else {
+      const interestsList = sharedInterests.slice(0, 3).join(', ')
+      introText += `You both share interests in ${interestsList}, which could be great starting points for your conversation.\n\n`
+    }
   }
 
-  if (conversationHooks.length > 0) {
-    introText += `Here are some conversation starters:\n`
-    conversationHooks.slice(0, 3).forEach((hook, index) => {
-      introText += `${index + 1}. ${hook}\n`
-    })
-    introText += '\n'
-  }
-
-  introText += `Feel free to plan a meetup when you're both ready. I'll step back now and let you two connect!`
+  introText += `Feel free to start the conversation whenever you're ready. I'm here if you need help finding meetup spots or conversation ideas.`
 
   // Insert AI message
   const { error: messageError } = await supabaseClient
@@ -242,7 +244,7 @@ async function generateAIIntroMessage(
       sender_type: 'ai',
       sender_id: null,
       text: introText,
-      metadata: { type: 'matcha_intro' }
+      metadata: { type: 'match_intro' }
     })
 
   if (messageError) {

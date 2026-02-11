@@ -615,8 +615,8 @@ async function main() {
       .from('matcha_match_candidates')
       .select(`
         *,
-        user_a_profile:profiles!matcha_match_candidates_user_a_fkey(first_name, last_name, age),
-        user_b_profile:profiles!matcha_match_candidates_user_b_fkey(first_name, last_name, age)
+        user_a_profile:profiles!match_candidates_user_a_fkey(first_name, last_name, age),
+        user_b_profile:profiles!match_candidates_user_b_fkey(first_name, last_name, age)
       `)
       .or(`user_a.eq.${userIds[0]},user_b.eq.${userIds[0]}`)
       .order('score', { ascending: false })

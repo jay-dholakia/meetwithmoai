@@ -16,6 +16,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
+import * as FileSystem from 'expo-file-system';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/mcp-supabase';
@@ -36,23 +37,27 @@ interface Profile {
   bio_text?: string | null;
   is_active: boolean | null;
   is_paused: boolean | null;
-  in_matcha_bowl: boolean | null;
+  in_match_bowl: boolean | null;
 }
 
-interface Preferences {
-  user_id: string;
-  languages: string[];
-  availability_slots: any;
-  reminder_opt_in: boolean;
-}
 
 export default function ProfileScreen({ navigation }: any) {
   const theme = useTheme();
   const { user, signOut } = useAuth();
   const [profile, setProfile] = useState<Profile | null>(null);
-  const [preferences, setPreferences] = useState<Preferences | null>(null);
-  const [loading, setLoading] = useState(true);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+
+  // Format location to ensure state abbreviation is included
+  const formatLocation = (city: string | null): string => {
+    if (!city) return 'Set your location';
+    // If city already contains a comma, assume it's already formatted (e.g., "San Francisco, CA")
+    if (city.includes(',')) {
+      return city;
+    }
+    // If no comma, return as-is (manual entries might not have state)
+    // The location service should already include state when using "Use My Location"
+    return city;
+  };
 
   useEffect(() => {
     if (user) {
@@ -71,8 +76,6 @@ export default function ProfileScreen({ navigation }: any) {
 
   const loadProfile = async () => {
     try {
-      setLoading(true);
-      
       // Load profile
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
@@ -82,27 +85,10 @@ export default function ProfileScreen({ navigation }: any) {
 
       if (profileError) throw profileError;
 
-      // Load preferences
-      const { data: prefsData, error: prefsError } = await supabase
-        .from('preferences')
-        .select('*')
-        .eq('user_id', user?.id)
-        .single();
-
-      if (prefsError && prefsError.code !== 'PGRST116') throw prefsError;
-
       setProfile(profileData);
-      setPreferences(prefsData || {
-        user_id: user?.id,
-        languages: ['English'],
-        availability_slots: {},
-        reminder_opt_in: true,
-      });
     } catch (error) {
       console.error('Error loading profile:', error);
       Alert.alert('Error', 'Failed to load profile');
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -121,23 +107,6 @@ export default function ProfileScreen({ navigation }: any) {
     }
   };
 
-  const updatePreferences = async (updates: Partial<Preferences>) => {
-    try {
-      const { error } = await supabase
-        .from('preferences')
-        .upsert({
-          user_id: user?.id,
-          ...preferences,
-          ...updates,
-        });
-
-      if (error) throw error;
-      setPreferences(prev => prev ? { ...prev, ...updates } : null);
-    } catch (error) {
-      console.error('Error updating preferences:', error);
-      Alert.alert('Error', 'Failed to update preferences');
-    }
-  };
 
   const pickImage = async () => {
     try {
@@ -169,23 +138,45 @@ export default function ProfileScreen({ navigation }: any) {
             .remove(oldFileNames);
         }
 
-        // Read file as blob for React Native
-        const response = await fetch(imageUri);
-        const blob = await response.blob();
+        // Use FormData for React Native file upload (React Native compatible)
+        const formData = new FormData();
+        formData.append('file', {
+          uri: imageUri,
+          type: contentType,
+          name: `avatar.${fileExt}`,
+        } as any);
 
-        // Upload new avatar
-        const { data: uploadData, error: uploadError } = await supabase.storage
-          .from('avatars')
-          .upload(filePath, blob, {
-            contentType,
-            upsert: true,
-          });
+        // Get session for authentication
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) {
+          Alert.alert('Error', 'You must be logged in to upload images');
+          return;
+        }
 
-        if (uploadError) {
-          console.error('Error uploading image:', uploadError);
+        // Upload using Supabase storage API with FormData
+        // Note: React Native FormData requires special handling
+        const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || 'https://hgllvhohhyamsbljekrd.supabase.co';
+        const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
+        const uploadUrl = `${supabaseUrl}/storage/v1/object/avatars/${filePath}`;
+        
+        const uploadResponse = await fetch(uploadUrl, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`,
+            'apikey': supabaseAnonKey,
+            'x-upsert': 'true',
+          },
+          body: formData,
+        });
+
+        if (!uploadResponse.ok) {
+          const errorText = await uploadResponse.text();
+          console.error('Upload error:', errorText);
           Alert.alert('Error', 'Failed to upload image. Please try again.');
           return;
         }
+
+        const uploadData = await uploadResponse.json();
 
         // Get public URL
         const { data: urlData } = supabase.storage
@@ -194,6 +185,10 @@ export default function ProfileScreen({ navigation }: any) {
 
         // Update profile with new avatar URL
         await updateProfile({ avatar_url: urlData.publicUrl });
+        
+        // Reload profile to ensure state is updated
+        await loadProfile();
+        
         Alert.alert('Success', 'Profile picture updated!');
       }
     } catch (error) {
@@ -240,9 +235,15 @@ export default function ProfileScreen({ navigation }: any) {
                 longitude: location.coords.longitude,
               });
 
-              const city = address.city && address.region 
-                ? `${address.city}, ${address.region}` 
-                : address.city || address.region || 'Unknown Location';
+              // Format as "City, State" - always include state abbreviation if available
+              let city = address.city || '';
+              if (address.region) {
+                // address.region is typically the state abbreviation (e.g., "CA")
+                city = city ? `${city}, ${address.region}` : address.region;
+              }
+              if (!city) {
+                city = address.subregion || address.country || 'Unknown Location';
+              }
 
               await updateProfile({
                 city,
@@ -259,15 +260,15 @@ export default function ProfileScreen({ navigation }: any) {
           text: 'Enter Manually',
           onPress: () => {
             Alert.prompt(
-              'Enter City',
-              'Please enter your city:',
+              'Enter Location',
+              'Please enter your city and state (e.g., "San Francisco, CA"):',
               [
                 { text: 'Cancel', style: 'cancel' },
                 {
                   text: 'Save',
-                  onPress: async (city) => {
-                    if (city && city.trim()) {
-                      await updateProfile({ city: city.trim() });
+                  onPress: async (location) => {
+                    if (location && location.trim()) {
+                      await updateProfile({ city: location.trim() });
                     }
                   },
                 },
@@ -294,7 +295,14 @@ export default function ProfileScreen({ navigation }: any) {
           disabled={uploadingAvatar}
         >
         {profile?.avatar_url ? (
-          <Image source={{ uri: profile.avatar_url }} style={styles.avatar} />
+          <Image 
+            source={{ uri: profile.avatar_url + (profile.avatar_url.includes('?') ? '&' : '?') + 't=' + Date.now() }} 
+            style={styles.avatar}
+            onError={(e) => {
+              console.error('Error loading avatar image:', e.nativeEvent.error);
+              console.error('Avatar URL:', profile.avatar_url);
+            }}
+          />
         ) : (
           <View style={[styles.avatarPlaceholder, { backgroundColor: theme.colors.primary }]}>
             <Text style={styles.avatarText}>{profile?.first_name?.charAt(0).toUpperCase() || '?'}</Text>
@@ -315,9 +323,9 @@ export default function ProfileScreen({ navigation }: any) {
           {profile?.first_name || 'Set your name'}
         </Text>
         <View style={styles.locationRow}>
-          <Text style={[styles.profileLocation, { color: theme.colors.textSecondary }]}>
-            📍 {profile?.city || 'Set your location'}
-          </Text>
+        <Text style={[styles.profileLocation, { color: theme.colors.textSecondary }]}>
+            📍 {profile?.city ? formatLocation(profile.city) : 'Set your location'}
+        </Text>
           <TouchableOpacity 
             style={styles.editLocationButton}
             onPress={handleEditLocation}
@@ -365,13 +373,18 @@ export default function ProfileScreen({ navigation }: any) {
       <TouchableOpacity style={[styles.settingItem, { borderBottomColor: theme.colors.border }]}>
         <View style={styles.settingLeft}>
           <Ionicons name="people-outline" size={24} color={theme.colors.text} />
-          <Text style={[styles.settingText, { color: theme.colors.text }]}>
-            Matching enabled
-          </Text>
+          <View>
+            <Text style={[styles.settingText, { color: theme.colors.text }]}>
+              Allow matching
+            </Text>
+            <Text style={[styles.settingSubtext, { color: theme.colors.textSecondary }]}>
+              Opt in weekly on the People tab to be in{'\n'}each Monday's match run.
+            </Text>
+          </View>
         </View>
         <Switch
-          value={profile?.in_matcha_bowl || false}
-          onValueChange={(value) => updateProfile({ in_matcha_bowl: value })}
+          value={profile?.in_match_bowl || false}
+          onValueChange={(value) => updateProfile({ in_match_bowl: value })}
           trackColor={{ false: theme.colors.border, true: theme.colors.primary }}
           thumbColor="#FFFFFF"
         />
@@ -429,18 +442,6 @@ export default function ProfileScreen({ navigation }: any) {
     </View>
   );
 
-  if (loading) {
-    return (
-      <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top', 'left', 'right']}>
-        <View style={styles.loadingContainer}>
-          <Text style={[styles.loadingText, { color: theme.colors.text }]}>
-            Loading profile...
-          </Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
-
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top', 'left', 'right']}>
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
@@ -461,14 +462,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    fontSize: 16,
-  },
   scrollView: {
     flex: 1,
   },
@@ -480,6 +473,8 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 24,
     fontWeight: '700',
+    fontStyle: 'italic',
+    fontFamily: 'PlayfairDisplay-Italic',
   },
   section: {
     marginHorizontal: 16,
@@ -599,6 +594,11 @@ const styles = StyleSheet.create({
   settingText: {
     fontSize: 16,
     marginLeft: 12,
+  },
+  settingSubtext: {
+    fontSize: 12,
+    marginLeft: 12,
+    marginTop: 2,
   },
   signOutItem: {
     borderBottomWidth: 0,

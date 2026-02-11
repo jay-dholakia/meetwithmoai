@@ -44,7 +44,7 @@ export default function MatchStatisticsScreen({ navigation }: any) {
 
       // Active matches
       const { data: activeMatches, error: activeMatchesError } = await supabase
-        .from('matcha_match_candidates')
+        .from('match_candidates')
         .select('id', { count: 'exact' })
         .or(`user_a.eq.${user?.id},user_b.eq.${user?.id}`)
         .eq('status', 'active')
@@ -55,31 +55,31 @@ export default function MatchStatisticsScreen({ navigation }: any) {
         .from('conversations')
         .select('id', { count: 'exact' })
         .or(`user_a.eq.${user?.id},user_b.eq.${user?.id}`)
-        .eq('conversation_type', 'matcha')
+        .eq('conversation_type', 'match')
         .eq('status', 'active');
 
       // Total matches (all time)
       const { data: totalMatches, error: totalMatchesError } = await supabase
-        .from('matcha_match_candidates')
+        .from('match_candidates')
         .select('id', { count: 'exact' })
         .or(`user_a.eq.${user?.id},user_b.eq.${user?.id}`);
 
       // Total opt-ins
       const { data: totalOptIns, error: totalOptInsError } = await supabase
-        .from('matcha_opt_ins')
+        .from('opt_ins')
         .select('id', { count: 'exact' })
         .eq('user_id', user?.id);
 
       // Total passes
       const { data: totalPasses, error: totalPassesError } = await supabase
-        .from('matcha_opt_ins')
+        .from('opt_ins')
         .select('id', { count: 'exact' })
         .eq('user_id', user?.id)
         .eq('decision', 'pass');
 
       // Total expired
       const { data: totalExpired, error: totalExpiredError } = await supabase
-        .from('matcha_match_candidates')
+        .from('match_candidates')
         .select('id', { count: 'exact' })
         .or(`user_a.eq.${user?.id},user_b.eq.${user?.id}`)
         .eq('status', 'expired');

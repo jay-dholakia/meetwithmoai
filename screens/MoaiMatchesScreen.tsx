@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,8 @@ import {
   Image,
   Alert,
   RefreshControl,
+  Switch,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -15,6 +17,17 @@ import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/mcp-supabase';
 import MatchCard from '../components/MatchCard';
+
+/** Next Monday (YYYY-MM-DD) for weekly match opt-in. */
+function getNextMonday(): string {
+  const now = new Date();
+  const dayOfWeek = now.getDay();
+  const daysToNextMonday = dayOfWeek === 0 ? 1 : dayOfWeek === 1 ? 7 : 8 - dayOfWeek;
+  const next = new Date(now);
+  next.setDate(now.getDate() + daysToNextMonday);
+  next.setHours(0, 0, 0, 0);
+  return next.toISOString().split('T')[0];
+}
 
 interface MatchCandidate {
   id: string;
@@ -70,6 +83,8 @@ export default function MoaiMatchesScreen({ navigation }: any) {
   const [loading, setLoading] = useState(true);
   const [isQuestionnaireComplete, setIsQuestionnaireComplete] = useState(false);
   const [activeTab, setActiveTab] = useState<'matches' | 'chats'>('matches');
+  const [optedInForNextWeek, setOptedInForNextWeek] = useState<boolean | null>(null);
+  const [optInLoading, setOptInLoading] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -84,7 +99,8 @@ export default function MoaiMatchesScreen({ navigation }: any) {
         loadMatches(),
         loadConversations(),
         loadActiveChatCount(),
-        checkQuestionnaireCompletion()
+        checkQuestionnaireCompletion(),
+        loadWeeklyOptInStatus(),
       ]);
     } catch (error) {
       console.error('Error loading data:', error);
@@ -94,13 +110,61 @@ export default function MoaiMatchesScreen({ navigation }: any) {
     }
   };
 
+  const loadWeeklyOptInStatus = useCallback(async () => {
+    if (!user?.id) return;
+    const batchWeek = getNextMonday();
+    const { data, error } = await supabase
+      .from('weekly_match_opt_ins')
+      .select('user_id')
+      .eq('user_id', user.id)
+      .eq('batch_week', batchWeek)
+      .maybeSingle();
+    if (error) {
+      console.error('Error loading weekly opt-in:', error);
+      setOptedInForNextWeek(null);
+      return;
+    }
+    setOptedInForNextWeek(!!data);
+  }, [user?.id]);
+
+  const setWeeklyOptIn = useCallback(async (value: boolean) => {
+    if (!user?.id) return;
+    setOptInLoading(true);
+    const batchWeek = getNextMonday();
+    try {
+      if (value) {
+        const { error } = await supabase
+          .from('weekly_match_opt_ins')
+          .upsert(
+            { user_id: user.id, batch_week: batchWeek, opted_in_at: new Date().toISOString() },
+            { onConflict: 'user_id,batch_week' }
+          );
+        if (error) throw error;
+        setOptedInForNextWeek(true);
+      } else {
+        const { error } = await supabase
+          .from('weekly_match_opt_ins')
+          .delete()
+          .eq('user_id', user.id)
+          .eq('batch_week', batchWeek);
+        if (error) throw error;
+        setOptedInForNextWeek(false);
+      }
+    } catch (e) {
+      console.error('Error updating weekly opt-in:', e);
+      Alert.alert('Error', 'Could not update opt-in. Try again.');
+    } finally {
+      setOptInLoading(false);
+    }
+  }, [user?.id]);
+
   const loadMatches = async () => {
     try {
       // Get active match candidates for the user
       // Only show matches where both users score each other above 0.3 threshold
       // Exception: show opted-in matches even if below threshold (user already started the process)
       const { data: matchData, error } = await supabase
-        .from('matcha_match_candidates')
+        .from('match_candidates')
         .select('*')
         .or(`user_a.eq.${user?.id},user_b.eq.${user?.id}`)
         .in('status', ['active', 'opted_in_a', 'opted_in_b'])
@@ -130,17 +194,23 @@ export default function MoaiMatchesScreen({ navigation }: any) {
 
       if (profilesError) throw profilesError;
 
-      // Fetch intake responses for richer profile information
+      // Fetch intake responses for richer profile information using RPC function
+      // This bypasses RLS since users can only call it with matched user IDs
       const { data: intakeData, error: intakeError } = await supabase
-        .from('intake_responses_v4')
-        .select('user_id, responses, life_stage')
-        .in('user_id', Array.from(userIds));
+        .rpc('get_matched_users_intake', { user_ids: Array.from(userIds) });
 
-      if (intakeError) console.error('Error loading intake data:', intakeError);
+      if (intakeError) {
+        console.error('Error loading intake data:', intakeError);
+      } else {
+        console.log('Successfully loaded intake data for', intakeData?.length || 0, 'users');
+        if (intakeData && intakeData.length > 0) {
+          console.log('User IDs with intake data:', intakeData.map(i => i.user_id?.substring(0, 8) || 'unknown'));
+        }
+      }
 
       // Fetch opt-ins to check if user has opted in (fallback if match status wasn't updated)
       const { data: optInsData, error: optInsError } = await supabase
-        .from('matcha_opt_ins')
+        .from('opt_ins')
         .select('match_id, user_id, decision')
         .eq('user_id', user?.id)
         .eq('decision', 'opt_in');
@@ -161,14 +231,31 @@ export default function MoaiMatchesScreen({ navigation }: any) {
 
       const intakeMap = new Map();
       intakeData?.forEach(intake => {
-        intakeMap.set(intake.user_id, intake);
+        // Ensure user_id is a string for consistent Map lookups
+        const userId = String(intake.user_id);
+        intakeMap.set(userId, intake);
       });
+
+      console.log('Intake data loaded:', intakeData?.length || 0, 'users');
+      console.log('Intake map size:', intakeMap.size);
+      if (intakeData && intakeData.length > 0) {
+        console.log('Sample intake user_id:', intakeData[0].user_id, 'type:', typeof intakeData[0].user_id);
+      }
 
       const processedMatches = filteredMatches.map((match: any) => {
         const isUserA = match.user_a === user?.id;
         const otherUserId = isUserA ? match.user_b : match.user_a;
         const otherUserProfile = profilesMap.get(otherUserId);
-        const otherUserIntake = intakeMap.get(otherUserId);
+        // Ensure consistent string comparison
+        const otherUserIntake = intakeMap.get(String(otherUserId));
+        
+        if (!otherUserIntake) {
+          console.log(`No intake data found for user ${otherUserId?.substring(0, 8)} (type: ${typeof otherUserId})`);
+          console.log('Looking in intake map for:', String(otherUserId));
+          console.log('Available keys in intake map:', Array.from(intakeMap.keys()).slice(0, 5).map(k => k.substring(0, 8)));
+        } else {
+          console.log(`Found intake data for user ${otherUserId?.substring(0, 8)}, responses: ${otherUserIntake.responses?.length || 0}`);
+        }
         
         // Fix match status if user has opted in but status wasn't updated
         const hasUserOptedIn = userOptInMap.get(match.id);
@@ -177,11 +264,21 @@ export default function MoaiMatchesScreen({ navigation }: any) {
           match.status = isUserA ? 'opted_in_a' : 'opted_in_b';
         }
 
-        return {
+        const matchWithData = {
           ...match,
           other_user: otherUserProfile || null,
           other_user_intake: otherUserIntake || null
         };
+        
+        // Debug logging
+        if (otherUserIntake) {
+          console.log(`Match ${match.id.substring(0, 8)}: Intake data found for ${otherUserId.substring(0, 8)}, responses count: ${otherUserIntake.responses?.length || 0}`);
+        } else {
+          console.log(`Match ${match.id.substring(0, 8)}: No intake data for ${otherUserId.substring(0, 8)}`);
+          console.log('Available intake user IDs:', Array.from(intakeMap.keys()).map(id => id.substring(0, 8)));
+        }
+        
+        return matchWithData;
       }) || [];
 
       // Sort matches: active matches first, waiting matches last, then by score (highest first)
@@ -211,7 +308,7 @@ export default function MoaiMatchesScreen({ navigation }: any) {
 
   const loadConversations = async () => {
     try {
-      // Get Matcha conversations where user is either user_a or user_b
+      // Get match conversations where user is either user_a or user_b
       // Only show conversations with activity in the last 30 days to filter out old inactive chats
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
@@ -245,7 +342,7 @@ export default function MoaiMatchesScreen({ navigation }: any) {
           )
         `)
         .or(`user_a.eq.${user?.id},user_b.eq.${user?.id}`)
-        .eq('conversation_type', 'matcha')
+        .eq('conversation_type', 'match')
         .eq('status', 'active')
         .order('last_activity_at', { ascending: false });
 
@@ -287,7 +384,7 @@ export default function MoaiMatchesScreen({ navigation }: any) {
   const loadActiveChatCount = async () => {
     try {
       const { data, error } = await supabase
-        .rpc('count_active_matcha_chats', { user_uuid: user?.id });
+        .rpc('count_active_match_chats', { user_uuid: user?.id });
 
       if (error) throw error;
       setActiveChatCount(data || 0);
@@ -299,7 +396,7 @@ export default function MoaiMatchesScreen({ navigation }: any) {
   const checkQuestionnaireCompletion = async () => {
     try {
       const { data, error } = await supabase
-        .from('intake_responses_v3')
+        .from('intake_responses_v5')
         .select('completed_at')
         .eq('user_id', user?.id)
         .single();
@@ -347,15 +444,24 @@ export default function MoaiMatchesScreen({ navigation }: any) {
     return date.toLocaleDateString();
   };
 
-  const renderMatch = ({ item }: { item: MatchCandidate }) => (
-    <MatchCard
-      match={item}
-      otherUser={item.other_user}
-      otherUserIntake={(item as any).other_user_intake}
-      onMatchUpdate={handleMatchUpdate}
-      activeChatCount={activeChatCount}
-    />
-  );
+  const renderMatch = ({ item }: { item: MatchCandidate }) => {
+    const intakeData = (item as any).other_user_intake;
+    console.log('Rendering match card for', item.other_user?.first_name, '- intake data:', intakeData ? 'present' : 'null');
+    if (intakeData) {
+      console.log('Intake responses count:', intakeData.responses?.length || 0);
+    }
+    
+    return (
+      <MatchCard
+        match={item}
+        otherUser={item.other_user}
+        otherUserIntake={intakeData}
+        onMatchUpdate={handleMatchUpdate}
+        activeChatCount={activeChatCount}
+        navigation={navigation}
+      />
+    );
+  };
 
   const renderConversation = ({ item }: { item: Conversation }) => (
     <TouchableOpacity
@@ -387,12 +493,11 @@ export default function MoaiMatchesScreen({ navigation }: any) {
         
         {item.last_message ? (
           <Text style={[styles.lastMessage, { color: theme.colors.textSecondary }]} numberOfLines={2}>
-            {item.last_message.sender_type === 'ai' && '🍵 '}
             {item.last_message.text}
           </Text>
         ) : (
           <Text style={[styles.lastMessage, { color: theme.colors.textSecondary }]}>
-            New Flock connection started
+            New Convi connection started
           </Text>
         )}
       </View>
@@ -426,7 +531,7 @@ export default function MoaiMatchesScreen({ navigation }: any) {
         color={theme.colors.textSecondary}
       />
       <Text style={[styles.emptyTitle, { color: theme.colors.text }]}>
-        No Flock connections yet
+        No Convi connections yet
       </Text>
       <Text style={[styles.emptySubtitle, { color: theme.colors.textSecondary }]}>
         Complete your questionnaire to start receiving daily match suggestions for café meetups.
@@ -475,6 +580,35 @@ export default function MoaiMatchesScreen({ navigation }: any) {
     </View>
   );
 
+  const renderWeeklyOptInHeader = () => (
+    <View style={[styles.weeklyOptInCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+      <View style={styles.weeklyOptInRow}>
+        <View style={styles.weeklyOptInLeft}>
+          <Ionicons name="calendar-outline" size={22} color={theme.colors.primary} />
+          <View style={styles.weeklyOptInTextBlock}>
+            <Text style={[styles.weeklyOptInTitle, { color: theme.colors.text }]}>
+              {optedInForNextWeek ? "You're in for next week's run" : "Next week's match run"}
+            </Text>
+            <Text style={[styles.weeklyOptInSubtitle, { color: theme.colors.textSecondary }]}>
+              Opt in by Sunday 11:59pm to be in Monday's batch.
+            </Text>
+          </View>
+        </View>
+        {optInLoading ? (
+          <ActivityIndicator size="small" color={theme.colors.primary} />
+        ) : (
+          <Switch
+            value={optedInForNextWeek ?? false}
+            onValueChange={setWeeklyOptIn}
+            trackColor={{ false: theme.colors.border, true: theme.colors.primary }}
+            thumbColor="#FFFFFF"
+            disabled={optInLoading}
+          />
+        )}
+      </View>
+    </View>
+  );
+
   const renderTabContent = () => {
     if (activeTab === 'matches') {
       return (
@@ -484,6 +618,7 @@ export default function MoaiMatchesScreen({ navigation }: any) {
           keyExtractor={(item) => item.id}
           style={styles.list}
           contentContainerStyle={styles.listContainer}
+          ListHeaderComponent={renderWeeklyOptInHeader}
           refreshControl={
             <RefreshControl
               refreshing={loading}
@@ -517,9 +652,28 @@ export default function MoaiMatchesScreen({ navigation }: any) {
 
   const renderEmptySection = (sectionType: string) => {
     if (sectionType === 'matches') {
+      // Calculate next week's match delivery time (next Monday at 9 AM)
+      const now = new Date();
+      const dayOfWeek = now.getDay();
+      const daysToMonday = dayOfWeek === 0 ? 1 : 8 - dayOfWeek;
+      const nextMonday = new Date(now);
+      nextMonday.setDate(now.getDate() + daysToMonday);
+      nextMonday.setHours(9, 0, 0, 0);
+      
+      const nextWeekDate = nextMonday.toLocaleDateString('en-US', { 
+        weekday: 'long', 
+        month: 'short', 
+        day: 'numeric' 
+      });
+      const nextWeekTime = nextMonday.toLocaleTimeString('en-US', { 
+        hour: 'numeric', 
+        minute: '2-digit',
+        hour12: true 
+      });
+
       const emptyStateContent = isQuestionnaireComplete ? {
-        title: "Looking for your matches...",
-        subtitle: "We're working on finding great café connections for you! New matches appear daily, so check back soon."
+        title: "No matches available",
+        subtitle: `We will send you another fresh set of matches next week at ${nextWeekTime} on ${nextWeekDate}.`
       } : {
         title: "No matches yet",
         subtitle: "Complete your questionnaire in Cora to start receiving personalized match suggestions!"
@@ -592,6 +746,8 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: '700',
     marginBottom: 4,
+    fontStyle: 'italic',
+    fontFamily: 'PlayfairDisplay-Italic',
   },
   headerSubtitle: {
     fontSize: 16,
@@ -602,6 +758,37 @@ const styles = StyleSheet.create({
   listContainer: {
     paddingVertical: 8,
     paddingHorizontal: 16,
+  },
+  weeklyOptInCard: {
+    marginBottom: 12,
+    padding: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  weeklyOptInRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  weeklyOptInLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    minWidth: 0,
+    gap: 10,
+  },
+  weeklyOptInTextBlock: {
+    flex: 1,
+    minWidth: 0,
+    marginRight: 12,
+  },
+  weeklyOptInTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  weeklyOptInSubtitle: {
+    fontSize: 12,
   },
   conversationListContainer: {
     paddingVertical: 8,

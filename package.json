@@ -20,6 +20,7 @@
     "migrate:intake": "npx ts-node scripts/migrate-intake-data.ts"
   },
   "dependencies": {
+    "@expo-google-fonts/playfair-display": "^0.4.2",
     "@expo/metro-runtime": "~5.0.4",
     "@react-native-async-storage/async-storage": "^2.2.0",
     "@react-navigation/bottom-tabs": "^6.5.11",
@@ -30,6 +31,7 @@
     "expo": "~53.0.20",
     "expo-av": "~14.0.1",
     "expo-dev-client": "~5.2.4",
+    "expo-font": "^14.0.11",
     "expo-haptics": "~13.0.1",
     "expo-image-picker": "~15.0.1",
     "expo-linear-gradient": "~13.0.1",

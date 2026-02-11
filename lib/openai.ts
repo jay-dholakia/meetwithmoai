@@ -256,7 +256,7 @@ export const openAIService = {
         messages: [
           {
             role: "system",
-            content: `You are Cora, a friendly and intelligent AI assistant for Flock, a connection app that helps people make meaningful local friendships. Your role is to:
+            content: `You are Cora, a friendly and intelligent AI assistant for Convi, a connection app that helps people make meaningful local friendships. Your role is to:
 
 1. Help users with onboarding and intake questions
 2. Provide support and guidance about making friends and connections

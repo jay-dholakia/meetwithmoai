@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -15,7 +15,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
+import { supabase } from '../lib/mcp-supabase';
+import { isProfileComplete } from '../utils/questionnaireUtils';
 import TabNavigator from '../components/TabNavigator';
+import OnboardingScreen from './OnboardingScreen';
 
 export default function AuthScreen() {
   const theme = useTheme();
@@ -25,6 +28,33 @@ export default function AuthScreen() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [authLoading, setAuthLoading] = useState(false);
+  const [profileComplete, setProfileComplete] = useState<boolean | null>(null);
+  const [onboardingRefreshKey, setOnboardingRefreshKey] = useState(0);
+
+  useEffect(() => {
+    if (!user?.id) {
+      setProfileComplete(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('first_name, birthdate, gender, pronouns, city, radius_km')
+        .eq('id', user.id)
+        .single();
+      if (cancelled) return;
+      if (error || !data) {
+        setProfileComplete(false);
+        console.log("AuthScreen: Profile missing or error, showing onboarding");
+        return;
+      }
+      const complete = isProfileComplete(data);
+      setProfileComplete(complete);
+      console.log("AuthScreen: Profile complete?", complete, "→", complete ? "showing app" : "showing onboarding");
+    })();
+    return () => { cancelled = true; };
+  }, [user?.id, onboardingRefreshKey]);
 
   const handleAuth = async () => {
     if (!email || !password) {
@@ -78,6 +108,25 @@ export default function AuthScreen() {
   }
 
   if (user) {
+    if (profileComplete === null) {
+      return (
+        <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={theme.colors.primary} />
+            <Text style={[styles.loadingText, { color: theme.colors.text }]}>
+              Loading...
+            </Text>
+          </View>
+        </SafeAreaView>
+      );
+    }
+    if (!profileComplete) {
+      return (
+        <OnboardingScreen
+          onComplete={() => setOnboardingRefreshKey((k) => k + 1)}
+        />
+      );
+    }
     return <TabNavigator />;
   }
 
@@ -93,7 +142,7 @@ export default function AuthScreen() {
               <Ionicons name="people" size={40} color="#FFFFFF" />
             </View>
             <Text style={[styles.title, { color: theme.colors.text }]}>
-              Flock
+              Convi
             </Text>
             <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>
               Real people, real conversation.

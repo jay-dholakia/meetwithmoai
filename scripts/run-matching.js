@@ -39,7 +39,7 @@ async function runMatching() {
 
     // Get all active matches with user details
     const { data: matches, error: matchError } = await supabase
-      .from('matcha_match_candidates')
+      .from('match_candidates')
       .select(`
         id,
         user_a,
@@ -49,8 +49,8 @@ async function runMatching() {
         match_reasons,
         created_at,
         expires_at,
-        user_a_profile:profiles!matcha_match_candidates_user_a_fkey(first_name, last_name, email),
-        user_b_profile:profiles!matcha_match_candidates_user_b_fkey(first_name, last_name, email)
+        user_a_profile:profiles!match_candidates_user_a_fkey(first_name, last_name, email),
+        user_b_profile:profiles!match_candidates_user_b_fkey(first_name, last_name, email)
       `)
       .eq('status', 'active')
       .order('created_at', { ascending: false });

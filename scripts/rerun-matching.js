@@ -1,7 +1,13 @@
+require('dotenv').config();
 const { createClient } = require('@supabase/supabase-js');
 
-const supabaseUrl = 'https://hgllvhohhyamsbljekrd.supabase.co';
-const supabaseServiceKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhnbGx2aG9oaHlhbXNibGpla3JkIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1NTgxMzk1OCwiZXhwIjoyMDcxMzg5OTU4fQ.RHJD0751FgOI2ySVZbR6N7RDrkzcap2VaD_NjwBCcYI';
+const supabaseUrl = process.env.SUPABASE_URL || 'https://hgllvhohhyamsbljekrd.supabase.co';
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+if (!supabaseServiceKey) {
+  console.error('Error: SUPABASE_SERVICE_ROLE_KEY not found in .env.local');
+  process.exit(1);
+}
 
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
@@ -13,7 +19,7 @@ async function rerunMatching() {
     const { data: profiles, error: profilesError } = await supabase
       .from('profiles')
       .select('id')
-      .eq('in_matcha_bowl', true)
+      .eq('in_match_bowl', true)
       .eq('is_active', true);
 
     if (profilesError) throw profilesError;
@@ -54,7 +60,7 @@ async function rerunMatching() {
     
     // Show summary
     const { data: matches, error: matchError } = await supabase
-      .from('matcha_match_candidates')
+      .from('match_candidates')
       .select('score, status')
       .eq('status', 'active');
 
