@@ -8,7 +8,6 @@ import {
   Image,
   Alert,
   RefreshControl,
-  Switch,
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -16,18 +15,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/mcp-supabase';
+import { getNextBatchWeekMonday } from '../lib/weeklyMatchOptIn';
 import MatchCard from '../components/MatchCard';
-
-/** Next Monday (YYYY-MM-DD) for weekly match opt-in. */
-function getNextMonday(): string {
-  const now = new Date();
-  const dayOfWeek = now.getDay();
-  const daysToNextMonday = dayOfWeek === 0 ? 1 : dayOfWeek === 1 ? 7 : 8 - dayOfWeek;
-  const next = new Date(now);
-  next.setDate(now.getDate() + daysToNextMonday);
-  next.setHours(0, 0, 0, 0);
-  return next.toISOString().split('T')[0];
-}
+import WeeklyMatchOptInCard from '../components/WeeklyMatchOptInCard';
 
 interface MatchCandidate {
   id: string;
@@ -45,10 +35,11 @@ interface MatchCandidate {
   other_user: {
     id: string;
     first_name: string;
-    last_name: string | null;
     avatar_url: string | null;
-    age: number | null;
+    birthdate: string | null;
     bio_text: string | null;
+    city?: string | null;
+    relationship_status?: string | null;
   };
 }
 
@@ -112,7 +103,7 @@ export default function MoaiMatchesScreen({ navigation }: any) {
 
   const loadWeeklyOptInStatus = useCallback(async () => {
     if (!user?.id) return;
-    const batchWeek = getNextMonday();
+    const batchWeek = getNextBatchWeekMonday();
     const { data, error } = await supabase
       .from('weekly_match_opt_ins')
       .select('user_id')
@@ -130,7 +121,7 @@ export default function MoaiMatchesScreen({ navigation }: any) {
   const setWeeklyOptIn = useCallback(async (value: boolean) => {
     if (!user?.id) return;
     setOptInLoading(true);
-    const batchWeek = getNextMonday();
+    const batchWeek = getNextBatchWeekMonday();
     try {
       if (value) {
         const { error } = await supabase
@@ -140,6 +131,7 @@ export default function MoaiMatchesScreen({ navigation }: any) {
             { onConflict: 'user_id,batch_week' }
           );
         if (error) throw error;
+        await supabase.from('profiles').update({ in_match_bowl: true }).eq('id', user.id);
         setOptedInForNextWeek(true);
       } else {
         const { error } = await supabase
@@ -148,6 +140,7 @@ export default function MoaiMatchesScreen({ navigation }: any) {
           .eq('user_id', user.id)
           .eq('batch_week', batchWeek);
         if (error) throw error;
+        await supabase.from('profiles').update({ in_match_bowl: false }).eq('id', user.id);
         setOptedInForNextWeek(false);
       }
     } catch (e) {
@@ -189,7 +182,7 @@ export default function MoaiMatchesScreen({ navigation }: any) {
       // Fetch all profiles at once
       const { data: profilesData, error: profilesError } = await supabase
         .from('profiles')
-        .select('id, first_name, last_name, avatar_url, age, bio_text, city, gender, relationship_status, has_kids')
+        .select('id, first_name, avatar_url, birthdate, bio_text, city, relationship_status')
         .in('id', Array.from(userIds));
 
       if (profilesError) throw profilesError;
@@ -326,13 +319,11 @@ export default function MoaiMatchesScreen({ navigation }: any) {
           user_a_profile:profiles!conversations_user_a_fkey (
             id,
             first_name,
-            last_name,
             avatar_url
           ),
           user_b_profile:profiles!conversations_user_b_fkey (
             id,
             first_name,
-            last_name,
             avatar_url
           ),
           messages (
@@ -364,7 +355,7 @@ export default function MoaiMatchesScreen({ navigation }: any) {
           conversation_type: conv.conversation_type,
           other_user: {
             id: otherUser.id,
-            name: `${otherUser.first_name}${otherUser.last_name ? ' ' + otherUser.last_name.charAt(0) + '.' : ''}`,
+            name: otherUser.first_name || 'Unknown',
             initial: otherUser.first_name ? otherUser.first_name.charAt(0).toUpperCase() : '?',
             avatar_url: otherUser.avatar_url,
           },
@@ -410,27 +401,9 @@ export default function MoaiMatchesScreen({ navigation }: any) {
     }
   };
 
-  const triggerReplenishment = async () => {
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) return;
-
-      await fetch(`https://hgllvhohhyamsbljekrd.supabase.co/functions/v1/replenish-matches`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ user_id: user?.id }),
-      });
-    } catch (error) {
-      console.error('Error triggering replenishment:', error);
-    }
-  };
-
   const handleMatchUpdate = () => {
     loadData();
-    triggerReplenishment();
+    // Replenish runs only on Tuesday cron; do not trigger on every user action to avoid overwriting status
   };
 
   const formatLastActivity = (dateString: string) => {
@@ -497,7 +470,7 @@ export default function MoaiMatchesScreen({ navigation }: any) {
           </Text>
         ) : (
           <Text style={[styles.lastMessage, { color: theme.colors.textSecondary }]}>
-            New Convi connection started
+            New Cove connection started
           </Text>
         )}
       </View>
@@ -531,7 +504,7 @@ export default function MoaiMatchesScreen({ navigation }: any) {
         color={theme.colors.textSecondary}
       />
       <Text style={[styles.emptyTitle, { color: theme.colors.text }]}>
-        No Convi connections yet
+        No Cove connections yet
       </Text>
       <Text style={[styles.emptySubtitle, { color: theme.colors.textSecondary }]}>
         Complete your questionnaire to start receiving daily match suggestions for café meetups.
@@ -581,31 +554,12 @@ export default function MoaiMatchesScreen({ navigation }: any) {
   );
 
   const renderWeeklyOptInHeader = () => (
-    <View style={[styles.weeklyOptInCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-      <View style={styles.weeklyOptInRow}>
-        <View style={styles.weeklyOptInLeft}>
-          <Ionicons name="calendar-outline" size={22} color={theme.colors.primary} />
-          <View style={styles.weeklyOptInTextBlock}>
-            <Text style={[styles.weeklyOptInTitle, { color: theme.colors.text }]}>
-              {optedInForNextWeek ? "You're in for next week's run" : "Next week's match run"}
-            </Text>
-            <Text style={[styles.weeklyOptInSubtitle, { color: theme.colors.textSecondary }]}>
-              Opt in by Sunday 11:59pm to be in Monday's batch.
-            </Text>
-          </View>
-        </View>
-        {optInLoading ? (
-          <ActivityIndicator size="small" color={theme.colors.primary} />
-        ) : (
-          <Switch
-            value={optedInForNextWeek ?? false}
-            onValueChange={setWeeklyOptIn}
-            trackColor={{ false: theme.colors.border, true: theme.colors.primary }}
-            thumbColor="#FFFFFF"
-            disabled={optInLoading}
-          />
-        )}
-      </View>
+    <View style={styles.weeklyOptInCardWrapper}>
+      <WeeklyMatchOptInCard
+        optedIn={optedInForNextWeek}
+        loading={optInLoading}
+        onToggle={setWeeklyOptIn}
+      />
     </View>
   );
 
@@ -652,28 +606,32 @@ export default function MoaiMatchesScreen({ navigation }: any) {
 
   const renderEmptySection = (sectionType: string) => {
     if (sectionType === 'matches') {
-      // Calculate next week's match delivery time (next Monday at 9 AM)
+      // Next Tuesday 20:00 UTC (matches run via cron: 0 20 * * 2)
       const now = new Date();
-      const dayOfWeek = now.getDay();
-      const daysToMonday = dayOfWeek === 0 ? 1 : 8 - dayOfWeek;
-      const nextMonday = new Date(now);
-      nextMonday.setDate(now.getDate() + daysToMonday);
-      nextMonday.setHours(9, 0, 0, 0);
-      
-      const nextWeekDate = nextMonday.toLocaleDateString('en-US', { 
-        weekday: 'long', 
-        month: 'short', 
-        day: 'numeric' 
+      const utcDay = now.getUTCDay();
+      let daysToTuesday = (2 - utcDay + 7) % 7; // 2 = Tuesday
+      if (daysToTuesday === 0 && now.getUTCHours() >= 20) daysToTuesday = 7;
+      const nextRun = new Date(Date.UTC(
+        now.getUTCFullYear(),
+        now.getUTCMonth(),
+        now.getUTCDate() + daysToTuesday,
+        20, 0, 0, 0
+      ));
+
+      const nextWeekDate = nextRun.toLocaleDateString('en-US', {
+        weekday: 'long',
+        month: 'short',
+        day: 'numeric'
       });
-      const nextWeekTime = nextMonday.toLocaleTimeString('en-US', { 
-        hour: 'numeric', 
+      const nextWeekTime = nextRun.toLocaleTimeString('en-US', {
+        hour: 'numeric',
         minute: '2-digit',
-        hour12: true 
+        hour12: true
       });
 
       const emptyStateContent = isQuestionnaireComplete ? {
         title: "No matches available",
-        subtitle: `We will send you another fresh set of matches next week at ${nextWeekTime} on ${nextWeekDate}.`
+        subtitle: `We'll send you another fresh set of matches next Tuesday at ${nextWeekTime} (${nextWeekDate}).`
       } : {
         title: "No matches yet",
         subtitle: "Complete your questionnaire in Cora to start receiving personalized match suggestions!"
@@ -759,36 +717,8 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 16,
   },
-  weeklyOptInCard: {
+  weeklyOptInCardWrapper: {
     marginBottom: 12,
-    padding: 14,
-    borderRadius: 12,
-    borderWidth: 1,
-  },
-  weeklyOptInRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  weeklyOptInLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-    minWidth: 0,
-    gap: 10,
-  },
-  weeklyOptInTextBlock: {
-    flex: 1,
-    minWidth: 0,
-    marginRight: 12,
-  },
-  weeklyOptInTitle: {
-    fontSize: 15,
-    fontWeight: '600',
-    marginBottom: 2,
-  },
-  weeklyOptInSubtitle: {
-    fontSize: 12,
   },
   conversationListContainer: {
     paddingVertical: 8,

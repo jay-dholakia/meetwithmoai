@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -12,19 +12,26 @@ import {
   Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { GestureDetector, Gesture } from "react-native-gesture-handler";
+import Animated, {
+  runOnJS,
+  SlideInRight,
+  SlideOutLeft,
+  SlideInLeft,
+  SlideOutRight,
+} from "react-native-reanimated";
 import * as Location from "expo-location";
+import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../contexts/ThemeContext";
 import { useAuth } from "../contexts/AuthContext";
 import { supabase } from "../lib/mcp-supabase";
 import {
   onboardingSteps,
   OnboardingStepChips,
-  OnboardingStepRadiusSlider,
+  OnboardingStepConfirm,
   getFirstIncompleteOnboardingStepIndex,
   type OnboardingProfileSnapshot,
 } from "../data/onboardingSteps";
-
-const MILES_TO_KM = 1.60934;
 
 interface OnboardingScreenProps {
   onComplete: () => void;
@@ -37,14 +44,14 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
   const [stepIndex, setStepIndex] = useState(0);
   const [textValue, setTextValue] = useState("");
   const [selectedChip, setSelectedChip] = useState<string | null>(null);
-  const [radiusMiles, setRadiusMiles] = useState(25);
+  const [confirmChecked, setConfirmChecked] = useState(false);
   const [locationSaving, setLocationSaving] = useState(false);
-  const radiusTrackRef = useRef<View>(null);
-  const [radiusTrackWidth, setRadiusTrackWidth] = useState(280);
+  const [locationCityState, setLocationCityState] = useState("");
+  const [locationCoords, setLocationCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const transitionDirection = useRef<"forward" | "back">("forward");
 
-  // Resume at first incomplete step (e.g. only radius missing after dropping default)
   useEffect(() => {
     if (!user?.id) {
       setResolvingStartStep(false);
@@ -54,11 +61,29 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
     (async () => {
       const { data, error: fetchError } = await supabase
         .from("profiles")
-        .select("first_name, last_name, birthdate, gender, pronouns, sexual_orientation, relationship_status, has_kids, city, lat, lng, radius_km")
+        .select("first_name, birthdate, city, lat, lng, pronouns, relationship_status, intent_confirmed_at")
         .eq("id", user.id)
-        .single();
+        .maybeSingle();
       if (cancelled) return;
-      const start = getFirstIncompleteOnboardingStepIndex((data as OnboardingProfileSnapshot) ?? null);
+      if (fetchError) {
+        setResolvingStartStep(false);
+        setStepIndex(0);
+        return;
+      }
+      if (!data) {
+        const { error: insertError } = await supabase.from("profiles").insert({
+          id: user.id,
+          first_name: " ",
+        });
+        if (cancelled) return;
+        if (insertError) {
+          console.warn("Onboarding: could not create profile row", insertError);
+        }
+        setStepIndex(0);
+        setResolvingStartStep(false);
+        return;
+      }
+      const start = getFirstIncompleteOnboardingStepIndex(data as OnboardingProfileSnapshot);
       if (start >= onboardingSteps.length) {
         setResolvingStartStep(false);
         onComplete();
@@ -84,15 +109,19 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
         updates.city = value;
         updates.lat = extra.lat;
         updates.lng = extra.lng;
-      } else if (field === "radius_km") {
-        updates.radius_km = value;
       } else {
         updates[field] = value;
       }
       const { error: e } = await supabase.from("profiles").update(updates).eq("id", user.id);
       if (e) throw e;
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Failed to save";
+      const message =
+        err instanceof Error
+          ? err.message
+          : err && typeof err === "object" && "message" in err
+            ? String((err as { message: unknown }).message)
+            : "Failed to save";
+      console.warn("Onboarding save error:", message, err);
       setError(message);
       Alert.alert("Error", message);
     } finally {
@@ -136,6 +165,32 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
 
   const handleNext = async () => {
     if (!step) return;
+    transitionDirection.current = "forward";
+
+    if (step.type === "location") {
+      const city = locationCityState.trim();
+      if (!city) {
+        setError("Confirm or enter your city and state before continuing.");
+        return;
+      }
+      setError(null);
+      setSaving(true);
+      try {
+        await saveField("city", city, locationCoords ? { lat: locationCoords.lat, lng: locationCoords.lng } : undefined);
+        setLocationCityState("");
+        setLocationCoords(null);
+      } catch {
+        // error already set in saveField
+      } finally {
+        setSaving(false);
+      }
+      if (isLast) {
+        onComplete();
+        return;
+      }
+      setStepIndex((i) => i + 1);
+      return;
+    }
 
     if (step.type === "text" || step.type === "date") {
       const v = textValue.trim();
@@ -150,42 +205,30 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
         const iso = `${year}-${month!.padStart(2, "0")}-${day!.padStart(2, "0")}`;
         await saveField("birthdate", iso);
       } else {
-        const col = step.id === "name" ? "first_name" : step.id === "last_name" ? "last_name" : step.id;
+        const col = step.id === "name" ? "first_name" : step.id;
         await saveField(col, v);
       }
       setTextValue("");
     } else if (step.type === "chips") {
       const s = step as OnboardingStepChips;
-      if (!selectedChip) {
+      if (!s.optional && !selectedChip) {
         setError(s.validation("") ?? "Please select an option");
         return;
       }
       setError(null);
-      const col =
-        step.id === "name"
-          ? "first_name"
-          : step.id === "last_name"
-            ? "last_name"
-            : step.id === "gender"
-              ? "gender"
-              : step.id === "pronouns"
-                ? "pronouns"
-                : step.id === "sexual_orientation"
-                  ? "sexual_orientation"
-                  : step.id === "relationship_status"
-                    ? "relationship_status"
-                    : step.id === "has_kids"
-                      ? "has_kids"
-                      : step.id;
-      await saveField(col, selectedChip);
+      const col = step.id === "name" ? "first_name" : step.id;
+      if (selectedChip) await saveField(col, selectedChip);
       setSelectedChip(null);
-    } else if (step.type === "radius_slider") {
+    } else if (step.type === "confirm") {
+      const c = step as OnboardingStepConfirm;
+      if (c.checkboxLabel != null && !confirmChecked) {
+        setError((c.validation && c.validation(false)) ?? "Please confirm to continue");
+        return;
+      }
       setError(null);
-      const km = Math.round(radiusMiles * MILES_TO_KM);
-      await saveField("radius_km", km);
+      await saveField("intent_confirmed_at", new Date().toISOString());
+      setConfirmChecked(false);
     }
-    // location step is handled by the button; advancing happens after save
-
     if (isLast) {
       onComplete();
       return;
@@ -198,19 +241,34 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
     setError(null);
     const result = await requestLocation();
     if (result) {
-      await saveField("city", result.city, { lat: result.lat, lng: result.lng });
-      setStepIndex((i) => i + 1);
+      setLocationCityState(result.city);
+      setLocationCoords({ lat: result.lat, lng: result.lng });
     }
     setLocationSaving(false);
   };
 
   const handleBack = () => {
     if (isFirst) return;
+    transitionDirection.current = "back";
     setStepIndex((i) => i - 1);
     setError(null);
     setTextValue("");
     setSelectedChip(null);
+    setConfirmChecked(false);
+    setLocationCityState("");
+    setLocationCoords(null);
   };
+
+  const SWIPE_THRESHOLD = 60;
+  const panGesture = Gesture.Pan()
+    .activeOffsetX([-20, 20])
+    .onEnd((e) => {
+      if (e.translationX < -SWIPE_THRESHOLD) {
+        runOnJS(handleNext)();
+      } else if (e.translationX > SWIPE_THRESHOLD) {
+        runOnJS(handleBack)();
+      }
+    });
 
   const progress = ((stepIndex + 1) / onboardingSteps.length) * 100;
 
@@ -241,21 +299,137 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
         </Text>
       </View>
 
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        style={styles.keyboard}
-      >
-        <ScrollView
-          contentContainerStyle={styles.scrollContent}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
+      <GestureDetector gesture={panGesture}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          style={styles.keyboard}
         >
+          <ScrollView
+            contentContainerStyle={styles.scrollContent}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
+          <Animated.View
+            key={stepIndex}
+            entering={
+              transitionDirection.current === "forward"
+                ? SlideInRight.duration(280).springify().damping(18)
+                : SlideInLeft.duration(280).springify().damping(18)
+            }
+            exiting={
+              transitionDirection.current === "forward"
+                ? SlideOutLeft.duration(240).springify().damping(18)
+                : SlideOutRight.duration(240).springify().damping(18)
+            }
+            style={styles.stepContentWrap}
+          >
           <Text style={[styles.title, { color: theme.colors.text }]}>{step?.title}</Text>
           {step?.subtitle && (
             <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>
               {step.subtitle}
             </Text>
           )}
+
+          {step?.type === "confirm" ? (
+            <>
+              {(step as OnboardingStepConfirm).body ? (
+                <View style={styles.confirmBodyWrap}>
+                  {(step as OnboardingStepConfirm).body!.split(/\n\n+/).map((para, idx) => (
+                    <Text key={idx} style={[styles.confirmBody, { color: theme.colors.text }]}>
+                      {para.trim()}
+                    </Text>
+                  ))}
+                </View>
+              ) : null}
+              {(step as OnboardingStepConfirm).bullets &&
+              (step as OnboardingStepConfirm).bullets!.length > 0 ? (
+                <View style={styles.confirmBullets}>
+                  {(step as OnboardingStepConfirm).bullets!.map((bullet, idx) => (
+                    <View key={idx} style={styles.confirmBulletRow}>
+                      <Text style={[styles.confirmBulletDot, { color: theme.colors.primary }]}>•</Text>
+                      <Text style={[styles.confirmBulletText, { color: theme.colors.text }]}>
+                        {bullet}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+              ) : null}
+              {(step as OnboardingStepConfirm).checkboxLabel != null ? (
+                <TouchableOpacity
+                  style={styles.confirmRow}
+                  onPress={() => setConfirmChecked((c) => !c)}
+                  activeOpacity={0.7}
+                >
+                  <View
+                    style={[
+                      styles.checkbox,
+                      {
+                        borderColor: theme.colors.border,
+                        backgroundColor: confirmChecked ? theme.colors.primary : "transparent",
+                      },
+                    ]}
+                  >
+                    {confirmChecked && <Text style={styles.checkmark}>✓</Text>}
+                  </View>
+                  <Text style={[styles.checkboxLabel, { color: theme.colors.text }]}>
+                    {(step as OnboardingStepConfirm).checkboxLabel}
+                  </Text>
+                </TouchableOpacity>
+              ) : (
+                <>
+                  <TouchableOpacity
+                    style={styles.confirmRow}
+                    onPress={() => setConfirmChecked((c) => !c)}
+                    activeOpacity={0.7}
+                  >
+                    <View
+                      style={[
+                        styles.checkbox,
+                        {
+                          borderColor: theme.colors.border,
+                          backgroundColor: confirmChecked ? theme.colors.primary : "transparent",
+                        },
+                      ]}
+                    >
+                      {confirmChecked && <Text style={styles.checkmark}>✓</Text>}
+                    </View>
+                    <Text style={[styles.checkboxLabel, { color: theme.colors.text }]}>
+                      I'm aligned with Cove's purpose.
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[
+                      styles.continueButton,
+                      {
+                        backgroundColor: confirmChecked ? theme.colors.primary : theme.colors.border,
+                        opacity: confirmChecked ? 1 : 0.7,
+                      },
+                    ]}
+                    onPress={async () => {
+                      if (!confirmChecked) return;
+                      setError(null);
+                      setSaving(true);
+                      try {
+                        await saveField("intent_confirmed_at", new Date().toISOString());
+                        onComplete();
+                      } catch {
+                        // error set in saveField
+                      } finally {
+                        setSaving(false);
+                      }
+                    }}
+                    disabled={saving || !confirmChecked}
+                  >
+                    {saving ? (
+                      <ActivityIndicator color="#FFF" />
+                    ) : (
+                      <Text style={styles.continueButtonText}>Continue</Text>
+                    )}
+                  </TouchableOpacity>
+                </>
+              )}
+            </>
+          ) : null}
 
           {step?.type === "text" && (
             <TextInput
@@ -271,7 +445,7 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
               placeholderTextColor={theme.colors.textSecondary}
               value={textValue}
               onChangeText={setTextValue}
-              autoCapitalize={step.id === "name" || step.id === "last_name" ? "words" : "none"}
+              autoCapitalize={step.id === "name" ? "words" : "none"}
               autoCorrect={false}
             />
           )}
@@ -323,118 +497,62 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
           )}
 
           {step?.type === "location" && (
-            <TouchableOpacity
-              onPress={handleLocationPress}
-              disabled={locationSaving}
-              style={[styles.locationBtn, { backgroundColor: theme.colors.primary }]}
-            >
-              {locationSaving ? (
-                <ActivityIndicator color="#FFF" />
-              ) : (
-                <>
-                  <Text style={styles.locationBtnIcon}>📍</Text>
-                  <Text style={styles.locationBtnText}>Use My Location</Text>
-                </>
-              )}
-            </TouchableOpacity>
+            <>
+              <TextInput
+                style={[
+                  styles.input,
+                  styles.locationInput,
+                  {
+                    backgroundColor: theme.colors.surface,
+                    borderColor: theme.colors.border,
+                    color: theme.colors.text,
+                  },
+                ]}
+                placeholder="City, State"
+                placeholderTextColor={theme.colors.textSecondary}
+                value={locationCityState}
+                onChangeText={(t) => {
+                  setLocationCityState(t);
+                  setError(null);
+                }}
+                editable={!locationSaving}
+              />
+              <TouchableOpacity
+                onPress={handleLocationPress}
+                disabled={locationSaving}
+                style={[styles.locationBtn, { backgroundColor: theme.colors.primary }]}
+              >
+                {locationSaving ? (
+                  <ActivityIndicator color="#FFF" />
+                ) : (
+                  <>
+                    <Ionicons name="locate" size={20} color="#FFF" />
+                    <Text style={styles.locationBtnText}>Use My Location</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+              <Text style={[styles.locationHint, { color: theme.colors.textSecondary }]}>
+                Location will appear above—confirm or edit, then swipe to continue.
+              </Text>
+            </>
           )}
-
-          {step?.type === "radius_slider" && (() => {
-            const s = step as OnboardingStepRadiusSlider;
-            const min = s.minMiles;
-            const max = s.maxMiles;
-            const stepVal = s.stepMiles;
-            const snap = (v: number) => Math.round(v / stepVal) * stepVal;
-            const clamped = Math.max(min, Math.min(max, radiusMiles));
-            const displayVal = snap(clamped);
-            const percentage = ((displayVal - min) / (max - min)) * 100;
-            const thumbSize = 24;
-            const trackHeight = 6;
-            const updateFromTouch = (touchX: number, width: number) => {
-              const raw = min + (touchX / width) * (max - min);
-              setRadiusMiles(snap(Math.max(min, Math.min(max, raw))));
-            };
-            return (
-              <View style={styles.radiusSliderWrap}>
-                <View
-                  ref={radiusTrackRef}
-                  style={styles.radiusTrackContainer}
-                  onLayout={(e) => {
-                    const w = e.nativeEvent.layout.width - 24;
-                    if (w > 0) setRadiusTrackWidth(w);
-                  }}
-                >
-                  <View style={[styles.radiusTrackBg, { backgroundColor: theme.colors.surface, height: trackHeight }]} />
-                  <View
-                    style={[
-                      styles.radiusTrackFill,
-                      { backgroundColor: theme.colors.primary, width: `${percentage}%`, height: trackHeight },
-                    ]}
-                  />
-                  <View
-                    style={[
-                      styles.radiusThumb,
-                      {
-                        left: `${percentage}%`,
-                        marginLeft: -thumbSize / 2,
-                        width: thumbSize,
-                        height: thumbSize,
-                        backgroundColor: theme.colors.primary,
-                      },
-                    ]}
-                  />
-                  <View
-                    style={StyleSheet.absoluteFill}
-                    onStartShouldSetResponder={() => true}
-                    onMoveShouldSetResponder={() => true}
-                    onResponderGrant={(e) => updateFromTouch(e.nativeEvent.locationX, radiusTrackWidth)}
-                    onResponderMove={(e) => updateFromTouch(e.nativeEvent.locationX, radiusTrackWidth)}
-                  />
-                </View>
-                <Text style={[styles.radiusLabel, { color: theme.colors.text }]}>
-                  {displayVal} miles
-                </Text>
-              </View>
-            );
-          })()}
 
           {error ? (
             <Text style={[styles.errorText, { color: theme.colors.error }]}>{error}</Text>
           ) : null}
-        </ScrollView>
-
-        <View style={[styles.footer, { borderTopColor: theme.colors.border }]}>
-          {!isFirst && (
-            <TouchableOpacity
-              onPress={handleBack}
-              style={[styles.footerBtn, styles.backBtn, { borderColor: theme.colors.border }]}
-            >
-              <Text style={[styles.footerBtnText, { color: theme.colors.text }]}>Back</Text>
-            </TouchableOpacity>
-          )}
-          {(step?.type === "text" ||
-            step?.type === "date" ||
-            step?.type === "chips" ||
-            step?.type === "radius_slider") && (
-            <TouchableOpacity
-              onPress={handleNext}
-              disabled={saving}
-              style={[styles.footerBtn, styles.nextBtn, { backgroundColor: theme.colors.primary }]}
-            >
-              {saving ? (
-                <ActivityIndicator color="#FFF" />
-              ) : (
-                <Text style={[styles.footerBtnText, styles.nextBtnText]}>
-                  {isLast ? "Done" : "Next"}
-                </Text>
-              )}
-            </TouchableOpacity>
-          )}
-          {step?.type === "location" && (
-            <View style={styles.footerBtn} />
-          )}
-        </View>
-      </KeyboardAvoidingView>
+          </Animated.View>
+          </ScrollView>
+          <View style={[styles.footer, { borderTopColor: theme.colors.border }]}>
+            <View style={styles.swipeHintWrap}>
+              <Ionicons name="chevron-back" size={18} color={theme.colors.textSecondary} />
+              <Text style={[styles.swipeHintText, { color: theme.colors.textSecondary }]}>
+                Swipe to move between steps
+              </Text>
+              <Ionicons name="chevron-forward" size={18} color={theme.colors.textSecondary} />
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </GestureDetector>
     </SafeAreaView>
   );
 }
@@ -477,6 +595,9 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: 24,
     paddingBottom: 24,
+  },
+  stepContentWrap: {
+    flex: 1,
   },
   title: {
     fontSize: 22,
@@ -528,34 +649,90 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
   },
-  radiusSliderWrap: {
-    marginTop: 24,
+  locationInput: {
+    marginBottom: 12,
   },
-  radiusTrackContainer: {
-    height: 24,
-    justifyContent: "center",
-    position: "relative",
-  },
-  radiusTrackBg: {
-    width: "100%",
-    borderRadius: 3,
-  },
-  radiusTrackFill: {
-    position: "absolute",
-    left: 0,
-    top: 9,
-    borderRadius: 3,
-  },
-  radiusThumb: {
-    position: "absolute",
-    top: 0,
-    borderRadius: 12,
-  },
-  radiusLabel: {
-    fontSize: 18,
-    fontWeight: "600",
+  locationHint: {
+    fontSize: 13,
     marginTop: 12,
-    textAlign: "center",
+    fontStyle: "italic",
+  },
+  swipeHintWrap: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingVertical: 8,
+  },
+  swipeHintText: {
+    fontSize: 14,
+  },
+  introBody: {
+    fontSize: 16,
+    marginTop: 12,
+    fontStyle: "italic",
+  },
+  confirmBodyWrap: {
+    marginTop: 8,
+    marginBottom: 24,
+  },
+  confirmBody: {
+    fontSize: 16,
+    lineHeight: 24,
+    marginBottom: 16,
+  },
+  confirmBullets: {
+    marginBottom: 24,
+  },
+  confirmBulletRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    marginBottom: 12,
+    gap: 10,
+  },
+  confirmBulletDot: {
+    fontSize: 18,
+    lineHeight: 24,
+  },
+  confirmBulletText: {
+    flex: 1,
+    fontSize: 15,
+    lineHeight: 22,
+  },
+  confirmRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 8,
+    gap: 12,
+  },
+  checkbox: {
+    width: 24,
+    height: 24,
+    borderRadius: 6,
+    borderWidth: 2,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  checkmark: {
+    color: "#FFF",
+    fontSize: 14,
+    fontWeight: "700",
+  },
+  checkboxLabel: {
+    fontSize: 16,
+    flex: 1,
+  },
+  continueButton: {
+    marginTop: 24,
+    paddingVertical: 16,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  continueButtonText: {
+    color: "#FFF",
+    fontSize: 16,
+    fontWeight: "600",
   },
   errorText: {
     fontSize: 14,

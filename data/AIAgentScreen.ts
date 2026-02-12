@@ -1,147 +1,174 @@
-// V5 Questionnaire - 13 questions (7 open-ended, 6 structured)
-// Streamlined approach focused on quick context, shared ground, conversation dynamics, identity, and practical rhythm
+// V6 Intake - 9 questions (connections, conversation style, time focus, free time, availability, age range, optional context)
 
 export const intakeQuestions = [
-  // Section 1: Warm-in: quick context & intent (low effort) - 3 structured
   {
-    id: "q1_life_stages",
-    text: "Which stages of life feel relevant to you right now?",
+    id: "q1_connection_types",
+    text: "What kinds of connections feel right for you right now?\n(Choose up to 5 — you can update this anytime.)",
     type: "multi_select",
+    maxSelections: 5,
     options: [
-      "Student",
-      "Early career",
-      "Career-focused",
-      "Family-focused",
-      "Building something (company, project, creative work)",
-      "Between phases / transitioning",
+      "Light, easy conversation",
+      "Deeper, thoughtful conversation",
+      "Big-idea discussions",
+      "Workout or movement partner",
+      "Racquet sports partner",
+      "Outdoor adventures",
+      "Exploring the city",
+      "Creative collaboration",
+      "Coworking companion",
+      "Professional or builder connection",
+      "Accountability partner",
+      "Similar season of life",
+      "Totally different worlds",
+      "Just seeing what clicks",
+    ],
+    validation: (values: string[]) =>
+      values.length > 0
+        ? values.length <= 5
+          ? null
+          : "Please choose up to 5."
+        : "Please select at least one.",
+  },
+  {
+    id: "q2_conversation_great",
+    text: "What makes a conversation great for you?\n(Choose up to 3)",
+    type: "multi_select",
+    maxSelections: 3,
+    options: [
+      "It goes deep",
+      "It's light and playful",
+      "We explore big ideas",
+      "It flows naturally",
+      "We challenge each other",
+      "We feel genuinely understood",
+    ],
+    validation: (values: string[]) =>
+      values.length > 0
+        ? values.length <= 3
+          ? null
+          : "Please choose up to 3."
+        : "Please select at least one.",
+  },
+  {
+    id: "q3_meeting_style",
+    text: "When meeting someone new, what feels most natural to you?",
+    type: "single_select",
+    options: ["Taking it slow", "Finding a steady rhythm", "Jumping right in"],
+    validation: (value: string) => (value ? null : "Please select an option"),
+  },
+  {
+    id: "q4_time_focus",
+    text: "What does most of your time go toward right now?",
+    type: "single_select",
+    options: [
+      "Mostly work",
+      "Mostly school",
+      "Building something",
+      "Family",
+      "Creative projects",
+      "Transitioning",
       "Retired",
-      "Other"
+      "A mix",
     ],
-    validation: (values: string[]) => values.length > 0 ? null : "Please select at least one life stage",
-    // This maps to life_stage column (will need to handle array)
+    validation: (value: string) => (value ? null : "Please select an option"),
   },
   {
-    id: "q2_connection_types",
-    text: "What kinds of connections are you most open to through Convi?",
+    id: "q4_more",
+    text: "Want to share a bit more? (Optional)\nWhatever feels relevant — share more about your work, your family, or what you're focused on lately to help us tailor your introductions.",
+    type: "open_ended",
+    validation: () => null,
+  },
+  {
+    id: "q5_free_time",
+    text: "What do you gravitate toward in your free time?\n(Choose up to 7)",
     type: "multi_select",
+    maxSelections: 7,
     options: [
-      "Casual conversation / coffee chats",
-      "Workout or movement buddy",
-      "Exploring hobbies or activities together",
-      "Professional conversation or support",
-      "Social friends / broader social circle",
-      "Just meeting new people and seeing what clicks"
+      "Working out / movement",
+      "Reading",
+      "Podcasts",
+      "Art & design",
+      "Music",
+      "Food & coffee",
+      "Outdoors",
+      "Tech",
+      "Philosophy",
+      "Travel",
+      "Film & TV",
+      "Writing",
+      "Faith / spirituality",
+      "Entrepreneurship",
+      "Parenting",
+      "Culture",
+      "Other",
     ],
-    validation: (values: string[]) => values.length > 0 ? null : "Please select at least one connection type",
+    validation: (values: string[]) =>
+      values.length > 0
+        ? values.length <= 7
+          ? null
+          : "Please choose up to 7."
+        : "Please select at least one.",
   },
   {
-    id: "q3_introvert_extrovert",
-    text: "Do you see yourself as more introverted or extroverted?",
-    type: "single_select",
-    options: [
-      "Mostly introverted",
-      "Somewhere in between",
-      "Mostly extroverted"
-    ],
-    validation: (value: string) => value ? null : "Please select an option",
-  },
-
-  // Section 2: Shared ground: what fills their life - 3 open-ended
-  {
-    id: "q4_enjoy_doing",
-    text: "What kinds of things do you enjoy doing in your free time—lately or in general?",
-    type: "open_ended",
-    validation: (value: string) => value.trim().length > 0 ? null : "Please share what you enjoy doing",
-  },
-  {
-    id: "q5_enjoy_consuming",
-    text: "What kinds of things do you enjoy consuming in your free time?",
-    type: "open_ended",
-    validation: (value: string) => value.trim().length > 0 ? null : "Please share what you enjoy consuming",
-  },
-  {
-    id: "q6_excited_to_try",
-    text: "Is there anything you're excited to try, learn, or get into next?",
-    type: "open_ended",
-    validation: (value: string) => value.trim().length > 0 ? null : "Please share what you're excited to try",
-  },
-
-  // Section 3: Conversation dynamics: how it feels - 1 structured, 1 open-ended
-  {
-    id: "q7_conversation_type",
-    text: "What kind of conversations tend to feel best to you?",
-    type: "single_select",
-    options: [
-      "Light and easy",
-      "Thoughtful",
-      "A mix of both",
-      "Depends on the person"
-    ],
-    validation: (value: string) => value ? null : "Please select a conversation type",
-  },
-  {
-    id: "q8_conversation_flows",
-    text: "When a conversation really flows for you, what does it usually end up being about?",
-    type: "open_ended",
-    validation: (value: string) => value.trim().length > 0 ? null : "Please share what conversations flow about",
-  },
-
-  // Section 4: Identity & grounding (earned depth) - 2 open-ended
-  {
-    id: "q9_important_parts",
-    text: "Are there any parts of who you are that feel especially important to you? (Culture, creativity, faith, family, upbringing, values, etc.)",
-    type: "open_ended",
-    validation: (value: string) => value.trim().length > 0 ? null : "Please share what's important to you",
-  },
-  {
-    id: "q10_work_study",
-    text: "What do you do for work or study right now?",
-    type: "open_ended",
-    validation: (value: string) => value.trim().length > 0 ? null : "Please share what you do for work or study",
-  },
-
-  // Section 5: Practical rhythm & close - 2 structured, 1 open-ended (optional)
-  {
-    id: "q11_availability_times",
-    text: "When does it usually feel easiest for you to make time to meet someone new?",
+    id: "q6_availability",
+    text: "When does it usually feel easiest to meet someone new?",
     type: "multi_select",
     options: [
       "Weekday daytime",
       "Weekday evening",
       "Weekend daytime",
-      "Weekend evening"
+      "Weekend evening",
     ],
-    validation: (values: string[]) => values.length > 0 ? null : "Please select at least one availability time",
-    // This maps to availability_times column
+    validation: (values: string[]) =>
+      values.length > 0 ? null : "Please select at least one.",
   },
   {
-    id: "q12_age_range_preference",
-    text: "What age range are you most comfortable connecting with?",
+    id: "q8_background",
+    text: "Is there anything about your background or life experience that shapes how you see the world?\n(Optional short answer)",
+    type: "open_ended",
+    validation: () => null,
+  },
+  {
+    id: "q9_first_conversation",
+    text: "Anything that would help us set up a great first conversation?\n(Optional — tone preferences, topics you love, or anything you'd rather avoid.)",
+    type: "open_ended",
+    validation: () => null,
+  },
+  // Age and travel distance at end of intake (matching preferences; stored only in intake_responses_v5)
+  {
+    id: "q7_age_range",
+    text: "What age range feels most comfortable to you?",
     type: "slider",
     min: 0,
-    max: 10,
+    max: 15,
     default: 5,
     unit: "",
     label: "± {value} years",
     validation: (value: number | string) => {
-      const numValue = typeof value === 'string' ? parseInt(value) : value;
-      return (numValue >= 0 && numValue <= 10) ? null : "Please select an age range";
+      const numValue = typeof value === "string" ? parseInt(value, 10) : value;
+      return numValue >= 0 && numValue <= 15 ? null : "Please select 0–15.";
     },
-    // This maps to age_range_preference column (stored in profiles table as number representing ±X years)
   },
   {
-    id: "q13_first_conversation_note",
-    text: "Anything else you'd want someone to know before sitting down for a first conversation with you?",
-    type: "open_ended",
-    validation: (value: string) => null, // Optional question - no validation required
+    id: "q10_travel_distance_miles",
+    text: "How far would you travel to meet someone?",
+    type: "slider",
+    min: 0,
+    max: 50,
+    default: 15,
+    unit: "miles",
+    label: "{value}",
+    validation: (value: number | string) => {
+      const numValue = typeof value === "string" ? parseInt(value, 10) : value;
+      return numValue >= 0 && numValue <= 50 ? null : "Please select 0–50 miles.";
+    },
   },
 ];
 
-// Map question IDs to column names for filtered columns
+// Map question IDs to column names for matching/filtering (update replenish-matches if needed)
 export const questionToColumnMap: Record<string, string> = {
-  "q1_life_stages": "life_stage", // Note: This is now multi-select, may need array handling
-  "q13_availability_times": "availability_times",
-  // Note: q14_age_range_preference is now stored in profiles.age_range_preference, not as a filtered column
+  q1_connection_types: "connection_types",
+  q6_availability: "availability_times",
 };
 
 // Legacy profile questions (kept for compatibility)
@@ -153,16 +180,6 @@ export const profileQuestions = [
       placeholder: "Enter your first name",
       validation: (value: string) =>
         value.trim().length > 0 ? null : "Please enter your first name",
-    },
-    {
-      id: "last_name",
-      text: "What's your last name? (or just initial)",
-      type: "text",
-      placeholder: "Enter your last name or initial",
-      validation: (value: string) =>
-        value.trim().length > 0
-          ? null
-          : "Please enter your last name or initial",
     },
     {
       id: "birthdate",
@@ -184,38 +201,12 @@ export const profileQuestions = [
       },
     },
     {
-      id: "gender",
-      text: "What's your gender?",
-      type: "chips",
-      options: ["Male", "Female", "Non-binary", "Other", "Prefer not to say"],
-      validation: (value: string) =>
-        value ? null : "Please select your gender",
-    },
-    {
       id: "pronouns",
       text: "What are your pronouns?",
       type: "chips",
       options: ["He/Him", "She/Her", "They/Them", "Other", "Prefer not to say"],
       validation: (value: string) =>
         value ? null : "Please select your pronouns",
-    },
-    {
-      id: "sexual_orientation",
-      text: "What's your sexual orientation?",
-      type: "chips",
-      options: [
-        "Straight",
-        "Gay",
-        "Lesbian",
-        "Bisexual",
-        "Pansexual",
-        "Asexual",
-      "Queer",
-        "Other",
-        "Prefer not to say",
-      ],
-      validation: (value: string) =>
-        value ? null : "Please select your sexual orientation",
     },
     {
     id: "relationship_status",
@@ -233,14 +224,6 @@ export const profileQuestions = [
       validation: (value: string) =>
         value ? null : "Please select your relationship status",
     },
-  {
-    id: "has_kids",
-    text: "Do you have kids?",
-    type: "chips",
-    options: ["Yes", "No", "Prefer not to say"],
-    validation: (value: string) =>
-      value ? null : "Please select an option",
-  },
     {
       id: "location",
       text: "To suggest meetup spots and people near you, I'll need your location — tap below and allow access when your phone asks.",

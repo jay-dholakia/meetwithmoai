@@ -40,18 +40,17 @@ export default function AuthScreen() {
     (async () => {
       const { data, error } = await supabase
         .from('profiles')
-        .select('first_name, birthdate, gender, pronouns, city, radius_km')
+        .select('first_name, birthdate, city, intent_confirmed_at')
         .eq('id', user.id)
-        .single();
+        .maybeSingle();
       if (cancelled) return;
-      if (error || !data) {
+      if (error) {
         setProfileComplete(false);
-        console.log("AuthScreen: Profile missing or error, showing onboarding");
+        console.warn("AuthScreen: Profile fetch error", error.message);
         return;
       }
-      const complete = isProfileComplete(data);
+      const complete = !!data && isProfileComplete(data);
       setProfileComplete(complete);
-      console.log("AuthScreen: Profile complete?", complete, "→", complete ? "showing app" : "showing onboarding");
     })();
     return () => { cancelled = true; };
   }, [user?.id, onboardingRefreshKey]);
@@ -142,7 +141,7 @@ export default function AuthScreen() {
               <Ionicons name="people" size={40} color="#FFFFFF" />
             </View>
             <Text style={[styles.title, { color: theme.colors.text }]}>
-              Convi
+              Cove
             </Text>
             <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>
               Real people, real conversation.

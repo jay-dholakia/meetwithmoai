@@ -416,14 +416,6 @@ export default function AIAgentScreen() {
           }
         }
         
-        // Special case for age_range_preference: also check profiles table as fallback
-        if (!isAnswered && question.id === "q12_age_range_preference") {
-          const profileAgeRange = profileDataParam?.age_range_preference;
-          if (profileAgeRange !== null && profileAgeRange !== undefined) {
-            isAnswered = true;
-            console.log(`Age range preference found in profiles table: ${profileAgeRange}`);
-          }
-        }
       } else {
         // For structured questions (single_select, etc.), check if answer exists and is not empty
         isAnswered = !!(fieldValue && fieldValue !== null && fieldValue !== "" && String(fieldValue).trim().length > 0);
@@ -706,11 +698,6 @@ export default function AIAgentScreen() {
             profileToUpdate.first_name = answer;
           }
           break;
-        case "last_name":
-          if (typeof answer === "string") {
-            profileToUpdate.last_name = answer;
-          }
-          break;
         case "birthdate":
           if (typeof answer === "string") {
             // Parse MM/DD/YYYY format and convert to YYYY-MM-DD for database
@@ -723,25 +710,12 @@ export default function AIAgentScreen() {
             profileToUpdate.birthdate = birthDate.toISOString().split("T")[0]; // Store as YYYY-MM-DD
           }
           break;
-        case "gender":
-          if (typeof answer === "string") {
-          // Store in dedicated gender column
-          profileToUpdate.gender = answer;
-          }
-          break;
         case "pronouns":
           if (typeof answer === "string") {
             // Store pronouns in a dedicated column (you may need to add this to your schema)
             profileToUpdate.pronouns = answer;
           }
           break;
-        case "sexual_orientation":
-          if (typeof answer === "string") {
-            // Store sexual orientation in a dedicated column
-          profileToUpdate.sexual_orientation = answer;
-          }
-          break;
-
         case "profilePhoto":
           if (typeof answer === "string") {
             // Handle profile photo upload (placeholder for now)
@@ -770,13 +744,6 @@ export default function AIAgentScreen() {
             }
           }
           break;
-        case "meetRadius":
-          if (typeof answer === "string") {
-            // Convert miles to km and store in radius_km column
-            const radiusMiles = parseInt(answer.split(" ")[0]);
-            profileToUpdate.radius_km = Math.round(radiusMiles * 1.60934);
-          }
-          break;
         case "relationship_status":
           if (typeof answer === "string") {
             // Store relationship status
@@ -788,11 +755,6 @@ export default function AIAgentScreen() {
           profileToUpdate.languages = Array.isArray(answer)
             ? answer
             : [answer as string];
-          break;
-        case "has_kids":
-          if (typeof answer === "string") {
-            profileToUpdate.has_kids = answer;
-          }
           break;
       }
 
@@ -820,21 +782,24 @@ export default function AIAgentScreen() {
       const { data: existingProfile } = await supabase
         .from("profiles")
         .select(
-          "first_name, last_name, gender, age, pronouns, relationship_status, languages"
+          "first_name, birthdate, pronouns, relationship_status, languages"
         )
         .eq("id", user.id)
         .single();
 
       if (existingProfile) {
         const bioParts = [];
-        // Combine first and last name
-        const fullName = [existingProfile.first_name, existingProfile.last_name]
-          .filter(Boolean)
-          .join(" ");
-        if (fullName) bioParts.push(fullName);
-        if (existingProfile.age)
-          bioParts.push(`${existingProfile.age} years old`);
-        if (existingProfile.gender) bioParts.push(existingProfile.gender);
+        if (existingProfile.first_name) bioParts.push(existingProfile.first_name);
+        if (existingProfile.birthdate) {
+          const d = new Date(existingProfile.birthdate);
+          if (!isNaN(d.getTime())) {
+            const today = new Date();
+            let age = today.getFullYear() - d.getFullYear();
+            const m = today.getMonth() - d.getMonth();
+            if (m < 0 || (m === 0 && today.getDate() < d.getDate())) age--;
+            if (age >= 0) bioParts.push(`${age} years old`);
+          }
+        }
         if (existingProfile.pronouns) bioParts.push(existingProfile.pronouns);
         if (existingProfile.relationship_status)
           bioParts.push(existingProfile.relationship_status);
@@ -974,20 +939,7 @@ export default function AIAgentScreen() {
           console.error("Error saving final intake with embedding:", updateError);
         } else {
           console.log("Intake completed and embedding generated successfully");
-          
-          // Trigger match replenishment
-          try {
-            await fetch(`https://hgllvhohhyamsbljekrd.supabase.co/functions/v1/replenish-matches`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
-              },
-              body: JSON.stringify({ user_id: user.id }),
-            });
-          } catch (error) {
-            console.error("Error triggering match replenishment:", error);
-          }
+          // Replenish runs only on Tuesday cron; new users get matches in the next weekly run
         }
       } catch (error) {
         console.error("Error completing intake:", error);
@@ -1014,7 +966,7 @@ export default function AIAgentScreen() {
         // Show welcome back message if no matches
         const welcomeBackMessage: Message = {
           id: `welcome-back-${Date.now()}-${Math.random()}`,
-          text: "Welcome back! Your weekly Convi connections will appear here every Sunday. For now, feel free to chat with me about anything!",
+          text: "Welcome back! Your weekly Cove connections will appear here every Sunday. For now, feel free to chat with me about anything!",
           sender: "ai",
           timestamp: new Date(),
           type: "text",

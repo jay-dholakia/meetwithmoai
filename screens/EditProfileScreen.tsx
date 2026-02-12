@@ -15,10 +15,8 @@ import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/mcp-supabase';
 
-const genderOptions = ['Male', 'Female', 'Non-binary', 'Prefer not to say'];
 const pronounOptions = ['He/Him', 'She/Her', 'They/Them', 'Other', 'Prefer not to say'];
 const relationshipStatusOptions = ['Single', 'In a relationship', 'Married', 'Divorced', 'Widowed', 'Prefer not to say'];
-const hasKidsOptions = ['Yes', 'No', 'Prefer not to say'];
 
 export default function EditProfileScreen({ navigation }: any) {
   const theme = useTheme();
@@ -27,11 +25,8 @@ export default function EditProfileScreen({ navigation }: any) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [formData, setFormData] = useState({
-    age: '',
-    gender: '',
     pronouns: '',
     relationship_status: '',
-    has_kids: '',
     bio_text: '',
   });
 
@@ -52,11 +47,8 @@ export default function EditProfileScreen({ navigation }: any) {
 
       setProfile(data);
       setFormData({
-        age: data.age?.toString() || '',
-        gender: data.gender || '',
         pronouns: data.pronouns || '',
         relationship_status: data.relationship_status || '',
-        has_kids: data.has_kids || '',
         bio_text: data.bio_text || '',
       });
     } catch (error) {
@@ -76,18 +68,8 @@ export default function EditProfileScreen({ navigation }: any) {
       setSaving(true);
 
       const updates: any = {};
-      if (formData.age) {
-        const ageNum = parseInt(formData.age);
-        if (isNaN(ageNum) || ageNum < 13 || ageNum > 120) {
-          Alert.alert('Error', 'Please enter a valid age');
-          return;
-        }
-        updates.age = ageNum;
-      }
-      if (formData.gender) updates.gender = formData.gender;
       if (formData.pronouns) updates.pronouns = formData.pronouns;
       if (formData.relationship_status) updates.relationship_status = formData.relationship_status;
-      if (formData.has_kids) updates.has_kids = formData.has_kids;
       if (formData.bio_text !== undefined) updates.bio_text = formData.bio_text;
 
       const { error } = await supabase
@@ -168,26 +150,8 @@ export default function EditProfileScreen({ navigation }: any) {
       </View>
 
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        <View style={[styles.fieldContainer, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-          <Text style={[styles.label, { color: theme.colors.text }]}>Age</Text>
-          <TextInput
-            style={[styles.textInput, {
-              backgroundColor: theme.colors.background,
-              borderColor: theme.colors.border,
-              color: theme.colors.text,
-            }]}
-            value={formData.age}
-            onChangeText={(text) => updateField('age', text)}
-            keyboardType="numeric"
-            placeholder="Enter your age"
-            placeholderTextColor={theme.colors.textSecondary}
-          />
-        </View>
-
-        {renderSelectField('Gender', 'gender', genderOptions, formData.gender)}
         {renderSelectField('Pronouns', 'pronouns', pronounOptions, formData.pronouns)}
         {renderSelectField('Relationship Status', 'relationship_status', relationshipStatusOptions, formData.relationship_status)}
-        {renderSelectField('Has Kids', 'has_kids', hasKidsOptions, formData.has_kids)}
 
         <View style={[styles.fieldContainer, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
           <Text style={[styles.label, { color: theme.colors.text }]}>Bio</Text>

@@ -104,14 +104,7 @@ export default function EditQuestionnaireScreen({ navigation }: any) {
         }
       });
 
-      // Handle age_range_preference separately - sync to profiles table (not a filtered column in intake_responses_v5)
-      let ageRangePreference: number | undefined;
-      if (responses['q12_age_range_preference'] !== undefined) {
-        const answer = responses['q12_age_range_preference'];
-        if (typeof answer === 'number' || typeof answer === 'string') {
-          ageRangePreference = typeof answer === 'string' ? parseInt(answer) : answer;
-        }
-      }
+      // Age range lives in intake only (no longer synced to profile)
 
       // Regenerate embedding if open-ended responses changed
       const openEndedText = updatedResponses
@@ -145,21 +138,6 @@ export default function EditQuestionnaireScreen({ navigation }: any) {
         .upsert(intakeToUpdate);
 
       if (saveError) throw saveError;
-
-      // Sync age_range_preference to profiles table if it was updated
-      if (ageRangePreference !== undefined && user?.id) {
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .update({ age_range_preference: ageRangePreference })
-          .eq('id', user.id);
-        
-        if (profileError) {
-          console.error('Error syncing age_range_preference to profiles:', profileError);
-          // Don't throw - intake was saved successfully
-        } else {
-          console.log('Synced age_range_preference to profiles:', ageRangePreference);
-        }
-      }
 
       Alert.alert('Success', 'Questionnaire updated successfully', [
         { text: 'OK', onPress: () => navigation.goBack() }

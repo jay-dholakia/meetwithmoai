@@ -837,69 +837,60 @@ export type Database = {
       }
       profiles: {
         Row: {
-          age: number | null
           avatar_url: string | null
           bio_text: string | null
           birthdate: string | null
           city: string | null
           created_at: string | null
           first_name: string
-          gender: string | null
           id: string
+          in_match_bowl: boolean | null
+          intent_confirmed_at: string | null
           is_active: boolean | null
           is_paused: boolean | null
           languages: string[] | null
-          last_name: string | null
           lat: number | null
           lng: number | null
           pronouns: string | null
-          radius_km: number | null
           relationship_status: string | null
-          sexual_orientation: string | null
           updated_at: string | null
         }
         Insert: {
-          age?: number | null
           avatar_url?: string | null
           bio_text?: string | null
           birthdate?: string | null
           city?: string | null
           created_at?: string | null
           first_name: string
-          gender?: string | null
           id: string
+          in_match_bowl?: boolean | null
+          intent_confirmed_at?: string | null
           is_active?: boolean | null
           is_paused?: boolean | null
           languages?: string[] | null
-          last_name?: string | null
           lat?: number | null
           lng?: number | null
           pronouns?: string | null
-          radius_km?: number | null
           relationship_status?: string | null
-          sexual_orientation?: string | null
           updated_at?: string | null
         }
         Update: {
-          age?: number | null
           avatar_url?: string | null
           bio_text?: string | null
           birthdate?: string | null
           city?: string | null
           created_at?: string | null
           first_name?: string
-          gender?: string | null
           id?: string
+          in_match_bowl?: boolean | null
+          intent_confirmed_at?: string | null
           is_active?: boolean | null
           is_paused?: boolean | null
           languages?: string[] | null
-          last_name?: string | null
           lat?: number | null
           lng?: number | null
           pronouns?: string | null
-          radius_km?: number | null
           relationship_status?: string | null
-          sexual_orientation?: string | null
           updated_at?: string | null
         }
         Relationships: []

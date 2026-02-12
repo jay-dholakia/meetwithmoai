@@ -110,7 +110,7 @@ export function useCoraContext(userId: string | null) {
       // Fetch all profiles
       const { data: profilesData } = await supabase
         .from('profiles')
-        .select('id, first_name, last_name, age, city')
+        .select('id, first_name, birthdate, city')
         .in('id', Array.from(userIds));
 
       const profilesMap = new Map();
@@ -136,15 +136,24 @@ export function useCoraContext(userId: string | null) {
         const otherUser = profilesMap.get(otherUserId);
         if (!otherUser) return;
 
-        const name = `${otherUser.first_name || 'Unknown'} ${otherUser.last_name ? otherUser.last_name.charAt(0) + '.' : ''}`;
+        const name = (otherUser.first_name || 'Unknown').trim();
         const sharedInterests = match.reasons?.shared_interests || [];
         const conversationHooks = match.reasons?.conversation_hooks || [];
         const matchScore = match.score;
+        const age = otherUser.birthdate ? (() => {
+          const d = new Date(otherUser.birthdate);
+          if (isNaN(d.getTime())) return undefined;
+          const today = new Date();
+          let a = today.getFullYear() - d.getFullYear();
+          const m = today.getMonth() - d.getMonth();
+          if (m < 0 || (m === 0 && today.getDate() < d.getDate())) a--;
+          return a >= 0 ? a : undefined;
+        })() : undefined;
 
         if (match.status === 'active') {
           activeMatches.push({
-            name: name.trim(),
-            age: otherUser.age,
+            name,
+            age,
             sharedInterests: sharedInterests,
             conversationHooks: conversationHooks,
             matchScore: matchScore,
@@ -184,7 +193,7 @@ export function useCoraContext(userId: string | null) {
           const otherUser = profilesMap.get(otherUserId);
           if (!otherUser) return;
 
-          const name = `${otherUser.first_name || 'Unknown'} ${otherUser.last_name ? otherUser.last_name.charAt(0) + '.' : ''}`;
+          const name = (otherUser.first_name || 'Unknown').trim();
 
           if (optIn.decision === 'opt_in') {
             if (match.status === 'mutual_opt_in') {
@@ -211,10 +220,18 @@ export function useCoraContext(userId: string | null) {
         const otherUserId = isUserA ? conv.user_b : conv.user_a;
         const otherUser = profilesMap.get(otherUserId);
         if (!otherUser) return;
-
+        const age = otherUser.birthdate ? (() => {
+          const d = new Date(otherUser.birthdate);
+          if (isNaN(d.getTime())) return undefined;
+          const today = new Date();
+          let a = today.getFullYear() - d.getFullYear();
+          const m = today.getMonth() - d.getMonth();
+          if (m < 0 || (m === 0 && today.getDate() < d.getDate())) a--;
+          return a >= 0 ? a : undefined;
+        })() : undefined;
         activeConversations.push({
-          name: `${otherUser.first_name || 'Unknown'} ${otherUser.last_name ? otherUser.last_name.charAt(0) + '.' : ''}`.trim(),
-          age: otherUser.age,
+          name: (otherUser.first_name || 'Unknown').trim(),
+          age,
           city: otherUser.city
         });
       });

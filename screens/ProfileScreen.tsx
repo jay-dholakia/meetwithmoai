@@ -20,11 +20,13 @@ import * as FileSystem from 'expo-file-system';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/mcp-supabase';
+import { getNextBatchWeekMonday } from '../lib/weeklyMatchOptIn';
 import EditProfileScreen from './EditProfileScreen';
 import EditQuestionnaireScreen from './EditQuestionnaireScreen';
 import BlockedUsersScreen from './BlockedUsersScreen';
 import NotificationPreferencesScreen from './NotificationPreferencesScreen';
 import MatchStatisticsScreen from './MatchStatisticsScreen';
+import WeeklyMatchOptInCard from '../components/WeeklyMatchOptInCard';
 
 interface Profile {
   id: string;
@@ -46,6 +48,8 @@ export default function ProfileScreen({ navigation }: any) {
   const { user, signOut } = useAuth();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [optedInForNextWeek, setOptedInForNextWeek] = useState<boolean | null>(null);
+  const [optInLoading, setOptInLoading] = useState(false);
 
   // Format location to ensure state abbreviation is included
   const formatLocation = (city: string | null): string => {
@@ -76,16 +80,24 @@ export default function ProfileScreen({ navigation }: any) {
 
   const loadProfile = async () => {
     try {
-      // Load profile
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', user?.id)
         .single();
-
       if (profileError) throw profileError;
-
       setProfile(profileData);
+
+      if (user?.id) {
+        const batchWeek = getNextBatchWeekMonday();
+        const { data: optInData } = await supabase
+          .from('weekly_match_opt_ins')
+          .select('user_id')
+          .eq('user_id', user.id)
+          .eq('batch_week', batchWeek)
+          .maybeSingle();
+        setOptedInForNextWeek(!!optInData);
+      }
     } catch (error) {
       console.error('Error loading profile:', error);
       Alert.alert('Error', 'Failed to load profile');
@@ -104,6 +116,41 @@ export default function ProfileScreen({ navigation }: any) {
     } catch (error) {
       console.error('Error updating profile:', error);
       Alert.alert('Error', 'Failed to update profile');
+    }
+  };
+
+  const setWeeklyOptIn = async (value: boolean) => {
+    if (!user?.id) return;
+    setOptInLoading(true);
+    const batchWeek = getNextBatchWeekMonday();
+    try {
+      if (value) {
+        const { error: optInError } = await supabase
+          .from('weekly_match_opt_ins')
+          .upsert(
+            { user_id: user.id, batch_week: batchWeek, opted_in_at: new Date().toISOString() },
+            { onConflict: 'user_id,batch_week' }
+          );
+        if (optInError) throw optInError;
+        await supabase.from('profiles').update({ in_match_bowl: true }).eq('id', user.id);
+        setProfile(prev => prev ? { ...prev, in_match_bowl: true } : null);
+        setOptedInForNextWeek(true);
+      } else {
+        const { error: optInError } = await supabase
+          .from('weekly_match_opt_ins')
+          .delete()
+          .eq('user_id', user.id)
+          .eq('batch_week', batchWeek);
+        if (optInError) throw optInError;
+        await supabase.from('profiles').update({ in_match_bowl: false }).eq('id', user.id);
+        setProfile(prev => prev ? { ...prev, in_match_bowl: false } : null);
+        setOptedInForNextWeek(false);
+      }
+    } catch (e) {
+      console.error('Error updating weekly opt-in:', e);
+      Alert.alert('Error', 'Could not update opt-in. Try again.');
+    } finally {
+      setOptInLoading(false);
     }
   };
 
@@ -370,25 +417,13 @@ export default function ProfileScreen({ navigation }: any) {
         Account
       </Text>
 
-      <TouchableOpacity style={[styles.settingItem, { borderBottomColor: theme.colors.border }]}>
-        <View style={styles.settingLeft}>
-          <Ionicons name="people-outline" size={24} color={theme.colors.text} />
-          <View>
-            <Text style={[styles.settingText, { color: theme.colors.text }]}>
-              Allow matching
-            </Text>
-            <Text style={[styles.settingSubtext, { color: theme.colors.textSecondary }]}>
-              Opt in weekly on the People tab to be in{'\n'}each Monday's match run.
-            </Text>
-          </View>
-        </View>
-        <Switch
-          value={profile?.in_match_bowl || false}
-          onValueChange={(value) => updateProfile({ in_match_bowl: value })}
-          trackColor={{ false: theme.colors.border, true: theme.colors.primary }}
-          thumbColor="#FFFFFF"
+      <View style={styles.weeklyOptInWrapper}>
+        <WeeklyMatchOptInCard
+          optedIn={optedInForNextWeek}
+          loading={optInLoading}
+          onToggle={setWeeklyOptIn}
         />
-      </TouchableOpacity>
+      </View>
 
       <TouchableOpacity style={[styles.settingItem, { borderBottomColor: theme.colors.border }]}>
         <View style={styles.settingLeft}>
@@ -487,6 +522,9 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     marginBottom: 16,
+  },
+  weeklyOptInWrapper: {
+    marginBottom: 12,
   },
   avatarSection: {
     alignItems: 'center',

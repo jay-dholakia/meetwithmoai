@@ -16,19 +16,28 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+function ageFromBirthdate(birthdate: string | null | undefined): number | null {
+  if (!birthdate || typeof birthdate !== 'string') return null
+  const date = new Date(birthdate.trim())
+  if (isNaN(date.getTime())) return null
+  const today = new Date()
+  let age = today.getFullYear() - date.getFullYear()
+  const monthDiff = today.getMonth() - date.getMonth()
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < date.getDate())) age--
+  return age >= 0 ? age : null
+}
+
 interface UserProfile {
   id: string;
   first_name: string;
-  last_name: string | null;
   city: string;
   lat: number | null;
   lng: number | null;
+  birthdate: string | null;
   radius_km: number;
   in_match_bowl: boolean;
-  age: number | null;
-  gender: string | null;
+  age: number | null; // computed from birthdate when building effective profile
   relationship_status: string | null;
-  has_kids: string | null;
   age_range_preference: number | null;
 }
 
@@ -188,10 +197,25 @@ async function replenishUserMatches(supabaseClient: any, userId: string) {
   if (intakeError) throw intakeError
   if (!userIntake) throw new Error('No intake data found')
 
+  // Age range and radius from intake; age computed from birthdate (profile no longer has age column)
+  const effectiveUserProfile: UserProfile = {
+    id: userProfile.id,
+    first_name: userProfile.first_name,
+    city: userProfile.city ?? '',
+    lat: userProfile.lat,
+    lng: userProfile.lng,
+    birthdate: userProfile.birthdate ?? null,
+    in_match_bowl: userProfile.in_match_bowl ?? false,
+    relationship_status: userProfile.relationship_status ?? null,
+    age_range_preference: getIntakeNumericValue(userIntake, 'q7_age_range') ?? null,
+    radius_km: getIntakeRadiusKm(userIntake),
+    age: ageFromBirthdate(userProfile.birthdate),
+  }
+
   // Find potential matches - get enough candidates to fill up to 5 matches (only from users opted in for this week)
   const potentialMatches = await findPotentialMatches(
     supabaseClient,
-    userProfile,
+    effectiveUserProfile,
     userIntake,
     batchWeek,
     50 // Get top 50 candidates to ensure we have enough above threshold
@@ -278,8 +302,22 @@ async function findPotentialMatches(
 
     const candidateIntake = candidateIntakeData
 
+    const effectiveCandidateProfile: UserProfile = {
+      id: candidate.id,
+      first_name: candidate.first_name,
+      city: candidate.city ?? '',
+      lat: candidate.lat,
+      lng: candidate.lng,
+      birthdate: candidate.birthdate ?? null,
+      in_match_bowl: candidate.in_match_bowl ?? false,
+      relationship_status: candidate.relationship_status ?? null,
+      age_range_preference: getIntakeNumericValue(candidateIntake, 'q7_age_range') ?? null,
+      radius_km: getIntakeRadiusKm(candidateIntake),
+      age: ageFromBirthdate(candidate.birthdate),
+    }
+
     // Apply structured filters (age range preference is a hard filter)
-    if (!passesStructuredFilters(userIntake, candidateIntake, userProfile, candidate)) {
+    if (!passesStructuredFilters(userIntake, candidateIntake, userProfile, effectiveCandidateProfile)) {
       console.log(`Skipping ${candidate.id.substring(0, 8)} - failed structured filters (likely age range)`)
       continue
     }
@@ -314,9 +352,9 @@ async function findPotentialMatches(
 
     // Calculate compatibility score using embeddings + structured data
     const score = await calculateCompatibilityScoreV4(
-      userProfile, 
-      userIntake, 
-      candidate, 
+      userProfile,
+      userIntake,
+      effectiveCandidateProfile,
       candidateIntake
     )
 
@@ -561,19 +599,19 @@ async function createMatchCandidate(
 
   if (insertError) {
     // If duplicate, try update instead
-    if (insertError.code === '23505') { // Unique violation
-      console.log(`Match exists, updating: ${orderedUserA.substring(0, 8)}-${orderedUserB.substring(0, 8)} with score ${score}`)
+    if (insertError.code === '23505') { // Unique violation - match already exists for this pair + batch_week
+      console.log(`Match exists, updating score/reasons only (preserving status): ${orderedUserA.substring(0, 8)}-${orderedUserB.substring(0, 8)}`)
+      // Do NOT update status - leave opted_in_a, opted_in_b, mutual_opt_in, converted unchanged
       const { data: updateData, error: updateError } = await supabaseClient
         .from('match_candidates')
         .update({
-          score: score || 0, // Ensure score is never null
+          score: score || 0,
           reasons: reasons || {},
-          status: 'active',
-          batch_week: batchWeek,
           expires_at: new Date(Date.now() + 72 * 60 * 60 * 1000).toISOString()
         })
         .eq('user_a', orderedUserA)
         .eq('user_b', orderedUserB)
+        .eq('batch_week', batchWeek)
         .select()
 
       if (updateError) {
@@ -675,6 +713,27 @@ function getSingleSelectValue(intake: any, questionId: string): string | null {
   return typeof value === 'string' ? value : null
 }
 
+// Parse numeric/slider value from intake (age range "± 5 years", travel "15 miles", or plain number)
+function getIntakeNumericValue(intake: any, questionId: string): number | null {
+  const raw = getResponseValue(intake, questionId)
+  if (raw === null || raw === undefined) return null
+  if (typeof raw === 'number' && !isNaN(raw)) return raw
+  const s = String(raw).trim()
+  const num = parseInt(s, 10)
+  if (!isNaN(num)) return num
+  const pmMatch = s.match(/±\s*(\d+)/)
+  if (pmMatch) return parseInt(pmMatch[1], 10)
+  const milesMatch = s.match(/(\d+)\s*miles/)
+  if (milesMatch) return parseInt(milesMatch[1], 10)
+  return null
+}
+
+// Travel distance: intake only (q10_travel_distance_miles), default 40 km (~25 miles)
+function getIntakeRadiusKm(intake: any): number {
+  const miles = getIntakeNumericValue(intake, 'q10_travel_distance_miles')
+  return miles != null ? Math.round(miles * 1.60934) : 40
+}
+
 // Calculate compatibility using embeddings + structured data (V5 scoring system)
 async function calculateCompatibilityScoreV4(
   userProfile: UserProfile,
@@ -694,8 +753,8 @@ async function calculateCompatibilityScoreV4(
   }
 
   // 2. Connection type alignment (12% weight) - NEW
-  const userConnectionTypes = getMultiSelectValue(userIntake, 'q2_connection_types')
-  const candidateConnectionTypes = getMultiSelectValue(candidateIntake, 'q2_connection_types')
+  const userConnectionTypes = getMultiSelectValue(userIntake, 'q1_connection_types')
+  const candidateConnectionTypes = getMultiSelectValue(candidateIntake, 'q1_connection_types')
   if (userConnectionTypes.length > 0 && candidateConnectionTypes.length > 0) {
     const overlap = userConnectionTypes.filter((type: string) => candidateConnectionTypes.includes(type)).length
     const maxSelections = Math.max(userConnectionTypes.length, candidateConnectionTypes.length)
@@ -796,44 +855,25 @@ async function calculateCompatibilityScoreV4(
     }
   }
 
-  // 9. Profile compatibility (5% weight) - combined from has_kids + relationship_status
-  // Has kids compatibility (2.5%)
-  if (userProfile.has_kids && candidateProfile.has_kids) {
-    const userHasKids = userProfile.has_kids.toLowerCase() === 'yes'
-    const candidateHasKids = candidateProfile.has_kids.toLowerCase() === 'yes'
-    if (userHasKids === candidateHasKids) {
-      score += 0.025 // Both have kids or both don't
-    }
-  }
-
-  // Relationship status compatibility (2.5%)
+  // 9. Profile compatibility (5% weight) - relationship_status only (has_kids/gender removed from profile)
+  // Relationship status compatibility (5%)
   if (userProfile.relationship_status && candidateProfile.relationship_status) {
     const userStatus = userProfile.relationship_status.toLowerCase()
     const candidateStatus = candidateProfile.relationship_status.toLowerCase()
     
     // Same status = full boost
     if (userStatus === candidateStatus) {
-      score += 0.025
+      score += 0.05
     } else {
-      // Compatible statuses (both single, both in relationships, etc.)
       const singleStatuses = ['single']
       const relationshipStatuses = ['married', 'in a relationship', 'engaged']
-      
       const userIsSingle = singleStatuses.includes(userStatus)
       const candidateIsSingle = singleStatuses.includes(candidateStatus)
       const userInRelationship = relationshipStatuses.some(s => userStatus.includes(s))
       const candidateInRelationship = relationshipStatuses.some(s => candidateStatus.includes(s))
-      
       if ((userIsSingle && candidateIsSingle) || (userInRelationship && candidateInRelationship)) {
-        score += 0.0125 // Half boost for compatible stages
+        score += 0.025
       }
-    }
-  }
-
-  // 10. Gender compatibility (5% weight) - unchanged
-  if (userProfile.gender && candidateProfile.gender) {
-    if (userProfile.gender.toLowerCase() === candidateProfile.gender.toLowerCase()) {
-      score += 0.05
     }
   }
 
@@ -1099,8 +1139,8 @@ Hooks:`
     const candidateImportantParts = getResponseValue(candidateIntake, 'q9_important_parts')
     
     // Connection types overlap
-    const userConnectionTypes = getMultiSelectValue(userIntake, 'q2_connection_types')
-    const candidateConnectionTypes = getMultiSelectValue(candidateIntake, 'q2_connection_types')
+    const userConnectionTypes = getMultiSelectValue(userIntake, 'q1_connection_types')
+    const candidateConnectionTypes = getMultiSelectValue(candidateIntake, 'q1_connection_types')
     const sharedConnectionTypes = userConnectionTypes.filter((type: string) => candidateConnectionTypes.includes(type))
     
     if (sharedConnectionTypes.length > 0 && conversation_hooks.length < 3) {

@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "Convi",
-    "slug": "convi-connections",
+    "name": "Cove",
+    "slug": "cove-connections",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -14,10 +14,10 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.convi.connections",
+      "bundleIdentifier": "com.cove.connections",
       "infoPlist": {
-        "NSLocationWhenInUseUsageDescription": "Convi uses your location to find local connections nearby.",
-        "NSLocationAlwaysAndWhenInUseUsageDescription": "Convi uses your location to find local connections nearby."
+        "NSLocationWhenInUseUsageDescription": "Cove uses your location to find local connections nearby.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Cove uses your location to find local connections nearby."
       }
     },
     "android": {
@@ -26,7 +26,7 @@
         "backgroundColor": "#F8F9FA"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.convi.connections",
+      "package": "com.cove.connections",
       "permissions": [
         "android.permission.ACCESS_FINE_LOCATION",
         "android.permission.ACCESS_COARSE_LOCATION",
@@ -42,13 +42,13 @@
       [
         "expo-location",
         {
-          "locationAlwaysAndWhenInUsePermission": "Allow Convi to use your location to find local connections nearby."
+          "locationAlwaysAndWhenInUsePermission": "Allow Cove to use your location to find local connections nearby."
         }
       ],
       [
         "expo-image-picker",
         {
-          "photosPermission": "Allow Convi to access your photos to set your profile picture."
+          "photosPermission": "Allow Cove to access your photos to set your profile picture."
         }
       ]
     ],

@@ -43,14 +43,11 @@ interface ConversationScreenProps {
 interface OtherUser {
   id: string;
   first_name: string;
-  last_name: string | null;
   avatar_url: string | null;
-  age: number | null;
+  birthdate: string | null;
   bio_text: string | null;
   city: string | null;
-  gender?: string | null;
   relationship_status?: string | null;
-  has_kids?: string | null;
 }
 
 interface OtherUserIntake {
@@ -150,26 +147,20 @@ export default function ConversationScreen({ route, navigation }: ConversationSc
           user_a_profile:profiles!conversations_user_a_fkey (
             id,
             first_name,
-            last_name,
             avatar_url,
-            age,
+            birthdate,
             bio_text,
             city,
-            gender,
-            relationship_status,
-            has_kids
+            relationship_status
           ),
           user_b_profile:profiles!conversations_user_b_fkey (
             id,
             first_name,
-            last_name,
             avatar_url,
-            age,
+            birthdate,
             bio_text,
             city,
-            gender,
-            relationship_status,
-            has_kids
+            relationship_status
           )
         `)
         .eq('id', conversationId)
@@ -919,7 +910,7 @@ export default function ConversationScreen({ route, navigation }: ConversationSc
           >
             <Ionicons name="arrow-back" size={24} color={theme.colors.text} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Convi Chat</Text>
+          <Text style={styles.headerTitle}>Cove Chat</Text>
         </View>
         <View style={styles.loadingContainer}>
           <Text style={styles.loadingText}>Loading conversation...</Text>
@@ -937,7 +928,7 @@ export default function ConversationScreen({ route, navigation }: ConversationSc
         >
           <Ionicons name="arrow-back" size={24} color={theme.colors.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Convi Chat</Text>
+        <Text style={styles.headerTitle}>Cove Chat</Text>
         {otherUser && (
           <TouchableOpacity
             style={[styles.headerAvatarContainer, styles.headerAvatar]}

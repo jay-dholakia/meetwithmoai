@@ -18,11 +18,10 @@ export interface MatchCandidate {
 export interface UserProfile {
   id: string;
   first_name: string;
-  last_name: string | null;
   city: string;
   lat: number;
   lng: number;
-  radius_km: number;
+  radius_km?: number; // from intake when used in matching
   avatar_url?: string;
   bio_text?: string;
   is_active: boolean;
@@ -192,7 +191,9 @@ export class MatchingService {
       userB.profile.lat, userB.profile.lng
     );
     
-    if (distance > userA.profile.radius_km || distance > userB.profile.radius_km) {
+    const radiusA = userA.profile.radius_km ?? 40;
+    const radiusB = userB.profile.radius_km ?? 40;
+    if (distance > radiusA || distance > radiusB) {
       return { score: 0, reasons: { overlaps: [], complement: 'Too far apart' } };
     }
     

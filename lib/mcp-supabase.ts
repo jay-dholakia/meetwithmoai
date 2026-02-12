@@ -20,15 +20,14 @@ export const moaiFriendsSchema = `
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS "pg_trgm";
 
--- Profiles table
+-- Profiles table (identity + location; matching preferences live in intake_responses_v5)
 CREATE TABLE IF NOT EXISTS profiles (
   id UUID REFERENCES auth.users(id) ON DELETE CASCADE PRIMARY KEY,
   first_name VARCHAR(50) NOT NULL,
-  last_name VARCHAR(50),
   city VARCHAR(100) NOT NULL,
   lat DECIMAL(10, 8),
   lng DECIMAL(11, 8),
-  radius_km INTEGER,
+  radius_km INTEGER, -- legacy; matching reads from intake q10_travel_distance_miles
   avatar_url TEXT,
   bio_text TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),

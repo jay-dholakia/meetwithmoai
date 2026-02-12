@@ -2,16 +2,12 @@ import { profileQuestions, intakeQuestions } from "../data/AIAgentScreen";
 
 export interface ProfileData {
   first_name?: string;
-  last_name?: string;
   birthdate?: string;
-  gender?: string;
   pronouns?: string;
-  sexual_orientation?: string;
   city?: string;
-  radius_km?: number;
   relationship_status?: string;
   languages?: string[];
-  age_range_preference?: number;
+  intent_confirmed_at?: string | null;
 }
 
 export interface IntakeData {
@@ -40,10 +36,8 @@ export const isProfileComplete = (profileData: ProfileData | null | undefined): 
     profileData.first_name &&
     profileData.first_name !== "Cooking/Dining out, Concerts/Live music" &&
     profileData.birthdate &&
-    profileData.gender &&
-    profileData.pronouns &&
-    profileData.radius_km &&
-    profileData.city
+    profileData.city &&
+    profileData.intent_confirmed_at
   );
 
   // Cache the result
@@ -116,13 +110,6 @@ export const findFirstUnansweredIntakeQuestion = (
         }
       }
 
-      // Check profiles table for age_range_preference
-      if (!isAnswered && question.id === "q12_age_range_preference") {
-        const profileAgeRange = profileData?.age_range_preference;
-        if (profileAgeRange !== null && profileAgeRange !== undefined) {
-          isAnswered = true;
-        }
-      }
     } else {
       isAnswered = !!(
         fieldValue &&
@@ -170,40 +157,22 @@ export const findFirstUnansweredProfileStep = (profileData: ProfileData | null |
       case "name":
         isAnswered = !!profileData.first_name;
         break;
-      case "last_name":
-        isAnswered = !!profileData.last_name;
-        break;
       case "birthdate":
         isAnswered = !!profileData.birthdate;
-        break;
-      case "gender":
-        isAnswered = !!profileData.gender;
         break;
       case "pronouns":
         isAnswered = !!profileData.pronouns;
         break;
-      case "sexual_orientation":
-        isAnswered = !!profileData.sexual_orientation;
-        break;
       case "relationship_status":
         isAnswered = !!profileData.relationship_status;
         break;
-      case "has_kids":
-        // has_kids might not be in ProfileData interface, check if it exists
-        isAnswered = !!(profileData as any).has_kids;
-        break;
       case "location":
         isAnswered = !!profileData.city;
-        break;
-      case "meet_radius":
-        isAnswered = !!profileData.radius_km;
         break;
       case "languages":
         isAnswered = !!(profileData.languages && profileData.languages.length > 0);
         break;
       default:
-        // For any question not in the switch, assume it's not answered
-        // This ensures we don't skip questions we don't recognize
         isAnswered = false;
         break;
     }

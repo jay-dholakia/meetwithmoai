@@ -130,7 +130,7 @@ export function useQuestionnaire(userId: string | null) {
         supabase
           .from("profiles")
           .select(
-            "id, first_name, last_name, birthdate, gender, pronouns, relationship_status, languages, city, lat, lng, radius_km, sexual_orientation, age_range_preference"
+            "id, first_name, birthdate, city, lat, lng, pronouns, relationship_status, intent_confirmed_at"
           )
           .eq("id", userId)
           .single(),
@@ -284,14 +284,7 @@ export function useQuestionnaire(userId: string | null) {
           }
         }
 
-        // Handle age_range_preference
-        if (questionId === "q12_age_range_preference" && (typeof answer === "number" || typeof answer === "string")) {
-          const ageRangeValue = typeof answer === "string" ? parseInt(answer) : answer;
-          await supabase
-            .from("profiles")
-            .update({ age_range_preference: ageRangeValue })
-            .eq("id", userId);
-        }
+        // Age range lives in intake only (no longer synced to profile)
 
         if (existingIntake) {
           if (existingIntake.embed_vector) {

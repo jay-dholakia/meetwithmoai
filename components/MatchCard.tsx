@@ -16,6 +16,7 @@ import Svg, { Circle } from 'react-native-svg';
 import { useTheme } from '../contexts/ThemeContext';
 import { supabase } from '../lib/mcp-supabase';
 import { useAuth } from '../contexts/AuthContext';
+import { ageFromBirthdate } from '../utils/ageFromBirthdate';
 
 interface MatchCardProps {
   match: {
@@ -45,14 +46,11 @@ interface MatchCardProps {
   otherUser: {
     id: string;
     first_name: string;
-    last_name: string | null;
     avatar_url: string | null;
-    age: number | null;
+    birthdate: string | null;
     bio_text: string | null;
     city?: string | null;
-    gender?: string | null;
     relationship_status?: string | null;
-    has_kids?: string | null;
   } | null;
   otherUserIntake?: {
     user_id: string;
@@ -1070,7 +1068,7 @@ const styles = StyleSheet.create({
     if (activeChatCount >= 3) {
       Alert.alert(
         'Chat Limit Reached',
-        'You can only have 3 active Convi chats at a time. Please wrap up an existing conversation before starting a new one.'
+        'You can only have 3 active Cove chats at a time. Please wrap up an existing conversation before starting a new one.'
       );
       return;
     }
@@ -1348,10 +1346,10 @@ const styles = StyleSheet.create({
           )}
           <View style={styles.userInfo}>
             <Text style={styles.userName}>
-              {otherUser?.first_name} {otherUser?.last_name ? otherUser.last_name.charAt(0) + '.' : ''}
+              {otherUser?.first_name}
             </Text>
-            {otherUser?.age && (
-              <Text style={styles.userAge}>{otherUser.age} years old</Text>
+            {otherUser?.birthdate && ageFromBirthdate(otherUser.birthdate) != null && (
+              <Text style={styles.userAge}>{ageFromBirthdate(otherUser.birthdate)} years old</Text>
             )}
           </View>
           {!hideActions && <CircularTimer timeData={timeData} />}
@@ -1428,26 +1426,16 @@ const styles = StyleSheet.create({
                 )}
                 <View style={styles.pageSheetProfileInfo}>
                   <Text style={styles.pageSheetProfileName}>
-                    {otherUser.first_name} {otherUser.last_name ? otherUser.last_name.charAt(0) + '.' : ''}
+                    {otherUser.first_name}
                   </Text>
                   {otherUser?.city && (
                     <Text style={styles.pageSheetProfileAge}>📍 {otherUser.city}</Text>
                   )}
-                  {(otherUser?.age || otherUser?.gender) && (
+                  {otherUser?.birthdate && ageFromBirthdate(otherUser.birthdate) != null && (
                     <View style={styles.pageSheetBasicInfoRow}>
-                      {otherUser?.age && (
-                        <Text style={styles.pageSheetBasicInfo}>
-                          {otherUser.age} years old
-                        </Text>
-                      )}
-                      {otherUser?.age && otherUser?.gender && (
-                        <Text style={styles.pageSheetBasicInfoSeparator}> • </Text>
-                      )}
-                      {otherUser?.gender && (
-                        <Text style={styles.pageSheetBasicInfo}>
-                          {otherUser.gender}
-                        </Text>
-                      )}
+                      <Text style={styles.pageSheetBasicInfo}>
+                        {ageFromBirthdate(otherUser.birthdate)} years old
+                      </Text>
                     </View>
                   )}
                 </View>
@@ -1721,10 +1709,10 @@ const styles = StyleSheet.create({
                       )}
                       <View style={styles.confirmProfileInfo}>
                         <Text style={styles.confirmProfileName}>
-                          {otherUser.first_name} {otherUser.last_name ? otherUser.last_name.charAt(0) + '.' : ''}
+                          {otherUser.first_name}
                         </Text>
-                        {otherUser.age && (
-                          <Text style={styles.confirmProfileDetail}>{otherUser.age} years old</Text>
+                        {otherUser.birthdate && ageFromBirthdate(otherUser.birthdate) != null && (
+                          <Text style={styles.confirmProfileDetail}>{ageFromBirthdate(otherUser.birthdate)} years old</Text>
                         )}
                         {otherUser.city && (
                           <Text style={styles.confirmProfileDetail}>📍 {otherUser.city}</Text>

@@ -449,7 +449,7 @@ async function generateEmbedding(text: string): Promise<number[]> {
 }
 
 async function createProfile(profileData: any) {
-  console.log(`\nCreating profile for ${profileData.first_name} ${profileData.last_name}...`);
+  console.log(`\nCreating profile for ${profileData.first_name}...`);
   
   // Create auth user
   const { data: authData, error: authError } = await supabase.auth.admin.createUser({
@@ -465,24 +465,24 @@ async function createProfile(profileData: any) {
 
   const userId = authData.user.id;
 
-  // Create profile
+  // Derive birthdate from age (profile schema uses birthdate, not age)
+  const birthdate = new Date();
+  birthdate.setFullYear(birthdate.getFullYear() - (profileData.age ?? 30));
+  const birthdateStr = birthdate.toISOString().split('T')[0];
+
   const { error: profileError } = await supabase
     .from('profiles')
     .insert({
       id: userId,
       first_name: profileData.first_name,
-      last_name: profileData.last_name,
-      age: profileData.age,
+      birthdate: birthdateStr,
       city: profileData.city,
       lat: profileData.lat,
       lng: profileData.lng,
-      gender: profileData.gender,
       pronouns: profileData.pronouns,
       relationship_status: profileData.relationship_status,
-      has_kids: profileData.has_kids,
-      in_matcha_bowl: true,
+      in_match_bowl: true,
       is_active: true,
-      radius_km: 15,
     });
 
   if (profileError) {
@@ -536,7 +536,7 @@ async function createProfile(profileData: any) {
     return null;
   }
 
-  console.log(`✅ Created profile for ${profileData.first_name} ${profileData.last_name}`);
+  console.log(`✅ Created profile for ${profileData.first_name}`);
   return userId;
 }
 

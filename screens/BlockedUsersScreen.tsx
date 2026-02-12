@@ -23,7 +23,6 @@ interface BlockedUser {
   profile: {
     id: string;
     first_name: string;
-    last_name: string | null;
     avatar_url: string | null;
   };
 }
@@ -51,7 +50,6 @@ export default function BlockedUsersScreen({ navigation }: any) {
           profile:profiles!blocks_blocked_id_fkey (
             id,
             first_name,
-            last_name,
             avatar_url
           )
         `)
@@ -99,7 +97,7 @@ export default function BlockedUsersScreen({ navigation }: any) {
 
   const renderBlockedUser = ({ item }: { item: BlockedUser }) => {
     const profile = item.profile;
-    const name = `${profile.first_name}${profile.last_name ? ' ' + profile.last_name.charAt(0) + '.' : ''}`;
+    const name = profile.first_name || 'Unknown';
     const initial = profile.first_name?.charAt(0).toUpperCase() || '?';
 
     return (

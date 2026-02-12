@@ -71,12 +71,15 @@ async function searchPlaces(
             // Generate Google Maps URL
             const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(place.geometry.location.lat)},${encodeURIComponent(place.geometry.location.lng)}&query_place_id=${place.place_id}`
             
+            // Distance is from search center (midpoint); show in miles
+            const distanceMiles = Math.round(distance * 0.621371 * 10) / 10
             return {
               name: detailsData.result.name,
               address: detailsData.result.formatted_address,
               rating: detailsData.result.rating,
               ratingCount: detailsData.result.user_ratings_total,
-              distance: Math.round(distance * 10) / 10, // Round to 1 decimal
+              distance: Math.round(distance * 10) / 10,
+              distanceMiles,
               isOpen: detailsData.result.opening_hours?.open_now,
               types: detailsData.result.types,
               mapsUrl: mapsUrl,
@@ -124,7 +127,7 @@ async function generateCoraResponse(
   }
 
   try {
-    let systemPrompt = `You are Cora, a thoughtful and helpful AI assistant for Convi, a friendship connection app. You help people who have matched and opted in to connect with each other. You're warm, friendly, and genuinely helpful.
+    let systemPrompt = `You are Cora, a thoughtful and helpful AI assistant for Cove, a friendship connection app. You help people who have matched and opted in to connect with each other. You're warm, friendly, and genuinely helpful.
 
 Your role is to:
 - Help users find good places to meet up (coffee shops, restaurants, activities, etc.)
@@ -134,7 +137,7 @@ Your role is to:
 - Keep responses concise but helpful (2-4 sentences typically)
 - IMPORTANT: Never use the word "date" - these are meetups between friends, not dates. Use "meetup", "get together", "meet", or "hang out" instead.`
 
-    let userPrompt = `${userA.first_name} and ${userB.first_name} are chatting in a Convi connection. `
+    let userPrompt = `${userA.first_name} and ${userB.first_name} are chatting in a Cove connection. `
 
     if (userA.city && userB.city) {
       userPrompt += `${userA.first_name} is in ${userA.city} and ${userB.first_name} is in ${userB.city}. `
@@ -144,30 +147,23 @@ Your role is to:
 
     if (isLocationQuery && places.length > 0) {
       if (usedCoordinates) {
-        userPrompt += `I searched for places using their precise locations and found these specific spots that are convenient for both of them:\n\n`
+        userPrompt += `I searched for places from the midpoint between them and found these spots:\n\n`
       } else {
         userPrompt += `I found these places:\n\n`
       }
       
       places.forEach((place, index) => {
-        userPrompt += `${index + 1}. ${place.name} - ${place.address}`
-        if (place.distance !== undefined) {
-          userPrompt += ` (${place.distance}km away`
+        userPrompt += `${index + 1}. ${place.name}`
+        if (place.distanceMiles !== undefined) {
+          userPrompt += ` (${place.distanceMiles} mi from midpoint)`
         }
-        if (place.rating) {
-          userPrompt += `, ${place.rating}/5 stars`
-        }
-        if (place.distance !== undefined) {
-          userPrompt += `)`
-        }
-        userPrompt += `\n`
-        userPrompt += `   Maps URL: ${place.mapsUrl}\n\n`
+        userPrompt += `\n   Maps URL: ${place.mapsUrl}\n\n`
       })
       
       userPrompt += `\nIMPORTANT: Format your response in a clear, brief way:\n`
       userPrompt += `- Start with a warm greeting\n`
       userPrompt += `- Present 2-3 of the best options briefly\n`
-      userPrompt += `- For each place, mention: name, address, distance, and rating (keep it concise - one line per place)\n`
+      userPrompt += `- For each place mention ONLY the place name and distance from the midpoint in miles (e.g. "0.4 mi away"). Do NOT include addresses or star ratings - the name is the link.\n`
       userPrompt += `- Use line breaks to separate each option\n`
       userPrompt += `- Keep it conversational and brief - don't include status (open/closed) information\n`
       userPrompt += `- DO NOT include the full Google Maps URLs in your response text - just mention the place names naturally\n`
@@ -346,10 +342,8 @@ serve(async (req) => {
           original_question: question,
           places: places.length > 0 ? places.map(p => ({
             name: p.name,
-            address: p.address,
             mapsUrl: p.mapsUrl,
-            distance: p.distance,
-            rating: p.rating
+            distanceMiles: p.distanceMiles
           })) : null
         }
       })
