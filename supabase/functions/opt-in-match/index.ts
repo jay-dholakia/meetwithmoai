@@ -576,7 +576,7 @@ async function generateAIIntroMessage(
   // Generate intro message based on match reasons
   const sharedInterests = matchReasons?.shared_interests || []
 
-  let introText = `${userA.first_name} and ${userB.first_name}, welcome to your Cove connection!\n\n`
+  let introText = `${userA.first_name} and ${userB.first_name}, welcome to your Fika connection!\n\n`
 
   // Acknowledge mutual opt-in
   introText += `You both opted in to connect, which is great.\n\n`

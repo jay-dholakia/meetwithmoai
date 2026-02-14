@@ -254,9 +254,9 @@ export default function ConversationScreen({ route, navigation }: ConversationSc
 
       scrollToBottom();
 
-      // Check if message contains @Cora mention
-      const coraMentionRegex = /@[Cc]ora\s+(.+)/i;
-      const match = messageText.match(coraMentionRegex);
+      // Check if message contains @Liv mention
+      const livMentionRegex = /@[Ll]iv\s+(.+)/i;
+      const match = messageText.match(livMentionRegex);
       
       if (match) {
         const question = match[1].trim();
@@ -266,13 +266,13 @@ export default function ConversationScreen({ route, navigation }: ConversationSc
           // and appear in the messages list before showing typing indicator
           await new Promise(resolve => setTimeout(resolve, 300));
 
-          // Show typing indicator for Cora with a timestamp that's definitely after the user message
+          // Show typing indicator for Liv with a timestamp that's definitely after the user message
           const typingMessage: Message = {
             id: `typing-${Date.now()}`,
             conversation_id: conversationId,
             sender_type: 'ai',
             sender_id: null,
-            text: 'Cora is thinking...',
+            text: 'Liv is thinking...',
             created_at: new Date(Date.now() + 2000).toISOString(), // Ensure it's after user message
             metadata: { type: 'typing_indicator' }
           };
@@ -286,8 +286,8 @@ export default function ConversationScreen({ route, navigation }: ConversationSc
               throw new Error('No session found');
             }
 
-            // Call ask-cora Edge Function
-            const { data, error: coraError } = await supabase.functions.invoke('ask-cora', {
+            // Call ask-liv Edge Function
+            const { data, error: livError } = await supabase.functions.invoke('ask-liv', {
               body: {
                 conversationId,
                 question
@@ -300,21 +300,21 @@ export default function ConversationScreen({ route, navigation }: ConversationSc
             // Remove typing indicator
             setMessages(prev => prev.filter(m => m.id !== typingMessage.id));
 
-            if (coraError) {
-              console.error('Error calling ask-cora:', coraError);
-              // Insert error message from Cora
+            if (livError) {
+              console.error('Error calling ask-liv:', livError);
+              // Insert error message from Liv
               const errorMessage: Message = {
-                id: `cora-error-${Date.now()}`,
+                id: `liv-error-${Date.now()}`,
                 conversation_id: conversationId,
                 sender_type: 'ai',
                 sender_id: null,
                 text: "I'm sorry, I'm having trouble processing that right now. Please try again later.",
                 created_at: new Date().toISOString(),
-                metadata: { type: 'cora_response' }
+                metadata: { type: 'liv_response' }
               };
               setMessages(prev => [...prev, errorMessage]);
             } else if (data && data.response) {
-              // Cora's response will be inserted by the Edge Function
+              // Liv's response will be inserted by the Edge Function
               // But we can also add it locally for immediate feedback
               // The Edge Function already inserts it, so we just need to reload messages
               // or wait for the real-time subscription to pick it up
@@ -323,19 +323,19 @@ export default function ConversationScreen({ route, navigation }: ConversationSc
               }, 500);
             }
           } catch (error) {
-            console.error('Error processing @Cora request:', error);
+            console.error('Error processing @Liv request:', error);
             // Remove typing indicator
             setMessages(prev => prev.filter(m => m.id !== typingMessage.id));
             
-            // Insert error message from Cora
+            // Insert error message from Liv
             const errorMessage: Message = {
-              id: `cora-error-${Date.now()}`,
+              id: `liv-error-${Date.now()}`,
               conversation_id: conversationId,
               sender_type: 'ai',
               sender_id: null,
               text: "I'm sorry, I'm having trouble processing that right now. Please try again later.",
               created_at: new Date().toISOString(),
-              metadata: { type: 'cora_response' }
+              metadata: { type: 'liv_response' }
             };
             setMessages(prev => [...prev, errorMessage]);
           }
@@ -524,12 +524,12 @@ export default function ConversationScreen({ route, navigation }: ConversationSc
           isCurrentUser 
             ? { backgroundColor: theme.colors.primary }
             : isAI
-            ? { backgroundColor: '#A78BFA' } // Soft purple for Cora
+            ? { backgroundColor: '#A78BFA' } // Soft purple for Liv
             : { backgroundColor: '#F3F4F6' } // Light gray for other users
         ]}>
           {isAI && (
             <Text style={[styles.senderName, { color: '#FFFFFF' }]}>
-              ✨ Cora
+              ✨ Liv
             </Text>
           )}
           <MessageText 
@@ -910,7 +910,7 @@ export default function ConversationScreen({ route, navigation }: ConversationSc
           >
             <Ionicons name="arrow-back" size={24} color={theme.colors.text} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Cove Chat</Text>
+          <Text style={styles.headerTitle}>Fika Chat</Text>
         </View>
         <View style={styles.loadingContainer}>
           <Text style={styles.loadingText}>Loading conversation...</Text>
@@ -928,7 +928,7 @@ export default function ConversationScreen({ route, navigation }: ConversationSc
         >
           <Ionicons name="arrow-back" size={24} color={theme.colors.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Cove Chat</Text>
+        <Text style={styles.headerTitle}>Fika Chat</Text>
         {otherUser && (
           <TouchableOpacity
             style={[styles.headerAvatarContainer, styles.headerAvatar]}
@@ -971,7 +971,7 @@ export default function ConversationScreen({ route, navigation }: ConversationSc
               style={styles.textInput}
               value={inputText}
               onChangeText={setInputText}
-              placeholder="Type a message... (Try @Cora for meetup suggestions)"
+              placeholder="Type a message... (Try @Liv for meetup suggestions)"
               placeholderTextColor={theme.colors.textSecondary}
               multiline
               maxLength={1000}

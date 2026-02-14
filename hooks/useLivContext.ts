@@ -26,7 +26,7 @@ interface ConnectionContext {
 
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
-export function useCoraContext(userId: string | null) {
+export function useLivContext(userId: string | null) {
   const [context, setContext] = useState<ConnectionContext | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -254,7 +254,7 @@ export function useCoraContext(userId: string | null) {
     } catch (err: any) {
       const errorMessage = err.message || "Failed to load connection context";
       setError(errorMessage);
-      console.error("Error fetching Cora context:", err);
+      console.error("Error fetching Liv context:", err);
       return null;
     } finally {
       setLoading(false);

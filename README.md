@@ -1,4 +1,4 @@
-# Cove
+# Fika
 
 A sleek, modern connection app where AI guides meaningful local connections through thoughtful onboarding, intake, and weekly introductions.
 
@@ -16,13 +16,13 @@ A sleek, modern connection app where AI guides meaningful local connections thro
 
 ### iOS Tabs (3 total):
 
-1. **✨ Cora (Home)** — chat with AI; intake and weekly connections happen here
+1. **✨ Liv (Home)** — chat with AI; intake and weekly connections happen here
 2. **☕ Café Connections (Chats)** — list of ongoing café conversations  
 3. **👤 Profile** — edit info, availability, reminders, pause, safety link
 
 ## 🎨 Design & UX
 
-- **Cove theme**: `#F8F9FA` background, `#4A90E2` sky blue primary, `#FF8C42` warm orange accent
+- **Fika theme**: `#F8F9FA` background, `#4A90E2` sky blue primary, `#FF8C42` warm orange accent
 - **Typography**: Inter Tight for headers, Inter for body
 - **Controls**: chip buttons, Likert sliders, short text, availability grid
 - **Animations**: subtle typing indicator, 400–600ms micro-delays

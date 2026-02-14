@@ -64,6 +64,10 @@ interface Conversation {
   status: 'active' | 'archived' | 'blocked';
 }
 
+interface SectionData {
+  title: string;
+  type: string;
+}
 
 export default function MoaiMatchesScreen({ navigation }: any) {
   const theme = useTheme();
@@ -197,7 +201,7 @@ export default function MoaiMatchesScreen({ navigation }: any) {
       } else {
         console.log('Successfully loaded intake data for', intakeData?.length || 0, 'users');
         if (intakeData && intakeData.length > 0) {
-          console.log('User IDs with intake data:', intakeData.map(i => i.user_id?.substring(0, 8) || 'unknown'));
+          console.log('User IDs with intake data:', intakeData.map((i: { user_id?: string }) => i.user_id?.substring(0, 8) || 'unknown'));
         }
       }
 
@@ -223,7 +227,7 @@ export default function MoaiMatchesScreen({ navigation }: any) {
       });
 
       const intakeMap = new Map();
-      intakeData?.forEach(intake => {
+      intakeData?.forEach((intake: { user_id: string }) => {
         // Ensure user_id is a string for consistent Map lookups
         const userId = String(intake.user_id);
         intakeMap.set(userId, intake);
@@ -470,7 +474,7 @@ export default function MoaiMatchesScreen({ navigation }: any) {
           </Text>
         ) : (
           <Text style={[styles.lastMessage, { color: theme.colors.textSecondary }]}>
-            New Cove connection started
+            New Fika connection started
           </Text>
         )}
       </View>
@@ -504,10 +508,10 @@ export default function MoaiMatchesScreen({ navigation }: any) {
         color={theme.colors.textSecondary}
       />
       <Text style={[styles.emptyTitle, { color: theme.colors.text }]}>
-        No Cove connections yet
+        No introductions yet
       </Text>
       <Text style={[styles.emptySubtitle, { color: theme.colors.textSecondary }]}>
-        Complete your questionnaire to start receiving daily match suggestions for café meetups.
+        Complete your questionnaire to start receiving introductions.
       </Text>
     </View>
   );
@@ -529,7 +533,7 @@ export default function MoaiMatchesScreen({ navigation }: any) {
             fontWeight: activeTab === 'matches' ? '600' : '400'
           }
         ]}>
-          Match Suggestions
+          Introductions
         </Text>
       </TouchableOpacity>
       <TouchableOpacity
@@ -618,24 +622,35 @@ export default function MoaiMatchesScreen({ navigation }: any) {
         20, 0, 0, 0
       ));
 
+      // Use device timezone so the time is always in the user's local time
+      const deviceTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
       const nextWeekDate = nextRun.toLocaleDateString('en-US', {
         weekday: 'long',
         month: 'short',
-        day: 'numeric'
+        day: 'numeric',
+        timeZone: deviceTimeZone
       });
       const nextWeekTime = nextRun.toLocaleTimeString('en-US', {
         hour: 'numeric',
         minute: '2-digit',
-        hour12: true
+        hour12: true,
+        timeZone: deviceTimeZone
       });
 
-      const emptyStateContent = isQuestionnaireComplete ? {
-        title: "No matches available",
-        subtitle: `We'll send you another fresh set of matches next Tuesday at ${nextWeekTime} (${nextWeekDate}).`
-      } : {
-        title: "No matches yet",
-        subtitle: "Complete your questionnaire in Cora to start receiving personalized match suggestions!"
-      };
+      const emptyStateContent = isQuestionnaireComplete
+        ? optedInForNextWeek
+          ? {
+              title: "Introductions Scheduled",
+              subtitle: `Come back on ${nextWeekDate} for your latest introductions.`
+            }
+          : {
+              title: "Introductions",
+              subtitle: `Your next introductions: ${nextWeekDate} at ${nextWeekTime}. Opt in by Sunday 11:59pm.`
+            }
+        : {
+            title: "No introductions yet",
+            subtitle: "Complete your questionnaire in Liv to start receiving personalized introductions!"
+          };
 
       return (
         <View style={styles.emptySectionState}>
@@ -665,7 +680,7 @@ export default function MoaiMatchesScreen({ navigation }: any) {
             No active chats
           </Text>
           <Text style={[styles.emptySectionSubtitle, { color: theme.colors.textSecondary }]}>
-            Opt in to a match to start a new conversation!
+            Accept an introduction to start a new conversation!
           </Text>
         </View>
       );

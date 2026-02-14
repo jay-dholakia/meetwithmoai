@@ -141,7 +141,7 @@ export default function AuthScreen() {
               <Ionicons name="people" size={40} color="#FFFFFF" />
             </View>
             <Text style={[styles.title, { color: theme.colors.text }]}>
-              Cove
+              Fika
             </Text>
             <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>
               Real people, real conversation.

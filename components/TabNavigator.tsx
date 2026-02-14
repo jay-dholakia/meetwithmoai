@@ -7,7 +7,6 @@ import AIAgentScreen from '../screens/AIAgentScreen';
 import MoaiMatchesScreen from '../screens/MoaiMatchesScreen';
 import ConversationScreen from '../screens/ConversationScreen';
 import ProfileScreen from '../screens/ProfileScreen';
-import EditProfileScreen from '../screens/EditProfileScreen';
 import EditQuestionnaireScreen from '../screens/EditQuestionnaireScreen';
 import BlockedUsersScreen from '../screens/BlockedUsersScreen';
 import NotificationPreferencesScreen from '../screens/NotificationPreferencesScreen';
@@ -36,7 +35,6 @@ function ProfileStack() {
       }}
     >
       <Stack.Screen name="ProfileMain" component={ProfileScreen} />
-      <Stack.Screen name="EditProfile" component={EditProfileScreen} />
       <Stack.Screen name="EditQuestionnaire" component={EditQuestionnaireScreen} />
       <Stack.Screen name="BlockedUsers" component={BlockedUsersScreen} />
       <Stack.Screen name="NotificationPreferences" component={NotificationPreferencesScreen} />
@@ -56,7 +54,7 @@ export default function TabNavigator() {
         tabBarIcon: ({ focused, color, size }) => {
           let iconName: keyof typeof Ionicons.glyphMap;
 
-          if (route.name === 'Cora') {
+          if (route.name === 'Liv') {
             iconName = focused ? 'sparkles' : 'sparkles-outline';
           } else if (route.name === 'People') {
             iconName = focused ? 'people' : 'people-outline';
@@ -91,7 +89,7 @@ export default function TabNavigator() {
       })}
     >
       <Tab.Screen 
-        name="Cora" 
+        name="Liv" 
         component={AIAgentScreen}
         options={{ headerShown: false }}
       />

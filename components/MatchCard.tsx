@@ -74,7 +74,9 @@ export default function MatchCard({ match, otherUser, otherUserIntake, onMatchUp
   const [chatCreatedModalVisible, setChatCreatedModalVisible] = useState(false);
   const [createdConversationId, setCreatedConversationId] = useState<string | null>(null);
   const scaleAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(0)).current;
   const chatCreatedRef = useRef(false); // Use ref to persist across re-renders
+  const screenWidth = Dimensions.get('window').width;
   
   // Use provided intake data (should always be provided from parent)
   const intakeData = otherUserIntake;
@@ -83,10 +85,18 @@ export default function MatchCard({ match, otherUser, otherUserIntake, onMatchUp
   const handleModalClose = () => {
     setOptInModalVisible(false);
     setModalView('profile');
+    slideAnim.setValue(0);
     if (onModalClose) {
       onModalClose();
     }
   };
+
+  // Reset slide position when opt-in modal opens
+  useEffect(() => {
+    if (optInModalVisible) {
+      slideAnim.setValue(0);
+    }
+  }, [optInModalVisible]);
   
   // Sync external modal visibility
   useEffect(() => {
@@ -748,9 +758,24 @@ const styles = StyleSheet.create({
       backgroundColor: theme.colors.surface + '80',
       borderRadius: 12,
       padding: 16,
-      marginBottom: 24,
-    borderWidth: 1,
+      marginBottom: 16,
+      borderWidth: 1,
       borderColor: theme.colors.border,
+    },
+    whatHappensNextCard: {
+      borderRadius: 12,
+      padding: 16,
+      marginBottom: 24,
+      borderWidth: 1,
+    },
+    whatHappensNextTitle: {
+      fontSize: 15,
+      fontWeight: '600',
+      marginBottom: 8,
+    },
+    whatHappensNextText: {
+      fontSize: 14,
+      lineHeight: 20,
     },
     confirmProfileHeader: {
       flexDirection: 'row',
@@ -1060,21 +1085,28 @@ const styles = StyleSheet.create({
   };
 
   const handleBackToProfile = () => {
-    // Switch back to profile view
     setModalView('profile');
+    Animated.timing(slideAnim, {
+      toValue: 0,
+      duration: 300,
+      useNativeDriver: true,
+    }).start();
   };
 
   const handleOptIn = () => {
     if (activeChatCount >= 3) {
       Alert.alert(
         'Chat Limit Reached',
-        'You can only have 3 active Cove chats at a time. Please wrap up an existing conversation before starting a new one.'
+        'You can only have 3 active Fika chats at a time. Please wrap up an existing conversation before starting a new one.'
       );
       return;
     }
-
-    // Switch to confirmation view
     setModalView('confirm');
+    Animated.timing(slideAnim, {
+      toValue: -screenWidth,
+      duration: 300,
+      useNativeDriver: true,
+    }).start();
   };
 
   const confirmOptIn = async () => {
@@ -1406,9 +1438,24 @@ const styles = StyleSheet.create({
             )}
           </View>
           
+          {modalView === 'success' ? (
           <ScrollView style={styles.pageSheetContent} showsVerticalScrollIndicator={false}>
-            {modalView === 'profile' && (
-              <>
+            <View style={styles.successContainer}>
+              <Animated.View style={[styles.successCheckmark, { transform: [{ scale: scaleAnim }] }]}>
+                <Ionicons name="checkmark-circle" size={80} color={theme.colors.success} />
+              </Animated.View>
+              <Text style={styles.successTitle}>You've Opted In</Text>
+              <Text style={styles.successMessage}>
+                We'll let you know as soon as {otherUser?.first_name} responds to your match.
+              </Text>
+            </View>
+          </ScrollView>
+          ) : (
+          <View style={{ flex: 1, overflow: 'hidden' }}>
+            <Animated.View style={{ flexDirection: 'row', width: screenWidth * 2, flex: 1, transform: [{ translateX: slideAnim }] }}>
+              <View style={{ width: screenWidth, flex: 1 }}>
+                <ScrollView style={styles.pageSheetContent} showsVerticalScrollIndicator={false}>
+                  <>
             {/* Profile Header */}
             {otherUser && (
               <View style={styles.pageSheetProfileHeader}>
@@ -1439,17 +1486,6 @@ const styles = StyleSheet.create({
                     </View>
                   )}
                 </View>
-              </View>
-            )}
-
-            {/* About */}
-            {otherUser?.bio_text && (
-              <View style={styles.pageSheetSection}>
-                <View style={styles.pageSheetSectionHeader}>
-                  <Ionicons name="person" size={18} color={theme.colors.primary} />
-                  <Text style={styles.pageSheetSectionTitle}>About</Text>
-                </View>
-                <Text style={styles.pageSheetBioText}>{otherUser.bio_text}</Text>
               </View>
             )}
 
@@ -1678,17 +1714,18 @@ const styles = StyleSheet.create({
                 You both need to opt in within {timeData.text.toLowerCase()} to start chatting.
               </Text>
             )}
-              </>
-            )}
-
-            {modalView === 'confirm' && (
-              <>
+                  </>
+                </ScrollView>
+              </View>
+              <View style={{ width: screenWidth, flex: 1 }}>
+                <ScrollView style={styles.pageSheetContent} showsVerticalScrollIndicator={false}>
+                  <>
                 <Text style={styles.pageSheetTitle}>
-                  Opt into match for $6
+                  Meet {otherUser?.first_name || 'them'}
                 </Text>
                 
                 <Text style={styles.pageSheetDescription}>
-                  You'll only be charged if {otherUser?.first_name} is also down to meet up within 72 hours.
+                  $5 — you're only charged if they also opt in within {timeData.text === 'Expired' ? '72 hours' : timeData.text}.
                 </Text>
 
                 {/* Condensed Profile Preview */}
@@ -1736,6 +1773,14 @@ const styles = StyleSheet.create({
                   </View>
                 )}
 
+                {/* What happens next card */}
+                <View style={[styles.whatHappensNextCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+                  <Text style={[styles.whatHappensNextTitle, { color: theme.colors.text }]}>What happens next</Text>
+                  <Text style={[styles.whatHappensNextText, { color: theme.colors.textSecondary }]}>
+                    If you both opt in, a Fika chat with you, {otherUser?.first_name || 'them'}, and Liv gets created. You can message there and Liv can help find a meetup spot.
+                  </Text>
+                </View>
+
                 <TouchableOpacity
                   style={[styles.pageSheetConfirmButton, loading && styles.pageSheetButtonDisabled]}
                   onPress={confirmOptIn}
@@ -1745,30 +1790,12 @@ const styles = StyleSheet.create({
                     {loading ? 'Processing...' : 'Confirm'}
                   </Text>
                 </TouchableOpacity>
-              </>
-            )}
-
-            {modalView === 'success' && (
-              <>
-                <View style={styles.successContainer}>
-                  <Animated.View 
-                    style={[
-                      styles.successCheckmark,
-                      {
-                        transform: [{ scale: scaleAnim }],
-                      }
-                    ]}
-                  >
-                    <Ionicons name="checkmark-circle" size={80} color={theme.colors.success} />
-                  </Animated.View>
-                  <Text style={styles.successTitle}>You've Opted In</Text>
-                  <Text style={styles.successMessage}>
-                    We'll let you know as soon as {otherUser?.first_name} responds to your match.
-                  </Text>
-                </View>
-              </>
-            )}
-          </ScrollView>
+                  </>
+                </ScrollView>
+              </View>
+            </Animated.View>
+          </View>
+          )}
         </View>
       </Modal>
 

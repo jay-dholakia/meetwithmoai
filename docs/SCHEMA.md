@@ -23,4 +23,4 @@
 ## Onboarding vs intake
 
 - **Onboarding** (profile): name, last name, birthdate, gender, pronouns, sexual orientation, relationship status, has kids, **location**. No radius step.
-- **Intake** (Cora): connection types, conversation style, time focus, free time, availability, optional background/first-conversation, then **q7_age_range** and **q10_travel_distance_miles** at the end.
+- **Intake** (Liv): connection types, conversation style, time focus, free time, availability, optional background/first-conversation, then **q7_age_range** and **q10_travel_distance_miles** at the end.

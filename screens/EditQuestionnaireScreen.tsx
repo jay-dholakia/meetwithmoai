@@ -17,39 +17,46 @@ import { supabase } from '../lib/mcp-supabase';
 import { intakeQuestions, questionToColumnMap } from '../data/AIAgentScreen';
 import { openAIService } from '../lib/openai';
 
+const pronounOptions = ['He/Him', 'She/Her', 'They/Them', 'Other', 'Prefer not to say'];
+const relationshipStatusOptions = ['Single', 'In a relationship', 'Married', 'Divorced', 'Widowed', 'Prefer not to say'];
+
 export default function EditQuestionnaireScreen({ navigation }: any) {
   const theme = useTheme();
   const { user } = useAuth();
+  const [profile, setProfile] = useState<{ pronouns: string; relationship_status: string }>({ pronouns: '', relationship_status: '' });
   const [responses, setResponses] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    loadQuestionnaire();
+    loadAll();
   }, []);
 
-  const loadQuestionnaire = async () => {
+  const loadAll = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from('intake_responses_v5')
-        .select('*')
-        .eq('user_id', user?.id)
-        .single();
+      const [profileRes, intakeRes] = await Promise.all([
+        supabase.from('profiles').select('pronouns, relationship_status').eq('id', user?.id).single(),
+        supabase.from('intake_responses_v5').select('*').eq('user_id', user?.id).single(),
+      ]);
 
-      if (error && error.code !== 'PGRST116') throw error;
-
-      if (data?.responses) {
-        // Convert responses array to a map for easier editing
+      if (profileRes.data) {
+        setProfile({
+          pronouns: profileRes.data.pronouns || '',
+          relationship_status: profileRes.data.relationship_status || '',
+        });
+      }
+      if (intakeRes.error && intakeRes.error.code !== 'PGRST116') throw intakeRes.error;
+      if (intakeRes.data?.responses) {
         const responsesMap: Record<string, any> = {};
-        data.responses.forEach((r: any) => {
+        intakeRes.data.responses.forEach((r: any) => {
           responsesMap[r.question_id] = r.answer;
         });
         setResponses(responsesMap);
       }
     } catch (error) {
-      console.error('Error loading questionnaire:', error);
-      Alert.alert('Error', 'Failed to load questionnaire');
+      console.error('Error loading:', error);
+      Alert.alert('Error', 'Failed to load');
     } finally {
       setLoading(false);
     }
@@ -59,9 +66,19 @@ export default function EditQuestionnaireScreen({ navigation }: any) {
     setResponses(prev => ({ ...prev, [questionId]: value }));
   };
 
-  const saveQuestionnaire = async () => {
+  const saveAll = async () => {
     try {
       setSaving(true);
+
+      // Update profile (pronouns, relationship_status)
+      await supabase
+        .from('profiles')
+        .update({
+          pronouns: profile.pronouns || null,
+          relationship_status: profile.relationship_status || null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', user?.id);
 
       // Get current intake data
       const { data: existingIntake } = await supabase
@@ -139,7 +156,7 @@ export default function EditQuestionnaireScreen({ navigation }: any) {
 
       if (saveError) throw saveError;
 
-      Alert.alert('Success', 'Questionnaire updated successfully', [
+      Alert.alert('Success', 'Profile and questionnaire updated', [
         { text: 'OK', onPress: () => navigation.goBack() }
       ]);
     } catch (error) {
@@ -182,29 +199,31 @@ export default function EditQuestionnaireScreen({ navigation }: any) {
           <Text style={[styles.questionText, { color: theme.colors.text }]}>
             {index + 1}. {question.text}
           </Text>
-          {question.options?.map((option: string) => (
-            <TouchableOpacity
-              key={option}
-              style={[
-                styles.optionButton,
-                {
-                  backgroundColor: currentValue === option ? theme.colors.primary : theme.colors.background,
-                  borderColor: theme.colors.border,
-                }
-              ]}
-              onPress={() => updateResponse(question.id, option)}
-            >
-              <Text style={[
-                styles.optionText,
-                { color: currentValue === option ? '#FFFFFF' : theme.colors.text }
-              ]}>
-                {option}
-              </Text>
-              {currentValue === option && (
-                <Ionicons name="checkmark" size={20} color="#FFFFFF" />
-              )}
-            </TouchableOpacity>
-          ))}
+          <View style={styles.optionsWrap}>
+            {question.options?.map((option: string) => (
+              <TouchableOpacity
+                key={option}
+                style={[
+                  styles.optionChip,
+                  {
+                    backgroundColor: currentValue === option ? theme.colors.primary : theme.colors.background,
+                    borderColor: currentValue === option ? theme.colors.primary : theme.colors.border,
+                  }
+                ]}
+                onPress={() => updateResponse(question.id, option)}
+              >
+                <Text style={[
+                  styles.optionChipText,
+                  { color: currentValue === option ? '#FFFFFF' : theme.colors.text }
+                ]}>
+                  {option}
+                </Text>
+                {currentValue === option && (
+                  <Ionicons name="checkmark" size={16} color="#FFFFFF" style={styles.chipCheck} />
+                )}
+              </TouchableOpacity>
+            ))}
+          </View>
         </View>
       );
     }
@@ -217,37 +236,39 @@ export default function EditQuestionnaireScreen({ navigation }: any) {
           <Text style={[styles.questionText, { color: theme.colors.text }]}>
             {index + 1}. {question.text}
           </Text>
-          {question.options?.map((option: string) => {
-            const isSelected = selectedValues.includes(option);
-            return (
-              <TouchableOpacity
-                key={option}
-                style={[
-                  styles.optionButton,
-                  {
-                    backgroundColor: isSelected ? theme.colors.primary : theme.colors.background,
-                    borderColor: theme.colors.border,
-                  }
-                ]}
-                onPress={() => {
-                  const newValues = isSelected
-                    ? selectedValues.filter(v => v !== option)
-                    : [...selectedValues, option];
-                  updateResponse(question.id, newValues);
-                }}
-              >
-                <Text style={[
-                  styles.optionText,
-                  { color: isSelected ? '#FFFFFF' : theme.colors.text }
-                ]}>
-                  {option}
-                </Text>
-                {isSelected && (
-                  <Ionicons name="checkmark" size={20} color="#FFFFFF" />
-                )}
-              </TouchableOpacity>
-            );
-          })}
+          <View style={styles.optionsWrap}>
+            {question.options?.map((option: string) => {
+              const isSelected = selectedValues.includes(option);
+              return (
+                <TouchableOpacity
+                  key={option}
+                  style={[
+                    styles.optionChip,
+                    {
+                      backgroundColor: isSelected ? theme.colors.primary : theme.colors.background,
+                      borderColor: isSelected ? theme.colors.primary : theme.colors.border,
+                    }
+                  ]}
+                  onPress={() => {
+                    const newValues = isSelected
+                      ? selectedValues.filter(v => v !== option)
+                      : [...selectedValues, option];
+                    updateResponse(question.id, newValues);
+                  }}
+                >
+                  <Text style={[
+                    styles.optionChipText,
+                    { color: isSelected ? '#FFFFFF' : theme.colors.text }
+                  ]}>
+                    {option}
+                  </Text>
+                  {isSelected && (
+                    <Ionicons name="checkmark" size={16} color="#FFFFFF" style={styles.chipCheck} />
+                  )}
+                </TouchableOpacity>
+              );
+            })}
+          </View>
         </View>
       );
     }
@@ -275,17 +296,75 @@ export default function EditQuestionnaireScreen({ navigation }: any) {
           <Ionicons name="arrow-back" size={24} color={theme.colors.text} />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: theme.colors.text }]}>
-          Edit Questionnaire
+          Edit Profile + Intro Preferences
         </Text>
         <View style={{ width: 24 }} />
       </View>
 
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+        {/* Profile section */}
+        <View style={[styles.sectionHeader, { borderBottomColor: theme.colors.border }]}>
+          <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Profile</Text>
+        </View>
+        <View style={[styles.questionContainer, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+          <Text style={[styles.questionText, { color: theme.colors.text }]}>Pronouns</Text>
+          <View style={styles.optionsWrap}>
+            {pronounOptions.map((option) => (
+              <TouchableOpacity
+                key={option}
+                style={[
+                  styles.optionChip,
+                  {
+                    backgroundColor: profile.pronouns === option ? theme.colors.primary : theme.colors.background,
+                    borderColor: profile.pronouns === option ? theme.colors.primary : theme.colors.border,
+                  }
+                ]}
+                onPress={() => setProfile((p) => ({ ...p, pronouns: option }))}
+              >
+                <Text style={[styles.optionChipText, { color: profile.pronouns === option ? '#FFFFFF' : theme.colors.text }]}>
+                  {option}
+                </Text>
+                {profile.pronouns === option && (
+                  <Ionicons name="checkmark" size={16} color="#FFFFFF" style={styles.chipCheck} />
+                )}
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+        <View style={[styles.questionContainer, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+          <Text style={[styles.questionText, { color: theme.colors.text }]}>Relationship status</Text>
+          <View style={styles.optionsWrap}>
+            {relationshipStatusOptions.map((option) => (
+              <TouchableOpacity
+                key={option}
+                style={[
+                  styles.optionChip,
+                  {
+                    backgroundColor: profile.relationship_status === option ? theme.colors.primary : theme.colors.background,
+                    borderColor: profile.relationship_status === option ? theme.colors.primary : theme.colors.border,
+                  }
+                ]}
+                onPress={() => setProfile((p) => ({ ...p, relationship_status: option }))}
+              >
+                <Text style={[styles.optionChipText, { color: profile.relationship_status === option ? '#FFFFFF' : theme.colors.text }]}>
+                  {option}
+                </Text>
+                {profile.relationship_status === option && (
+                  <Ionicons name="checkmark" size={16} color="#FFFFFF" style={styles.chipCheck} />
+                )}
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+
+        <View style={[styles.sectionHeader, { borderBottomColor: theme.colors.border }]}>
+          <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Questionnaire</Text>
+        </View>
         {intakeQuestions.map((question, index) => renderQuestion(question, index))}
         
         <TouchableOpacity
           style={[styles.saveButton, { backgroundColor: theme.colors.primary }]}
-          onPress={saveQuestionnaire}
+          onPress={saveAll}
           disabled={saving}
         >
           {saving ? (
@@ -327,38 +406,55 @@ const styles = StyleSheet.create({
   scrollView: {
     flex: 1,
   },
+  sectionHeader: {
+    marginHorizontal: 16,
+    marginTop: 16,
+    marginBottom: 8,
+    paddingBottom: 6,
+    borderBottomWidth: 1,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
   questionContainer: {
     marginHorizontal: 16,
-    marginVertical: 8,
-    padding: 16,
+    marginVertical: 6,
+    padding: 12,
     borderRadius: 12,
     borderWidth: 1,
   },
   questionText: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
-    marginBottom: 12,
+    marginBottom: 10,
   },
   textInput: {
     borderWidth: 1,
     borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-    minHeight: 100,
+    padding: 10,
+    fontSize: 15,
+    minHeight: 80,
     textAlignVertical: 'top',
   },
-  optionButton: {
+  optionsWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  optionChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 12,
-    marginBottom: 8,
-    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
     borderWidth: 1,
   },
-  optionText: {
-    fontSize: 16,
-    flex: 1,
+  optionChipText: {
+    fontSize: 14,
+  },
+  chipCheck: {
+    marginLeft: 4,
   },
   saveButton: {
     marginHorizontal: 16,

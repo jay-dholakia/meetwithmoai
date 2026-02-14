@@ -21,8 +21,8 @@
 - Handles profile and intake answer saving
 - Navigation functions (next/previous)
 
-### 4. **useCoraContext Hook** ✅
-- Created `hooks/useCoraContext.ts`
+### 4. **useLivContext Hook** ✅
+- Created `hooks/useLivContext.ts`
 - Caches connection context for 5 minutes
 - Reduces API calls
 - Parallel queries for better performance

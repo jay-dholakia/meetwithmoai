@@ -111,7 +111,7 @@ export default function NotificationPreferencesScreen({ navigation }: any) {
                   New Matches
                 </Text>
                 <Text style={[styles.settingDescription, { color: theme.colors.textSecondary }]}>
-                  Get notified when you receive new match suggestions
+                  Get notified when you receive new introductions
                 </Text>
               </View>
             </View>

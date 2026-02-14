@@ -173,7 +173,7 @@ export const openAIService = {
     }
   },
 
-  // Generate chat responses for Cora AI
+  // Generate chat responses for Liv AI
   async generateChatResponse(
     userMessage: string, 
     context?: {
@@ -256,7 +256,7 @@ export const openAIService = {
         messages: [
           {
             role: "system",
-            content: `You are Cora, a friendly and intelligent AI assistant for Cove, a connection app that helps people make meaningful local friendships. Your role is to:
+            content: `You are Liv, a friendly and intelligent AI assistant for Fika, a connection app that helps people make meaningful local friendships. Your role is to:
 
 1. Help users with onboarding and intake questions
 2. Provide support and guidance about making friends and connections

@@ -28,7 +28,7 @@ import ErrorBoundary from "../components/ErrorBoundary";
 import QuestionnaireProgress from "../components/QuestionnaireProgress";
 import { intakeQuestions, profileQuestions, questionToColumnMap } from "../data/AIAgentScreen";
 import { useChatMessages, Message } from "../hooks/useChatMessages";
-import { useCoraContext } from "../hooks/useCoraContext";
+import { useLivContext } from "../hooks/useLivContext";
 import { useQuestionnaire } from "../hooks/useQuestionnaire";
 import { findFirstUnansweredIntakeQuestion, findFirstUnansweredProfileStep, isIntakeComplete } from "../utils/questionnaireUtils";
 
@@ -162,7 +162,7 @@ export default function AIAgentScreen() {
     keyExtractor,
   } = useChatMessages(user?.id || null);
   
-  const { context, refreshContext } = useCoraContext(user?.id || null);
+  const { context, refreshContext } = useLivContext(user?.id || null);
   
   const questionnaire = useQuestionnaire(user?.id || null);
   
@@ -211,7 +211,7 @@ export default function AIAgentScreen() {
     if (messages.length === 0) {
       const welcomeMessage: Message = {
         id: `welcome-${Date.now()}-${Math.random()}`,
-        text: "Hi! I'm Cora, your AI connection assistant. I'll help you meet like-minded people through thoughtful matching.\n\nFirst, let me get to know you a bit better with some basic information, then we'll explore what you're looking for in new connections.\n\nReady to begin?",
+        text: "Hi! I'm Liv, your AI connection assistant. I'll help you meet like-minded people through thoughtful matching.\n\nFirst, let me get to know you a bit better with some basic information, then we'll explore what you're looking for in new connections.\n\nReady to begin?",
         sender: "ai",
         timestamp: new Date(),
         type: "text",
@@ -273,7 +273,7 @@ export default function AIAgentScreen() {
   
   // For now, keeping the existing complex logic but showing how hooks integrate:
   // - useChatMessages replaces saveMessageToHistory, loadChatHistory, setMessages
-  // - useCoraContext replaces fetchConnectionContext
+  // - useLivContext replaces fetchConnectionContext
   // - useQuestionnaire replaces profile/intake state management
   // - messageBatchService is used automatically by useChatMessages
   
@@ -296,7 +296,7 @@ export default function AIAgentScreen() {
       >
         <View style={[styles.header, { borderBottomColor: theme.colors.border }]}>
           <Text style={[styles.headerTitle, { color: theme.colors.text }]}>
-            Cora
+            Liv
           </Text>
         </View>
 
@@ -322,7 +322,7 @@ export default function AIAgentScreen() {
         {isTyping && (
           <View style={styles.typingIndicator}>
             <Text style={[styles.typingText, { color: theme.colors.textSecondary }]}>
-              Cora is typing...
+              Liv is typing...
             </Text>
             <ActivityIndicator size="small" color={theme.colors.primary} />
           </View>

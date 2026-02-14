@@ -24,7 +24,7 @@ import ErrorBoundary from "../components/ErrorBoundary";
 import QuestionnaireProgress from "../components/QuestionnaireProgress";
 import { intakeQuestions, profileQuestions, questionToColumnMap } from "../data/AIAgentScreen";
 import { useChatMessages, Message } from "../hooks/useChatMessages";
-import { useCoraContext } from "../hooks/useCoraContext";
+import { useLivContext } from "../hooks/useLivContext";
 import { useQuestionnaire } from "../hooks/useQuestionnaire";
 import { findFirstUnansweredIntakeQuestion, isIntakeComplete } from "../utils/questionnaireUtils";
 
@@ -166,7 +166,7 @@ export default function AIAgentScreen() {
     keyExtractor,
   } = useChatMessages(user?.id || null);
   
-  const { context, refreshContext } = useCoraContext(user?.id || null);
+  const { context, refreshContext } = useLivContext(user?.id || null);
   
   const questionnaire = useQuestionnaire(user?.id || null);
   
@@ -203,7 +203,7 @@ export default function AIAgentScreen() {
   useEffect(() => {
     if (user && !initializedRef.current) {
       initializedRef.current = true;
-      console.log("Cora: Profile gate passed, initializing questionnaire (intake) for user:", user.id);
+      console.log("Liv: Profile gate passed, initializing questionnaire (intake) for user:", user.id);
       questionnaire.initialize();
     }
   }, [user, questionnaire]);
@@ -298,7 +298,7 @@ export default function AIAgentScreen() {
         console.log("initializeChat: Showing welcome message");
         const welcomeMessage: Message = {
           id: `welcome-${Date.now()}-${Math.random()}`,
-          text: "Hi! I'm Cora, your AI connection assistant. I'll help you meet like-minded people through thoughtful matching.\n\nLet me ask you a few questions about what you're looking for in new connections. Ready?",
+          text: "Hi! I'm Liv, your AI connection assistant. I'll help you meet like-minded people through thoughtful matching.\n\nLet me ask you a few questions about what you're looking for in new connections. Feel free to skip any question by typing \"skip.\" Ready?",
           sender: "ai",
           timestamp: new Date(),
           type: "text",
@@ -776,49 +776,7 @@ export default function AIAgentScreen() {
 
   const completeProfile = async () => {
     console.log("completeProfile called, user:", user?.id);
-    
-    // Update bio_text with clean format using dedicated columns
-    if (user) {
-      const { data: existingProfile } = await supabase
-        .from("profiles")
-        .select(
-          "first_name, birthdate, pronouns, relationship_status, languages"
-        )
-        .eq("id", user.id)
-        .single();
 
-      if (existingProfile) {
-        const bioParts = [];
-        if (existingProfile.first_name) bioParts.push(existingProfile.first_name);
-        if (existingProfile.birthdate) {
-          const d = new Date(existingProfile.birthdate);
-          if (!isNaN(d.getTime())) {
-            const today = new Date();
-            let age = today.getFullYear() - d.getFullYear();
-            const m = today.getMonth() - d.getMonth();
-            if (m < 0 || (m === 0 && today.getDate() < d.getDate())) age--;
-            if (age >= 0) bioParts.push(`${age} years old`);
-          }
-        }
-        if (existingProfile.pronouns) bioParts.push(existingProfile.pronouns);
-        if (existingProfile.relationship_status)
-          bioParts.push(existingProfile.relationship_status);
-        if (existingProfile.languages && existingProfile.languages.length > 0) {
-          bioParts.push(existingProfile.languages.slice(0, 3).join(", "));
-        }
-
-        const cleanBioText = bioParts.join(" • ");
-
-        await supabase
-          .from("profiles")
-          .update({ 
-            bio_text: cleanBioText,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", user.id);
-      }
-    }
-    
     // Check if completion message already exists to avoid duplicates
     const completionText = "Great! To help me find people you'd connect with, I'd like to get to know you better. I'll ask you some questions about yourself.\n\nReady to continue?";
     
@@ -883,9 +841,11 @@ export default function AIAgentScreen() {
   };
 
   const completeIntake = async () => {
+    const firstName = questionnaire.profileData?.first_name?.trim() || "";
+    const greeting = firstName ? `Perfect, ${firstName}!` : "Perfect!";
     const completionMessage: Message = {
       id: `completion-${Date.now()}-${Math.random()}`,
-      text: "🎉 All done! I'll use this information to curate your café connections. You'll see match suggestions in the Connections tab!\n\nWant to chat about anything else?",
+      text: `🎉 ${greeting} You're all set.\nI'll start curating introductions that align with your interests and rhythm.\n\nYou'll find them in the People tab.`,
       sender: "ai" as const,
       timestamp: new Date(),
       type: "text",
@@ -912,13 +872,20 @@ export default function AIAgentScreen() {
           return;
         }
 
-        // Combine all responses into text for embedding
+        // Combine all responses into text for embedding (ensure string to avoid serialization issues)
         const allAnswersText = existingIntake.responses
-          .map((r: any) => `${r.question_text}: ${r.answer}`)
-          .join('\n\n');
+          .map((r: any) => {
+            const q = r.question_text ?? "";
+            const a = r.answer == null ? "" : Array.isArray(r.answer) ? r.answer.join(", ") : String(r.answer);
+            return `${q}: ${a}`.trim();
+          })
+          .filter(Boolean)
+          .join("\n\n");
 
         // Generate embedding
         const embedding = await openAIService.generateEmbedding(allAnswersText);
+        // pgvector expects a string literal like "[0.1,0.2,...]" for the vector column
+        const embedVectorString = `[${embedding.join(",")}]`;
 
         // Update v5 record with embedding and completed_at
         const { error: updateError } = await supabase
@@ -926,7 +893,7 @@ export default function AIAgentScreen() {
           .upsert({
         user_id: user.id,
             responses: existingIntake.responses,
-            embed_vector: embedding,
+            embed_vector: embedVectorString,
             completed_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
             // Preserve filtered columns
@@ -946,13 +913,13 @@ export default function AIAgentScreen() {
       }
     }
 
-    // Check for matches after completing intake
+    // Check for matches after completing intake (skip welcome-back message when we just showed completion)
     setTimeout(() => {
-      checkForWeeklyMatches();
+      checkForWeeklyMatches(true);
     }, 2000);
   };
 
-  const checkForWeeklyMatches = async () => {
+  const checkForWeeklyMatches = async (fromIntakeCompletion = false) => {
     if (!user) return;
 
     try {
@@ -962,11 +929,11 @@ export default function AIAgentScreen() {
       if (matches.length > 0) {
         setWeeklyMatches(matches);
         showNextMatch();
-      } else {
-        // Show welcome back message if no matches
+      } else if (!fromIntakeCompletion) {
+        // Show welcome back only when not right after intake (we already said where to see matches)
         const welcomeBackMessage: Message = {
           id: `welcome-back-${Date.now()}-${Math.random()}`,
-          text: "Welcome back! Your weekly Cove connections will appear here every Sunday. For now, feel free to chat with me about anything!",
+          text: "Welcome back! Your weekly Fika connections will appear here every Sunday. For now, feel free to chat with me about anything!",
           sender: "ai",
           timestamp: new Date(),
           type: "text",
@@ -983,7 +950,7 @@ export default function AIAgentScreen() {
       // All matches shown
       const noMoreMatchesMessage: Message = {
         id: `no-more-matches-${Date.now()}-${Math.random()}`,
-        text: "That's all your café connections for this week! Check back next Sunday for new local suggestions. Feel free to chat with me about anything!",
+        text: "That's all your connections for this week! Check back next Sunday for new local suggestions. Feel free to chat with me about anything!",
         sender: "ai",
         timestamp: new Date(),
         type: "text",
@@ -1007,7 +974,7 @@ export default function AIAgentScreen() {
         id: `match-${match.id}`,
         text: `Here's your ${currentMatchIndex + 1}${
           currentMatchIndex === 0 ? "st" : currentMatchIndex === 1 ? "nd" : "rd"
-        } café connection for the week:`,
+        } connection for the week:`,
         sender: "ai",
         timestamp: new Date(),
         type: "match-card",
@@ -1046,7 +1013,7 @@ export default function AIAgentScreen() {
     }
   };
 
-  // fetchConnectionContext is now handled by useCoraContext hook
+  // fetchConnectionContext is now handled by useLivContext hook
   // Use context from the hook instead
 
   const handleSendMessage = async () => {
@@ -1102,22 +1069,50 @@ export default function AIAgentScreen() {
         intakeQuestions.length
       );
 
+      // Skip: user typed "skip" or "skip." — advance without saving (or save empty)
+      if (/^skip\.?$/i.test(currentInput.trim())) {
+        const valueToSaveForSkip =
+          currentIntakeQuestion.type === "multi_select" || currentIntakeQuestion.type === "language_select"
+            ? []
+            : "";
+        await saveIntakeAnswerToRemote(currentIntakeQuestion.id, valueToSaveForSkip);
+        const nextQuestionIndex = currentQuestion + 1;
+        questionnaire.dispatch({ type: "SET_CURRENT_INTAKE_QUESTION", payload: nextQuestionIndex });
+        if (currentIntakeQuestion.type === "multi_select" || currentIntakeQuestion.type === "language_select") {
+          questionnaire.dispatch({
+            type: "SET_SELECTED_MULTI_SELECT",
+            payload: { questionId: currentIntakeQuestion.id, options: [] },
+          });
+        }
+        setTimeout(() => {
+          if (nextQuestionIndex < intakeQuestions.length) {
+            checkAndAskQuestion(nextQuestionIndex, intakeAnswers);
+          } else {
+            completeIntake();
+          }
+        }, 500);
+        setIsTyping(false);
+        return;
+      }
+
       // Handle text-type and open-ended questions
       if (currentIntakeQuestion.type === "text" || currentIntakeQuestion.type === "open_ended") {
+        const isSkip = /^skip\.?$/i.test(currentInput.trim());
+        const valueToSave = isSkip ? "" : currentInput;
         console.log(
-          "Saving intake answer to remote database:",
+          isSkip ? "Skipping question:" : "Saving intake answer to remote database:",
           currentIntakeQuestion.id,
-          currentInput,
+          isSkip ? "(skipped)" : currentInput,
           "Question type:",
           currentIntakeQuestion.type
         );
 
-        await saveIntakeAnswerToRemote(currentIntakeQuestion.id, currentInput);
+        await saveIntakeAnswerToRemote(currentIntakeQuestion.id, valueToSave);
 
-        // Create updated answers object with the latest input
+        // Create updated answers object with the latest input (empty if skipped)
         const updatedAnswers = {
           ...intakeAnswers,
-          [currentIntakeQuestion.id]: currentInput
+          [currentIntakeQuestion.id]: valueToSave
         };
 
         // Move to next question and update state so no other logic re-asks the current one
@@ -2010,7 +2005,7 @@ export default function AIAgentScreen() {
     >
         <View style={[styles.header, { borderBottomColor: theme.colors.border }]}>
         <Text style={[styles.headerTitle, { color: theme.colors.text }]}>
-            Cora
+            Liv
         </Text>
       </View>
         
@@ -2078,7 +2073,7 @@ export default function AIAgentScreen() {
           <Text
             style={[styles.typingText, { color: theme.colors.textSecondary }]}
           >
-            Cora is typing...
+            Liv is typing...
           </Text>
           <ActivityIndicator size="small" color={theme.colors.primary} />
         </View>
@@ -2307,8 +2302,9 @@ const styles = StyleSheet.create({
   },
 
   multiSelectOptionsWrapper: {
-    flexDirection: "column",
-    width: "100%",
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
   },
 
   multiSelectChipInline: {
@@ -2316,15 +2312,12 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 12,
     borderWidth: 1,
-    marginBottom: 8,
-    width: '100%',
   },
   multiSelectChip: {
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 16,
     borderWidth: 1,
-    marginBottom: 8,
   },
   typingIndicator: {
     flexDirection: "row",

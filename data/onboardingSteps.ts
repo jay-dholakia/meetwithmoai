@@ -1,5 +1,5 @@
 /**
- * Cove Profile Setup (platonic by design).
+ * Fika Profile Setup (platonic by design).
  * Each step maps to profiles table columns; order matches UX flow.
  */
 
@@ -110,7 +110,7 @@ export const onboardingSteps: OnboardingStep[] = [
   {
     id: "birthdate",
     title: "When's your birthday?",
-    subtitle: "You must be 18+ to use Cove.",
+    subtitle: "You must be 18+ to use Fika.",
     type: "date",
     placeholder: "MM/DD/YYYY",
     validation: (v) => {
@@ -127,7 +127,7 @@ export const onboardingSteps: OnboardingStep[] = [
       let age = today.getFullYear() - birthDate.getFullYear();
       const monthDiff = today.getMonth() - birthDate.getMonth();
       if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) age--;
-      return age >= 18 ? null : "You must be 18 or older to use Cove";
+      return age >= 18 ? null : "You must be 18 or older to use Fika";
     },
   },
   {
@@ -158,6 +158,6 @@ export const onboardingSteps: OnboardingStep[] = [
     title: "A Quick Note",
     type: "confirm",
     body:
-      "Cove is built for thoughtful, platonic connection.\n\nWe're here to meet new people for real conversation, shared interests, and meaningful experiences — clearly and respectfully.",
+      "Fika is built for thoughtful, platonic connection.\n\nWe're here to meet new people for real conversation, shared interests, and meaningful experiences — clearly and respectfully.",
   },
 ];

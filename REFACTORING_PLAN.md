@@ -9,7 +9,7 @@ Due to the massive size of AIAgentScreen.tsx (2967 lines), I've created all the 
 1. **Message Batching Service** - Batches database writes
 2. **Questionnaire Utilities** - Memoized completion checks
 3. **useQuestionnaire Hook** - State management with useReducer
-4. **useCoraContext Hook** - Cached context fetching
+4. **useLivContext Hook** - Cached context fetching
 5. **useChatMessages Hook** - Optimized message handling
 6. **Progress Indicator Component** - Shows questionnaire progress
 7. **Error Boundary Component** - Graceful error handling

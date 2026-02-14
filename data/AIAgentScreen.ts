@@ -30,6 +30,114 @@ export const intakeQuestions = [
         : "Please select at least one.",
   },
   {
+    id: "q1_activities_enjoy",
+    text: "What activities do you enjoy doing?\n(As many as you'd like.)",
+    type: "multi_select",
+    options: [
+      "Gym / strength training",
+      "Running",
+      "Walking",
+      "Hiking",
+      "Cycling",
+      "Swimming",
+      "Yoga / Pilates",
+      "Dance",
+      "Climbing",
+      "Basketball",
+      "Tennis",
+      "Table Tennis",
+      "Pickleball",
+      "Cricket",
+      "Golf",
+      "Surfing",
+      "Martial arts",
+      "Reading",
+      "Writing",
+      "Photography",
+      "Art / design",
+      "Playing music",
+      "Cooking",
+      "Baking",
+      "Watching sports",
+      "Board games",
+      "Coffee shop coworking",
+      "Exploring restaurants",
+      "Wine tastings",
+      "Attending events",
+      "Live music",
+      "Film screenings",
+      "Language learning",
+      "Building side projects",
+      "Tech tinkering",
+      "Investing / finance",
+      "Entrepreneurship",
+      "Volunteering",
+      "Travel",
+    ],
+    validation: (values: string[]) =>
+      values.length > 0 ? null : "Please select at least one.",
+  },
+  {
+    id: "q4_time_focus",
+    text: "What does most of your time go toward right now?\n(Choose up to 4)",
+    type: "multi_select",
+    maxSelections: 4,
+    options: [
+      "Work",
+      "School",
+      "Family",
+      "Creative projects",
+      "Transitioning",
+      "Retired",
+      "Caregiving",
+      "Community / volunteering",
+      "Side projects",
+      "Learning / education",
+      "Health & wellness",
+    ],
+    validation: (values: string[]) =>
+      values.length > 0
+        ? values.length <= 4
+          ? null
+          : "Please choose up to 4."
+        : "Please select at least one.",
+  },
+  {
+    id: "q4_more",
+    text: "What do you do for work or study?\nShare as much or as little as you want. (industry, company, role, university, major, etc.)",
+    type: "open_ended",
+    validation: () => null,
+  },
+  {
+    id: "q5_conversation_themes",
+    text: "Conversation themes you enjoy\n(Choose up to 7)",
+    type: "multi_select",
+    maxSelections: 7,
+    options: [
+      "Culture",
+      "Relationships",
+      "Career",
+      "Creativity",
+      "Tech",
+      "Philosophy",
+      "Health",
+      "Entrepreneurship",
+      "Faith",
+      "Travel",
+      "Parenting",
+      "Politics",
+      "Books",
+      "Film",
+      "Other",
+    ],
+    validation: (values: string[]) =>
+      values.length > 0
+        ? values.length <= 7
+          ? null
+          : "Please choose up to 7."
+        : "Please select at least one.",
+  },
+  {
     id: "q2_conversation_great",
     text: "What makes a conversation great for you?\n(Choose up to 3)",
     type: "multi_select",
@@ -49,95 +157,10 @@ export const intakeQuestions = [
           : "Please choose up to 3."
         : "Please select at least one.",
   },
-  {
-    id: "q3_meeting_style",
-    text: "When meeting someone new, what feels most natural to you?",
-    type: "single_select",
-    options: ["Taking it slow", "Finding a steady rhythm", "Jumping right in"],
-    validation: (value: string) => (value ? null : "Please select an option"),
-  },
-  {
-    id: "q4_time_focus",
-    text: "What does most of your time go toward right now?",
-    type: "single_select",
-    options: [
-      "Mostly work",
-      "Mostly school",
-      "Building something",
-      "Family",
-      "Creative projects",
-      "Transitioning",
-      "Retired",
-      "A mix",
-    ],
-    validation: (value: string) => (value ? null : "Please select an option"),
-  },
-  {
-    id: "q4_more",
-    text: "Want to share a bit more? (Optional)\nWhatever feels relevant — share more about your work, your family, or what you're focused on lately to help us tailor your introductions.",
-    type: "open_ended",
-    validation: () => null,
-  },
-  {
-    id: "q5_free_time",
-    text: "What do you gravitate toward in your free time?\n(Choose up to 7)",
-    type: "multi_select",
-    maxSelections: 7,
-    options: [
-      "Working out / movement",
-      "Reading",
-      "Podcasts",
-      "Art & design",
-      "Music",
-      "Food & coffee",
-      "Outdoors",
-      "Tech",
-      "Philosophy",
-      "Travel",
-      "Film & TV",
-      "Writing",
-      "Faith / spirituality",
-      "Entrepreneurship",
-      "Parenting",
-      "Culture",
-      "Other",
-    ],
-    validation: (values: string[]) =>
-      values.length > 0
-        ? values.length <= 7
-          ? null
-          : "Please choose up to 7."
-        : "Please select at least one.",
-  },
-  {
-    id: "q6_availability",
-    text: "When does it usually feel easiest to meet someone new?",
-    type: "multi_select",
-    options: [
-      "Weekday daytime",
-      "Weekday evening",
-      "Weekend daytime",
-      "Weekend evening",
-    ],
-    validation: (values: string[]) =>
-      values.length > 0 ? null : "Please select at least one.",
-  },
-  {
-    id: "q8_background",
-    text: "Is there anything about your background or life experience that shapes how you see the world?\n(Optional short answer)",
-    type: "open_ended",
-    validation: () => null,
-  },
-  {
-    id: "q9_first_conversation",
-    text: "Anything that would help us set up a great first conversation?\n(Optional — tone preferences, topics you love, or anything you'd rather avoid.)",
-    type: "open_ended",
-    validation: () => null,
-  },
   // Age and travel distance at end of intake (matching preferences; stored only in intake_responses_v5)
   {
     id: "q7_age_range",
-    text: "What age range feels most comfortable to you?",
+    text: "What age range are you open to connecting with?",
     type: "slider",
     min: 0,
     max: 15,
@@ -151,17 +174,42 @@ export const intakeQuestions = [
   },
   {
     id: "q10_travel_distance_miles",
-    text: "How far would you travel to meet someone?",
+    text: "How far are you open to meeting?",
     type: "slider",
     min: 0,
     max: 50,
     default: 15,
     unit: "miles",
-    label: "{value}",
+    label: "{value} miles",
     validation: (value: number | string) => {
       const numValue = typeof value === "string" ? parseInt(value, 10) : value;
       return numValue >= 0 && numValue <= 50 ? null : "Please select 0–50 miles.";
     },
+  },
+  {
+    id: "q6_availability",
+    text: "When are you typically free to meet?",
+    type: "multi_select",
+    options: [
+      "Weekday daytime",
+      "Weekday evening",
+      "Weekend daytime",
+      "Weekend evening",
+    ],
+    validation: (values: string[]) =>
+      values.length > 0 ? null : "Please select at least one.",
+  },
+  {
+    id: "q8_background",
+    text: "Anything else shaping your season of life right now?\nA big move, job change, new relationship, or a personal goal you're focused on.",
+    type: "open_ended",
+    validation: () => null,
+  },
+  {
+    id: "q11_first_conversation",
+    text: "Anything else that would help us set up a great first conversation?\n(preferences, favorite topics, or topics you'd rather avoid)",
+    type: "open_ended",
+    validation: () => null,
   },
 ];
 

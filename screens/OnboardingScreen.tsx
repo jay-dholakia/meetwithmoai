@@ -394,7 +394,7 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
                       {confirmChecked && <Text style={styles.checkmark}>✓</Text>}
                     </View>
                     <Text style={[styles.checkboxLabel, { color: theme.colors.text }]}>
-                      I'm aligned with Cove's purpose.
+                      I'm aligned with Fika's purpose.
                     </Text>
                   </TouchableOpacity>
                   <TouchableOpacity

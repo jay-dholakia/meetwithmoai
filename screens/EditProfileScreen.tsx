@@ -27,7 +27,6 @@ export default function EditProfileScreen({ navigation }: any) {
   const [formData, setFormData] = useState({
     pronouns: '',
     relationship_status: '',
-    bio_text: '',
   });
 
   useEffect(() => {
@@ -49,7 +48,6 @@ export default function EditProfileScreen({ navigation }: any) {
       setFormData({
         pronouns: data.pronouns || '',
         relationship_status: data.relationship_status || '',
-        bio_text: data.bio_text || '',
       });
     } catch (error) {
       console.error('Error loading profile:', error);
@@ -70,7 +68,6 @@ export default function EditProfileScreen({ navigation }: any) {
       const updates: any = {};
       if (formData.pronouns) updates.pronouns = formData.pronouns;
       if (formData.relationship_status) updates.relationship_status = formData.relationship_status;
-      if (formData.bio_text !== undefined) updates.bio_text = formData.bio_text;
 
       const { error } = await supabase
         .from('profiles')
@@ -152,23 +149,6 @@ export default function EditProfileScreen({ navigation }: any) {
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         {renderSelectField('Pronouns', 'pronouns', pronounOptions, formData.pronouns)}
         {renderSelectField('Relationship Status', 'relationship_status', relationshipStatusOptions, formData.relationship_status)}
-
-        <View style={[styles.fieldContainer, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-          <Text style={[styles.label, { color: theme.colors.text }]}>Bio</Text>
-          <TextInput
-            style={[styles.textArea, {
-              backgroundColor: theme.colors.background,
-              borderColor: theme.colors.border,
-              color: theme.colors.text,
-            }]}
-            value={formData.bio_text}
-            onChangeText={(text) => updateField('bio_text', text)}
-            multiline
-            numberOfLines={6}
-            placeholder="Tell us about yourself..."
-            placeholderTextColor={theme.colors.textSecondary}
-          />
-        </View>
 
         <TouchableOpacity
           style={[styles.saveButton, { backgroundColor: theme.colors.primary }]}

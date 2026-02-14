@@ -24,35 +24,35 @@ export default function HelpSupportScreen({ navigation }: any) {
   const faqItems: FAQItem[] = [
     {
       question: 'How does matching work?',
-      answer: 'We use a combination of semantic similarity (analyzing your open-ended responses) and structured preferences (location, age, interests) to find compatible connections. New matches appear weekly.',
+      answer: 'We look at what you shared in your questionnaire—your interests, how you like to spend time, and things like location and age—and find people who vibe with that. New introductions show up every Tuesday.',
     },
     {
       question: 'How do I start a conversation?',
-      answer: 'When you see a match you\'re interested in, tap "Continue" to opt in. If they also opt in, a chat will be created automatically with an AI-generated introduction message.',
+      answer: 'See someone you\'d like to meet? Tap "Continue" to opt in. If they opt in too, we\'ll open a chat and drop in a short intro so you can take it from there.',
     },
     {
       question: 'Can I change my questionnaire responses?',
-      answer: 'Yes! Go to Profile > Settings > Edit Questionnaire to update any of your responses. This will help improve your future matches.',
+      answer: 'Yep! Head to Profile > Edit Profile + Intro Preferences. Updating your answers helps us send you better introductions down the line.',
     },
     {
-      question: 'What happens if I pass on a match?',
-      answer: 'Passing on a match means you\'re not interested. The match will be removed and won\'t appear again. You can always get new matches weekly.',
+      question: 'What happens if I pass on an introduction?',
+      answer: 'No problem—passing just means it\'s not a fit right now. We\'ll remove it and you\'ll get a fresh batch of introductions the following week.',
     },
     {
       question: 'How many active chats can I have?',
-      answer: 'You can have up to 3 active chats at once. Once you reach this limit, you won\'t receive new matches until you archive or end a conversation.',
+      answer: 'Up to 3 at a time. Once you\'re at 3, we hold off on new introductions until you archive or wrap up a conversation.',
     },
     {
       question: 'How do I block or report someone?',
-      answer: 'Go to Profile > Settings > Blocked Users to manage blocked users. You can also report users from their profile or during a conversation.',
+      answer: 'Profile > Settings > Blocked Users lets you manage who\'s blocked. You can also report someone from their profile or from inside a chat.',
     },
     {
       question: 'Can I pause my account?',
-      answer: 'Yes! Go to Profile > Account and toggle "Pause account". This will temporarily stop matching and hide your profile.',
+      answer: 'Yes. Go to Profile > Account and turn on "Pause account"—we\'ll stop sending introductions and hide your profile until you\'re ready again.',
     },
     {
       question: 'How do I delete my account?',
-      answer: 'Contact support to delete your account. This will permanently remove all your data from our systems.',
+      answer: 'Reach out to support and we\'ll take care of it. Your data will be permanently removed.',
     },
   ];
 

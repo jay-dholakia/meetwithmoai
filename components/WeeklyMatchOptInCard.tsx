@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, Switch, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, Text, Switch, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../contexts/ThemeContext';
 
@@ -18,24 +18,20 @@ export default function WeeklyMatchOptInCard({ optedIn, loading, onToggle }: Pro
           <Ionicons name="calendar-outline" size={22} color={theme.colors.primary} />
           <View style={styles.textBlock}>
             <Text style={[styles.title, { color: theme.colors.text }]}>
-              {optedIn ? "You're in for next week's run" : "Next week's match run"}
+              {optedIn ? "You're in for next week" : "Next Week's Introductions"}
             </Text>
             <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>
-              Opt in by Sunday 11:59pm to be in Tuesday's batch.
+              {optedIn ? "You'll be included in Tuesday's run." : "Opt in by Sunday 11:59pm."}
             </Text>
           </View>
         </View>
-        {loading ? (
-          <ActivityIndicator size="small" color={theme.colors.primary} />
-        ) : (
-          <Switch
-            value={optedIn ?? false}
-            onValueChange={onToggle}
-            trackColor={{ false: theme.colors.border, true: theme.colors.primary }}
-            thumbColor="#FFFFFF"
-            disabled={loading}
-          />
-        )}
+        <Switch
+          value={optedIn ?? false}
+          onValueChange={onToggle}
+          trackColor={{ false: theme.colors.border, true: theme.colors.primary }}
+          thumbColor="#FFFFFF"
+          disabled={loading}
+        />
       </View>
     </View>
   );

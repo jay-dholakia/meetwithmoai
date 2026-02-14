@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Cove",
+    "name": "Fika",
     "slug": "cove-connections",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -16,8 +16,8 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.cove.connections",
       "infoPlist": {
-        "NSLocationWhenInUseUsageDescription": "Cove uses your location to find local connections nearby.",
-        "NSLocationAlwaysAndWhenInUseUsageDescription": "Cove uses your location to find local connections nearby."
+        "NSLocationWhenInUseUsageDescription": "Fika uses your location to find local connections nearby.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Fika uses your location to find local connections nearby."
       }
     },
     "android": {
@@ -42,13 +42,13 @@
       [
         "expo-location",
         {
-          "locationAlwaysAndWhenInUsePermission": "Allow Cove to use your location to find local connections nearby."
+          "locationAlwaysAndWhenInUsePermission": "Allow Fika to use your location to find local connections nearby."
         }
       ],
       [
         "expo-image-picker",
         {
-          "photosPermission": "Allow Cove to access your photos to set your profile picture."
+          "photosPermission": "Allow Fika to access your photos to set your profile picture."
         }
       ]
     ],

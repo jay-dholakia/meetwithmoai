@@ -21,7 +21,6 @@ import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/mcp-supabase';
 import { getNextBatchWeekMonday } from '../lib/weeklyMatchOptIn';
-import EditProfileScreen from './EditProfileScreen';
 import EditQuestionnaireScreen from './EditQuestionnaireScreen';
 import BlockedUsersScreen from './BlockedUsersScreen';
 import NotificationPreferencesScreen from './NotificationPreferencesScreen';
@@ -380,30 +379,16 @@ export default function ProfileScreen({ navigation }: any) {
             <Ionicons name="create-outline" size={16} color={theme.colors.primary} />
           </TouchableOpacity>
         </View>
-        {profile?.bio_text && (
-          <Text style={[styles.profileBio, { color: theme.colors.textSecondary }]}>
-            {profile.bio_text}
-          </Text>
-        )}
       </View>
 
       <View style={styles.editButtonsRow}>
         <TouchableOpacity 
           style={[styles.editButton, { borderColor: theme.colors.border }]}
-          onPress={() => navigation.navigate('EditProfile')}
+          onPress={() => navigation.navigate('EditQuestionnaire')}
         >
           <Ionicons name="person-outline" size={18} color={theme.colors.primary} />
           <Text style={[styles.editButtonText, { color: theme.colors.primary }]}>
-            Edit Profile
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity 
-          style={[styles.editButton, { borderColor: theme.colors.border }]}
-          onPress={() => navigation.navigate('EditQuestionnaire')}
-        >
-          <Ionicons name="document-text-outline" size={18} color={theme.colors.primary} />
-          <Text style={[styles.editButtonText, { color: theme.colors.primary }]}>
-            Edit Questionnaire
+            Edit Profile + Intro Preferences
           </Text>
         </TouchableOpacity>
       </View>
@@ -426,18 +411,30 @@ export default function ProfileScreen({ navigation }: any) {
       </View>
 
       <TouchableOpacity style={[styles.settingItem, { borderBottomColor: theme.colors.border }]}>
-        <View style={styles.settingLeft}>
+        <View style={[styles.settingLeft, { flexShrink: 1, minWidth: 0 }]}>
           <Ionicons name="pause-outline" size={24} color={theme.colors.text} />
-          <Text style={[styles.settingText, { color: theme.colors.text }]}>
-            Pause account
-          </Text>
+          <View style={{ marginLeft: 12, flex: 1, minWidth: 0 }}>
+            <Text style={[styles.settingText, { color: theme.colors.text, marginLeft: 0 }]}>
+              Pause account
+            </Text>
+            <Text style={[styles.settingSubtext, { color: theme.colors.textSecondary, marginLeft: 0 }]}>
+              No opt-in reminders; you're opted out until you unpause.
+            </Text>
+          </View>
         </View>
-        <Switch
+        <View style={{ flexShrink: 0 }}>
+          <Switch
           value={profile?.is_paused || false}
-          onValueChange={(value) => updateProfile({ is_paused: value })}
+          onValueChange={async (value) => {
+            await updateProfile({ is_paused: value });
+            if (value) {
+              await setWeeklyOptIn(false);
+            }
+          }}
           trackColor={{ false: theme.colors.border, true: theme.colors.warning }}
           thumbColor="#FFFFFF"
         />
+        </View>
       </TouchableOpacity>
 
       <TouchableOpacity 

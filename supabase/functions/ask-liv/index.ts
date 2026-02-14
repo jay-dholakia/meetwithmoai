@@ -111,8 +111,8 @@ function isLocationQuery(question: string): boolean {
   return locationKeywords.some(keyword => lowerQuestion.includes(keyword))
 }
 
-// Generate Cora's response using OpenAI
-async function generateCoraResponse(
+// Generate Liv's response using OpenAI
+async function generateLivResponse(
   question: string,
   userA: { first_name: string; city: string | null },
   userB: { first_name: string; city: string | null },
@@ -127,7 +127,7 @@ async function generateCoraResponse(
   }
 
   try {
-    let systemPrompt = `You are Cora, a thoughtful and helpful AI assistant for Cove, a friendship connection app. You help people who have matched and opted in to connect with each other. You're warm, friendly, and genuinely helpful.
+    let systemPrompt = `You are Liv, a thoughtful and helpful AI assistant for Fika, a friendship connection app. You help people who have matched and opted in to connect with each other. You're warm, friendly, and genuinely helpful.
 
 Your role is to:
 - Help users find good places to meet up (coffee shops, restaurants, activities, etc.)
@@ -137,7 +137,7 @@ Your role is to:
 - Keep responses concise but helpful (2-4 sentences typically)
 - IMPORTANT: Never use the word "date" - these are meetups between friends, not dates. Use "meetup", "get together", "meet", or "hang out" instead.`
 
-    let userPrompt = `${userA.first_name} and ${userB.first_name} are chatting in a Cove connection. `
+    let userPrompt = `${userA.first_name} and ${userB.first_name} are chatting in a Fika connection. `
 
     if (userA.city && userB.city) {
       userPrompt += `${userA.first_name} is in ${userA.city} and ${userB.first_name} is in ${userB.city}. `
@@ -202,7 +202,7 @@ Your role is to:
     
     throw new Error('Invalid response from OpenAI')
   } catch (error) {
-    console.error('Error generating Cora response:', error)
+    console.error('Error generating Liv response:', error)
     return "I'm sorry, I'm having trouble processing that right now. Please try again later."
   }
 }
@@ -317,9 +317,9 @@ serve(async (req) => {
       console.log('Is location query:', isLocation)
     }
 
-    // Generate Cora's response
-    console.log('Generating Cora response with:', { placesCount: places.length, usedCoordinates })
-    const coraResponse = await generateCoraResponse(
+    // Generate Liv's response
+    console.log('Generating Liv response with:', { placesCount: places.length, usedCoordinates })
+    const livResponse = await generateLivResponse(
       question,
       { first_name: userA.first_name, city: userA.city },
       { first_name: userB.first_name, city: userB.city },
@@ -328,7 +328,7 @@ serve(async (req) => {
       usedCoordinates
     )
 
-    // Insert Cora's response as an AI message
+    // Insert Liv's response as an AI message
     // Include places data in metadata for potential future use (like making addresses clickable)
     const { error: messageError } = await supabaseClient
       .from('messages')
@@ -336,9 +336,9 @@ serve(async (req) => {
         conversation_id: conversationId,
         sender_type: 'ai',
         sender_id: null,
-        text: coraResponse,
+        text: livResponse,
         metadata: { 
-          type: 'cora_response', 
+          type: 'liv_response', 
           original_question: question,
           places: places.length > 0 ? places.map(p => ({
             name: p.name,
@@ -349,16 +349,16 @@ serve(async (req) => {
       })
 
     if (messageError) {
-      console.error('Error inserting Cora response:', messageError)
-      throw new Error('Failed to save Cora response')
+      console.error('Error inserting Liv response:', messageError)
+      throw new Error('Failed to save Liv response')
     }
 
     return new Response(
-      JSON.stringify({ success: true, response: coraResponse }),
+      JSON.stringify({ success: true, response: livResponse }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   } catch (error) {
-    console.error('Error in ask-cora:', error)
+    console.error('Error in ask-liv:', error)
     return new Response(
       JSON.stringify({ error: error.message }),
       { 
